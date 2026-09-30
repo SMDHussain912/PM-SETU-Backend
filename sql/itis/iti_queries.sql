@@ -1,0 +1,106 @@
+-- ============================================================================
+-- PM SETU — ITI module · sql/itis/iti_queries.sql
+-- Endpoints:
+--   GET /api/v1/itis                       (list + filters + pagination)
+--   GET /api/v1/itis/{id}                  (single ITI)
+--   GET /api/v1/clusters/{clusterId}/itis  (ITIs of one cluster)
+-- Spec     : RoadMap.md §7 "ITI APIs"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the public ITI endpoints. The backend
+--   executes the same statements in src/modules/itis/iti.repository.ts via
+--   Prisma $queryRaw. If a query changes here, mirror the change there
+--   (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must be
+--   created. NOTHING here creates tables — schema creation is owned by the
+--   database developer (Prisma models or raw SQL, their choice). Until the
+--   schema exists the queries fail at runtime and the endpoints return a
+--   500 error envelope. That is intentional: no fake ITI records.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA;
+-- names below follow the RoadMap.md §25 entities in snake_case)
+--
+--   Table     Columns needed by these queries
+--   --------- ----------------------------------------------------------------
+--   itis      id                 PK (int)
+--             iti_code           NIC: ITI code (unique)
+--             iti_name           NIC: ITI name
+--             type               discriminator: 'HUB' | 'SPOKE' (RoadMap §7)
+--             cluster_id         FK → clusters.id (nullable until assigned)
+--             district           NIC: district (filterable)
+--             address, principal, contact, email   NIC contact block
+--             existing_trades    NIC: trades already offered        (A)
+--             proposed_trades    NIC: trades proposed under PM SETU (A)
+--             student_strength   NIC: student strength (int)
+--             infrastructure     NIC: infrastructure summary        (A)
+--             lab_details        NIC: lab details                   (A)
+--             latitude, longitude        NIC: geo coordinates (double)
+--             photos             NIC: photo URLs                    (A)
+--             status             NIC: lifecycle status              (B)
+--
+--   clusters  id PK, name — only for the embedded cluster summary returned
+--             with each ITI (this table is already required by the Home KPIs).
+--
+--   (A) storage TO CONFIRM by the DBA: the queries assume PostgreSQL text[]
+--       / jsonb-style single-column storage. If the DBA prefers child tables
+--       (e.g. iti_trades, iti_photos), the SELECT must be adjusted to
+--       aggregate (array_agg / jsonb_agg) — the API response shape stays.
+--   (B) exact status vocabulary TO CONFIRM (RoadMap §21 approval workflow
+--       suggests PENDING/APPROVED-style states; the API passes it through).
+--
+-- CASTING / CONVENTION NOTES
+--   - COUNT(*) is cast to ::int so Prisma returns JS numbers (not bigint).
+--   - All user input (filters, ids) is bound by Prisma as query parameters;
+--   the backend never interpolates values into these statements as text.
+--   - List ordering: ORDER BY iti_name (stable, user-facing).
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) GET /itis — paginated list. :district/:type/:cluster_id/:search are
+--    optional; the backend composes ONLY the supplied predicates (all bound
+--    parameters), e.g.  WHERE district = $1 AND type = $2.
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     itis.id, itis.iti_code, itis.iti_name, itis.type,
+--     clusters.id AS cluster_id, clusters.name AS cluster_name,
+--     itis.district, itis.address, itis.principal, itis.contact, itis.email,
+--     itis.existing_trades, itis.proposed_trades, itis.student_strength,
+--     itis.infrastructure, itis.lab_details,
+--     itis.latitude, itis.longitude, itis.photos, itis.status
+-- FROM itis
+-- LEFT JOIN clusters ON clusters.id = itis.cluster_id
+-- WHERE (:filters)                       -- composed from supplied filters
+-- ORDER BY itis.iti_name
+-- LIMIT :pageSize OFFSET :offset;
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /itis — total rows for the same filters (pagination meta).
+-- ----------------------------------------------------------------------------
+-- SELECT COUNT(*)::int AS total
+-- FROM itis
+-- WHERE (:filters);
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /itis/{id} — single ITI by primary key.
+-- ----------------------------------------------------------------------------
+-- SELECT ...same column list as (1)...
+-- FROM itis
+-- LEFT JOIN clusters ON clusters.id = itis.cluster_id
+-- WHERE itis.id = :id;
+
+-- ----------------------------------------------------------------------------
+-- 4) GET /clusters/{clusterId}/itis — full ITI list of one cluster
+--    (unpaginated per current scope; ordered by name).
+-- ----------------------------------------------------------------------------
+-- SELECT ...same column list as (1)...
+-- FROM itis
+-- LEFT JOIN clusters ON clusters.id = itis.cluster_id
+-- WHERE itis.cluster_id = :clusterId
+-- ORDER BY itis.iti_name;

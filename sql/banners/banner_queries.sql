@@ -1,0 +1,153 @@
+-- ============================================================================
+-- PM SETU — Banner Management module · sql/banners/banner_queries.sql
+-- Endpoints:
+--   GET  /api/v1/banners                      (public list, published only)
+--   GET  /api/v1/banners/active               (public active list, date-aware)
+--   POST /api/v1/admin/banners                (admin create)
+--   PATCH /api/v1/admin/banners/:id           (admin update)
+--   DELETE /api/v1/admin/banners/:id          (admin delete)
+--   POST /api/v1/admin/banners/:id/publish    (admin publish)
+--   POST /api/v1/admin/banners/:id/archive    (admin archive)
+--   POST /api/v1/admin/banners/:id/images     (admin image upload)
+-- Spec     : RoadMap.md §15 "BANNER APIs" (+ §24 upload, §25 Banner concept)
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the Banner endpoints. The backend
+--   executes the same statements in
+--   src/modules/banners/banner.repository.ts via Prisma $queryRaw /
+--   $executeRaw with bound parameters only. If a query changes here, mirror
+--   the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer. Until the schema exists the queries fail at
+--   runtime and the endpoints return a 500 error envelope. That is
+--   intentional: no fake banner records.
+--
+-- DATABASE FIELD NOTICE
+--   §15 defines field CONCEPTS only (desktop/mobile image, title, dates, CTA,
+--   ordering, approval information). §25 lists only the Banner concept.
+--   Every column below is INFERRED / TO CONFIRM pending NIC-document
+--   verification and DBA confirmation.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table             Columns needed by these queries
+--   ----------------  -------------------------------------------------------
+--   banners           id                      PK (int)
+--                     title                   banner title (I)
+--                     desktop_image_url       nullable — desktop image (I)
+--                     mobile_image_url        nullable — mobile image (I)
+--                     cta_text                nullable — CTA label (I)
+--                     cta_url                 nullable — CTA link (I)
+--                     display_order           INT — display ordering (I)
+--                     start_date              nullable TIMESTAMP (I)
+--                     end_date                nullable TIMESTAMP (I)
+--                     is_published            BOOLEAN — publish status (I)
+--                     is_archived             BOOLEAN — archive status (I)
+--                     created_at              TIMESTAMP (I)
+--                     updated_at              TIMESTAMP (I)
+--
+--   (I) field NOT verifiable as a column in RoadMap.md. All TO CONFIRM.
+--   Public "active" predicate (INFERRED / TO CONFIRM):
+--     is_published AND NOT is_archived
+--     AND (start_date IS NULL OR start_date <= now())
+--     AND (end_date IS NULL OR end_date >= now())
+--   Image upload (INFERRED / TO CONFIRM): files land in uploads/banners/
+--   and the row's image-URL columns are updated. No banner_images table.
+--   Approval linkage (§15 "approval information") is a FUTURE integration
+--   point with the approvals module — do NOT build it here.
+--
+-- INTENTIONALLY DEFERRED (not in RoadMap §15 — do NOT fabricate these):
+--   · GET /api/v1/admin/banners (admin list)
+--   · GET /api/v1/admin/banners/:id (admin detail)
+--   · PATCH /api/v1/admin/banners/:id/status (publish/archive cover it)
+--
+-- RECOMMENDED INDEXES
+--   CREATE INDEX idx_banners_display_order ON banners(display_order);
+--   CREATE INDEX idx_banners_is_published ON banners(is_published);
+--   CREATE INDEX idx_banners_is_archived ON banners(is_archived);
+--   CREATE INDEX idx_banners_dates ON banners(start_date, end_date);
+--
+-- ============================================================================
+-- QUERIES 1-4: PUBLIC
+-- ============================================================================
+--
+-- 1. PUBLIC LIST (published, non-archived; ordered)
+--
+-- SELECT id, title, desktop_image_url, mobile_image_url, cta_text, cta_url,
+--        display_order, start_date, end_date, is_published, is_archived,
+--        created_at, updated_at
+-- FROM banners
+-- WHERE is_published = TRUE AND is_archived = FALSE
+-- ORDER BY display_order ASC NULLS LAST, id DESC
+-- LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize};
+--
+-- 2. PUBLIC COUNT (published, non-archived)
+--
+-- SELECT COUNT(*)::int AS count FROM banners
+-- WHERE is_published = TRUE AND is_archived = FALSE;
+--
+-- 3. PUBLIC ACTIVE LIST (published + date-window aware; ordered)
+--
+-- SELECT <same columns>
+-- FROM banners
+-- WHERE is_published = TRUE AND is_archived = FALSE
+--   AND (start_date IS NULL OR start_date <= now())
+--   AND (end_date IS NULL OR end_date >= now())
+-- ORDER BY display_order ASC NULLS LAST, id DESC
+-- LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize};
+--
+-- 4. PUBLIC ACTIVE COUNT
+--
+-- SELECT COUNT(*)::int AS count FROM banners
+-- WHERE is_published = TRUE AND is_archived = FALSE
+--   AND (start_date IS NULL OR start_date <= now())
+--   AND (end_date IS NULL OR end_date >= now());
+--
+-- ============================================================================
+-- QUERIES 5-10: ADMIN
+-- ============================================================================
+--
+-- 5. ADMIN CREATE (new banners start unpublished + unarchived)
+--
+-- INSERT INTO banners (title, desktop_image_url, mobile_image_url, cta_text,
+--                      cta_url, display_order, start_date, end_date,
+--                      is_published, is_archived)
+-- VALUES (${title}, ${desktop_image_url}, ${mobile_image_url}, ${cta_text},
+--         ${cta_url}, ${display_order}, ${start_date}, ${end_date},
+--         FALSE, FALSE)
+-- RETURNING id;
+--
+-- 6. ADMIN UPDATE (only supplied columns are written)
+--
+-- UPDATE banners
+-- SET <supplied columns>, updated_at = now()
+-- WHERE id = ${id};
+--
+-- 7. ADMIN DELETE
+--
+-- DELETE FROM banners WHERE id = ${id};
+--
+-- 8. ADMIN PUBLISH
+--
+-- UPDATE banners
+-- SET is_published = TRUE, is_archived = FALSE, updated_at = now()
+-- WHERE id = ${id};
+--
+-- 9. ADMIN ARCHIVE
+--
+-- UPDATE banners
+-- SET is_archived = TRUE, updated_at = now()
+-- WHERE id = ${id};
+--
+-- 10. ADMIN IMAGE UPDATE (after upload to uploads/banners/)
+--
+-- UPDATE banners
+-- SET <desktop_image_url and/or mobile_image_url>, updated_at = now()
+-- WHERE id = ${id};

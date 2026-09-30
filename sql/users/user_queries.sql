@@ -1,0 +1,144 @@
+-- ============================================================================
+-- PM SETU — Users module · sql/users/user_queries.sql
+-- Endpoints:
+--   GET    /api/v1/admin/users            (paginated list + filters)
+--   GET    /api/v1/admin/users/{id}       (single user + assigned roles)
+--   POST   /api/v1/admin/users            (administrative user creation)
+--   PATCH  /api/v1/admin/users/{id}       (profile update — NEVER password)
+--   DELETE /api/v1/admin/users/{id}       (soft delete / deactivate)
+--   PATCH  /api/v1/admin/users/{id}/status
+--   PATCH  /api/v1/admin/users/{id}/roles (replace role assignments)
+-- Spec     : RoadMap.md §19 "USER APIs"; §25 "DATABASE MODELS" (User/UserRole)
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the Users endpoints. The backend executes
+--   the same statements in src/modules/users/user.repository.ts via Prisma
+--   $queryRaw / $executeRaw with bound parameters only. If a query changes
+--   here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet. This file documents the PLANNED
+--   queries and the contract of what the database developer must create.
+--   NOTHING here creates tables. Until the schema exists the queries fail at
+--   runtime and the endpoints return a 500 error envelope. That is
+--   intentional: no fake user records.
+--
+-- SCOPE
+--   Administrative user management ONLY. There is NO public user
+--   self-registration (RoadMap.md §18: "Public users don't need accounts
+--   for general information"). A user is created exclusively by an admin.
+--
+-- SECURITY NOTES
+--   · The backend hashes the password with bcrypt (SALT_ROUNDS = 12)
+--     BEFORE calling these queries. The INSERT below receives the hash only.
+--   · password_hash is never selected/returned in user responses.
+--   · All values are bound parameters — never string-interpolated.
+--
+-- REQUIRED DATABASE OBJECTS (DBA-confirm final names/types)
+--   users(id, username UNIQUE, password_hash, full_name, email UNIQUE NULL,
+--         status, failed_login_attempts, locked_until, last_login_at,
+--         created_at, updated_at)
+--   user_roles(user_id FK, role_id FK, assigned_at, PRIMARY KEY(user_id, role_id))
+--   roles(id, code UNIQUE, name, ...) — see sql/roles/role_queries.sql
+--
+-- FIELD SOURCES
+--   · username + password_hash  — login contract (INFERRED; TO CONFIRM)
+--   · full_name                 — display name (INFERRED; TO CONFIRM)
+--   · email                     — required by future §18 reset flows
+--                                 (INFERRED; TO CONFIRM uniqueness)
+--   · status ACTIVE/INACTIVE    — §19 PATCH /:id/status
+--   · roles via user_roles      — §19 PATCH /:id/roles
+--
+-- DELETION POLICY
+--   DELETE /admin/users/{id} performs a SOFT DELETE (status = 'INACTIVE') so
+--   historical approval/audit references (RoadMap §21/§22) keep resolving.
+--   A hard delete is possible for the DBA/owner but is TO CONFIRM.
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) GET /admin/users — paginated list. :status / :role / :search are
+--    optional; the backend composes ONLY the supplied predicates (all bound
+--    parameters). The :role filter uses an EXISTS over user_roles/roles.
+-- ----------------------------------------------------------------------------
+-- SELECT id, username, full_name, email, status, created_at
+-- FROM users
+-- WHERE (:filters)                    -- composed from supplied filters
+-- ORDER BY id
+-- LIMIT :pageSize OFFSET :offset;
+--
+--    With the role filter, the WHERE clause additionally contains:
+--   AND EXISTS (
+--       SELECT 1
+--       FROM user_roles ur
+--       JOIN roles r ON r.id = ur.role_id
+--       WHERE ur.user_id = users.id AND r.code = :role
+--   )
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /admin/users — total rows for the same filters (pagination meta).
+-- ----------------------------------------------------------------------------
+-- SELECT COUNT(*)::int AS total
+-- FROM users
+-- WHERE (:filters);
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /admin/users/{id} — single user with assigned roles (one row per
+--    role; the backend flattens them). LEFT JOIN keeps users without roles.
+-- ----------------------------------------------------------------------------
+-- SELECT u.id, u.username, u.full_name, u.email, u.status, u.created_at,
+--        r.id AS role_id, r.code AS role_code, r.name AS role_name
+-- FROM users u
+-- LEFT JOIN user_roles ur ON ur.user_id = u.id
+-- LEFT JOIN roles r       ON r.id = ur.role_id
+-- WHERE u.id = :userId
+-- ORDER BY r.id;
+
+-- ----------------------------------------------------------------------------
+-- 4) POST /admin/users — create the account. :email may be NULL.
+--    Duplicate username/email → unique-constraint violation (backend maps
+--    Prisma P2002 → 409 DUPLICATE_RECORD via the central error middleware).
+-- ----------------------------------------------------------------------------
+-- INSERT INTO users (username, full_name, email, password_hash, status)
+-- VALUES (:username, :fullName, :email, :passwordHash, 'ACTIVE')
+-- RETURNING id;
+
+-- ----------------------------------------------------------------------------
+-- 5) POST /admin/users + PATCH /:id/roles — assign one role to a user.
+--    Called INSIDE a transaction with the parent INSERT/DELETE so a failure
+--    rolls everything back. ON CONFLICT keeps re-assignment idempotent.
+-- ----------------------------------------------------------------------------
+-- INSERT INTO user_roles (user_id, role_id)
+-- VALUES (:userId, :roleId)
+-- ON CONFLICT DO NOTHING;
+
+-- ----------------------------------------------------------------------------
+-- 6) PATCH /admin/users/{id} — profile update (full_name/email only, never
+--    password). The backend composes ONLY the supplied columns (bound
+--    parameters), e.g.:
+--    UPDATE users SET full_name = :fullName, updated_at = now()
+--    WHERE id = :userId;
+-- ----------------------------------------------------------------------------
+
+-- ----------------------------------------------------------------------------
+-- 7) PATCH /admin/users/{id}/status — activate/deactivate.
+-- ----------------------------------------------------------------------------
+-- UPDATE users
+-- SET status = :status, updated_at = now()
+-- WHERE id = :userId;
+
+-- ----------------------------------------------------------------------------
+-- 8) PATCH /admin/users/{id}/roles — replace all assignments atomically
+--    (DELETE + INSERTs in ONE transaction).
+-- ----------------------------------------------------------------------------
+-- DELETE FROM user_roles WHERE user_id = :userId;
+-- INSERT INTO user_roles (user_id, role_id)
+-- VALUES (:userId, :roleId)   -- repeated once per new role id
+-- ON CONFLICT DO NOTHING;
+
+-- ----------------------------------------------------------------------------
+-- 9) DELETE /admin/users/{id} — SOFT DELETE by default (see DELETION POLICY
+--    above). Implemented as the #7 status UPDATE with 'INACTIVE'; the
+--    backend intentionally does not execute a hard DELETE yet.
+-- ----------------------------------------------------------------------------

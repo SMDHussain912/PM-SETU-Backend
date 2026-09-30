@@ -1,0 +1,181 @@
+-- ============================================================================
+-- PM SETU — News Management module · sql/news/news_queries.sql
+-- Endpoints:
+--   GET /api/v1/news            (paginated list)
+--   GET /api/v1/news/{id}       (single news item)
+--   GET /api/v1/news/latest     (latest news list)
+-- Admin (RoadMap §13 + §24):
+--   POST   /api/v1/admin/news                   (create)
+--   PATCH  /api/v1/admin/news/{id}              (update supplied columns)
+--   DELETE /api/v1/admin/news/{id}              (delete)
+--   POST   /api/v1/admin/news/{id}/publish      (publish)
+--   POST   /api/v1/admin/news/{id}/archive      (archive)
+--   POST   /api/v1/admin/news/{id}/attachments  (attachment upload — §24 explicit)
+-- Spec     : RoadMap.md §13 "NEWS APIs", §24 "FILE UPLOAD API"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the public News endpoints. The
+--   backend executes the same statements in
+--   src/modules/news/news.repository.ts via Prisma $queryRaw. If a query
+--   changes here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer (Prisma models or raw SQL, their choice). Until
+--   the schema exists the queries fail at runtime and the endpoints return
+--   a 500 error envelope. That is intentional: no fake news records.
+--
+-- DATABASE FIELD NOTICE
+--   §13 defines only one sentence of fields. The fields below are sourced
+--   from the task brief and are NOT verifiable in RoadMap.md. They are TO
+--   CONFIRM pending NIC-document verification.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table             Columns needed by these queries
+--   ----------------  -------------------------------------------------------
+--   news              id                      PK (int)
+--                     title                   nullable — news title (A)
+--                     summary                 nullable — brief summary (A)
+--                     content                 nullable — full content (A)
+--                     published_date          nullable TIMESTAMP — publish date (A)
+--                     expiry_date             nullable TIMESTAMP — expiry date (A)
+--                     category                nullable — news category; vocabulary TO CONFIRM (A)
+--                     cluster_id              nullable FK → clusters.id (A)
+--                                             ⚠ §25 shows NO relationship for News
+--                     thumbnail_url           nullable — thumbnail URL/path (A)
+--                     is_published            nullable BOOLEAN — publish status (A)
+--                     created_at              nullable TIMESTAMP
+--                     updated_at              nullable TIMESTAMP
+--
+--   news_attachments  id                      PK (int)
+--                     news_id                 FK → news.id
+--                     file_path               nullable — path within uploads/news/ (A)
+--                     file_name               nullable — original filename (A)
+--                     mime_type               nullable — MIME type (A)
+--                     file_size               nullable — bytes (A)
+--                     created_at              nullable TIMESTAMP
+--
+--   clusters          id PK, name — only for the embedded cluster summary
+--                     returned with each news item (established table; see
+--                     sql/clusters/cluster_queries.sql).
+--
+--   (A) field sourced from task brief, NOT verifiable in RoadMap.md §13.
+--
+-- INTENTIONALLY DEFERRED (not in §13/§24 — do NOT fabricate):
+--   · GET /admin/news          — §13 defines no admin read endpoints
+--   · GET /admin/news/:id      — §13 defines no admin read endpoints
+--   · Thumbnail upload endpoint (POST /:id/thumbnail) — NIC mentions thumbnail
+--     as a news FIELD (manage via PATCH thumbnail_url or DBA decision);
+--     INFERRED / TO CONFIRM whether a dedicated upload endpoint is wanted.
+--
+-- RECOMMENDED INDEXES
+--   CREATE INDEX idx_news_published_date ON news(published_date);
+--   CREATE INDEX idx_news_category ON news(category);
+--   CREATE INDEX idx_news_cluster_id ON news(cluster_id);
+--   CREATE INDEX idx_news_is_published ON news(is_published);
+--   CREATE INDEX idx_news_attachments_news_id ON news_attachments(news_id);
+--
+-- ============================================================================
+-- QUERIES
+-- ============================================================================
+--
+-- 1. LIST (paginated, ordered by published_date DESC)
+--
+-- SELECT
+--     news.id,
+--     news.title,
+--     news.summary,
+--     news.content,
+--     news.published_date,
+--     news.expiry_date,
+--     news.category,
+--     clusters.id AS cluster_id,
+--     clusters.name AS cluster_name,
+--     news.thumbnail_url,
+--     news.is_published,
+--     news.created_at,
+--     news.updated_at
+-- FROM news
+-- LEFT JOIN clusters ON clusters.id = news.cluster_id
+-- ORDER BY news.published_date DESC, news.id DESC
+-- LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize};
+--
+-- 2. COUNT
+--
+-- SELECT COUNT(*)::int AS count FROM news;
+--
+-- 3. DETAIL BY ID
+--
+-- SELECT <same columns>
+-- FROM news
+-- LEFT JOIN clusters ON clusters.id = news.cluster_id
+-- WHERE news.id = ${id};
+--
+-- 4. LATEST (limited list)
+--
+-- SELECT <same columns>
+-- FROM news
+-- LEFT JOIN clusters ON clusters.id = news.cluster_id
+-- ORDER BY news.published_date DESC, news.id DESC
+-- LIMIT ${limit};
+--
+-- 5. ATTACHMENTS LIST
+--
+-- SELECT id, news_id, file_path, file_name, mime_type, file_size, created_at
+-- FROM news_attachments
+-- WHERE news_id = ${newsId}
+-- ORDER BY created_at DESC, id DESC;
+--
+-- ============================================================================
+-- ADMIN QUERIES (RoadMap §13 + §24; all INFERRED / TO CONFIRM)
+-- ============================================================================
+--
+-- 6. CREATE (inserts as DRAFT: is_published = FALSE)
+--
+-- INSERT INTO news (title, summary, content, published_date, expiry_date,
+--                   category, cluster_id, thumbnail_url, is_published)
+-- VALUES (${title}, ${summary}, ${content}, ${published_date}, ${expiry_date},
+--         ${category}, ${cluster_id}, ${thumbnail_url}, FALSE)
+-- RETURNING id;
+--
+-- 7. UPDATE (only supplied columns; built with Prisma.join of bound params)
+--
+-- UPDATE news
+-- SET title = ${title}, summary = ${summary}, content = ${content},
+--     published_date = ${published_date}, expiry_date = ${expiry_date},
+--     category = ${category}, cluster_id = ${cluster_id},
+--     thumbnail_url = ${thumbnail_url}, updated_at = now()
+-- WHERE id = ${id};
+--
+-- 8. DELETE
+--
+-- DELETE FROM news WHERE id = ${id};
+--
+-- 9. PUBLISH (INFERRED: is_published = TRUE; archived flag NOT part of §13 —
+--    the schema has only is_published; publish also clears it so an archived
+--    item can be re-published. TO CONFIRM with DBA whether a separate
+--    is_archived column is required.)
+--
+-- UPDATE news
+-- SET is_published = TRUE, updated_at = now()
+-- WHERE id = ${id};
+--
+-- 10. ARCHIVE (INFERRED: is_published = FALSE — archive = unpublish.
+--     TO CONFIRM if a dedicated is_archived column is wanted instead.)
+--
+-- UPDATE news
+-- SET is_published = FALSE, updated_at = now()
+-- WHERE id = ${id};
+--
+-- 11. ATTACHMENT INSERT (POST /admin/news/:id/attachments — §24 explicit)
+--
+-- INSERT INTO news_attachments (news_id, file_path, file_name, mime_type,
+--                               file_size)
+-- VALUES (${newsId}, ${file_path}, ${file_name}, ${mime_type}, ${file_size})
+-- RETURNING id;

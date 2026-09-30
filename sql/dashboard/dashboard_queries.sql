@@ -1,0 +1,155 @@
+-- ============================================================================
+-- PM SETU — Dashboard module · sql/dashboard/dashboard_queries.sql
+-- Endpoints:
+--   GET /api/v1/dashboard/state
+--   GET /api/v1/dashboard/clusters
+--   GET /api/v1/dashboard/clusters/{id}
+--   GET /api/v1/dashboard/finance
+--   GET /api/v1/dashboard/training
+--   GET /api/v1/dashboard/placements
+-- Spec     : RoadMap.md §16 "DASHBOARD APIs"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the Dashboard endpoints. The backend
+--   executes the same statements in src/modules/dashboard/dashboard.repository.ts
+--   via Prisma $queryRaw. If a query changes here, mirror the change there (and
+--   vice versa).
+--
+-- DATA MODEL NOTE
+--   This module aggregates data FROM the established PM SETU entity tables
+--   (clusters, itis, aips, spvs, sips). It does NOT define new tables.
+--   The DashboardMetric entity (§25) is not used in this implementation;
+--   it may be needed for future ETL/integration.
+--
+-- ⚠ DATA GAPS
+--   · trainees / industries_engaged: No source table established → NULL
+--     (consistent with sql/home/home_kpis.sql)
+--   · placements: No source table established → the endpoint returns an
+--     informative message instead of fake numbers
+--   · training: Only itis.student_strength (capacity) is available. This
+--     is NOT a training metric — full training data requires a future source.
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet. This file documents the PLANNED
+--   queries and the contract of what must be created. NOTHING here creates
+--   tables. Until the schema exists the queries fail at runtime and the
+--   endpoints return a 500 error envelope. That is intentional: no fake data.
+--
+-- REQUIRED DATABASE OBJECTS (from existing SQL contracts)
+--   clusters  id, name, district, sector        (sql/clusters/cluster_queries.sql)
+--   itis      id, iti_code, iti_name, type, cluster_id, district, student_strength
+--                                             (sql/itis/iti_queries.sql)
+--   aips      id, name, cluster_id, sector, status, investment_amount
+--                                             (sql/aips/aip_queries.sql)
+--   spvs      id, name, cluster_id              (sql/spvs/spv_queries.sql)
+--   sips      id, cluster_id, status, proposed_investment,
+--             infrastructure_contribution, equipment_contribution,
+--             training_contribution, industry_contribution, government_contribution
+--                                             (sql/sips/sip_queries.sql)
+--             ⚠ The contribution columns are task-brief fields, NOT in
+--               RoadMap §10. Marked TO CONFIRM.
+--
+-- RECOMMENDED INDEXES
+--   CREATE INDEX idx_itis_cluster_id ON itis(cluster_id);
+--   CREATE INDEX idx_aips_cluster_id ON aips(cluster_id);
+--   CREATE INDEX idx_spvs_cluster_id ON spvs(cluster_id);
+--   CREATE INDEX idx_sips_cluster_id ON sips(cluster_id);
+--
+-- ============================================================================
+-- QUERIES
+-- ============================================================================
+--
+-- 1. STATE METRICS
+--
+-- SELECT
+--     (SELECT COUNT(*)::int FROM clusters) AS clusters,
+--     (SELECT COUNT(*)::int FROM itis WHERE type = 'HUB') AS hub_itis,
+--     (SELECT COUNT(*)::int FROM itis WHERE type = 'SPOKE') AS spoke_itis,
+--     (SELECT COUNT(*)::int FROM aips) AS aips,
+--     (SELECT COUNT(*)::int FROM spvs) AS spvs,
+--     (SELECT COUNT(*)::int FROM sips WHERE status = 'SUBMITTED') AS sips_submitted,
+--     (SELECT COUNT(*)::int FROM sips WHERE status = 'APPROVED') AS sips_approved,
+--     (SELECT COALESCE(SUM(investment_amount), 0)::double precision FROM aips) AS investment;
+--
+-- 2. CLUSTER SUMMARIES
+--
+-- SELECT
+--     c.id, c.name, c.district, c.sector,
+--     (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.type = 'HUB') AS hub_itis,
+--     (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.type = 'SPOKE') AS spoke_itis,
+--     (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id) AS aips,
+--     (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id) AS spvs,
+--     (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id) AS investment
+-- FROM clusters c
+-- ORDER BY c.name;
+--
+-- 3. CLUSTER BY ID (same as above, WHERE c.id = ${id})
+--
+-- 4. CLUSTER ITIS
+--
+-- SELECT id, iti_code, iti_name, type, district
+-- FROM itis WHERE cluster_id = ${clusterId}
+-- ORDER BY iti_name;
+--
+-- 5. CLUSTER AIPS
+--
+-- SELECT id, name, sector, status, investment_amount
+-- FROM aips WHERE cluster_id = ${clusterId}
+-- ORDER BY name;
+--
+-- 6. CLUSTER SIP COUNTS
+--
+-- SELECT
+--     (SELECT COUNT(*)::int FROM sips WHERE cluster_id = ${clusterId} AND status = 'SUBMITTED') AS sips_submitted,
+--     (SELECT COUNT(*)::int FROM sips WHERE cluster_id = ${clusterId} AND status = 'APPROVED') AS sips_approved;
+--
+-- 7. FINANCE METRICS
+--
+-- SELECT
+--     (SELECT COALESCE(SUM(investment_amount), 0)::double precision FROM aips) AS total_investment,
+--     (SELECT COALESCE(SUM(proposed_investment), 0)::double precision FROM sips) AS total_sip_proposed,
+--     (SELECT COALESCE(SUM(infrastructure_contribution), 0)::double precision FROM sips) AS total_sip_infrastructure,
+--     (SELECT COALESCE(SUM(equipment_contribution), 0)::double precision FROM sips) AS total_sip_equipment,
+--     (SELECT COALESCE(SUM(training_contribution), 0)::double precision FROM sips) AS total_sip_training,
+--     (SELECT COALESCE(SUM(industry_contribution), 0)::double precision FROM sips) AS total_sip_industry,
+--     (SELECT COALESCE(SUM(government_contribution), 0)::double precision FROM sips) AS total_sip_government;
+--
+-- 8. FINANCE BY CLUSTER
+--
+-- SELECT
+--     c.id AS cluster_id, c.name AS cluster_name,
+--     COALESCE(a.investment, 0)::double precision AS investment,
+--     COALESCE(s.sip_proposed, 0)::double precision AS sip_proposed
+-- FROM clusters c
+-- LEFT JOIN (
+--     SELECT cluster_id, SUM(investment_amount) AS investment
+--     FROM aips GROUP BY cluster_id
+-- ) a ON a.cluster_id = c.id
+-- LEFT JOIN (
+--     SELECT cluster_id, SUM(proposed_investment) AS sip_proposed
+--     FROM sips GROUP BY cluster_id
+-- ) s ON s.cluster_id = c.id
+-- ORDER BY c.name;
+--
+-- 9. TRAINING METRICS
+--
+-- SELECT
+--     (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis) AS total_student_capacity,
+--     (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis WHERE type = 'HUB') AS hub_capacity,
+--     (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis WHERE type = 'SPOKE') AS spoke_capacity;
+--
+-- 10. TRAINING BY CLUSTER
+--
+-- SELECT
+--     c.id AS cluster_id, c.name AS cluster_name,
+--     COALESCE(SUM(i.student_strength), 0)::int AS student_capacity,
+--     COUNT(i.id)::int AS iti_count
+-- FROM clusters c
+-- LEFT JOIN itis i ON i.cluster_id = c.id
+-- GROUP BY c.id, c.name
+-- ORDER BY c.name;
+--
+-- 11. PLACEMENTS
+--   No source table established. Endpoint returns an informative message.
+--   Future data contract: total_placements, placement_rate, by_cluster (TO CONFIRM).

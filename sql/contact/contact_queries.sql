@@ -1,0 +1,95 @@
+-- ============================================================================
+-- PM SETU — Contact module · sql/contact/contact_queries.sql
+-- Endpoints:
+--   POST /api/v1/contact                     (public form submission)
+--   GET  /api/v1/admin/contact/messages      (admin list, paginated)
+--   GET  /api/v1/admin/contact/messages/{id} (admin detail)
+--   PATCH /api/v1/admin/contact/messages/{id} (admin triage — status only)
+-- Spec     : RoadMap.md §23 "CONTACT API" (+ §25 ContactMessage concept)
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the Contact endpoints. The backend
+--   executes the same statements in
+--   src/modules/contact/contact.repository.ts via Prisma $queryRaw /
+--   $executeRaw with bound parameters only. If a query changes here, mirror
+--   the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer. Until the schema exists the queries fail at
+--   runtime and the endpoints return a 500 error envelope. That is
+--   intentional: no fake contact records.
+--
+-- DATABASE FIELD NOTICE
+--   §23 defines NO field list; §25 lists only the ContactMessage concept.
+--   Every column below is INFERRED / TO CONFIRM pending NIC-document
+--   verification and DBA confirmation.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table             Columns needed by these queries
+--   ----------------  -------------------------------------------------------
+--   contact_messages  id                      PK (int)
+--                     name                    submitter name (I)
+--                     email                   submitter email (I)
+--                     phone                   nullable — submitter phone (I)
+--                     subject                 nullable — message subject (I)
+--                     message                 message body (I)
+--                     status                  triage status (I)
+--                                             INFERRED vocabulary, TO CONFIRM:
+--                                             NEW | READ | REPLIED | ARCHIVED
+--                     created_at              TIMESTAMP (I)
+--                     updated_at              TIMESTAMP (I)
+--
+--   (I) field sourced from implementation need, NOT verifiable in
+--   RoadMap.md §23. All TO CONFIRM.
+--
+-- INTENTIONALLY DEFERRED (not in RoadMap §23 — do NOT fabricate these):
+--   · GET /api/v1/contact (contact-info retrieval; §23 defines only POST)
+--   · DELETE on contact messages
+--   · CAPTCHA provider (required in words by §23; no infra exists yet)
+--   · Admin reply-text/notes columns (PATCH writes status only)
+--
+-- RECOMMENDED INDEXES
+--   CREATE INDEX idx_contact_messages_status ON contact_messages(status);
+--   CREATE INDEX idx_contact_messages_created_at ON contact_messages(created_at);
+--
+-- ============================================================================
+-- QUERIES
+-- ============================================================================
+--
+-- 1. CREATE (public POST /contact)
+--
+-- INSERT INTO contact_messages (name, email, phone, subject, message, status)
+-- VALUES (${name}, ${email}, ${phone}, ${subject}, ${message}, 'NEW')
+-- RETURNING id;
+--
+-- 2. ADMIN LIST (paginated, newest first)
+--
+-- SELECT id, name, email, phone, subject, message, status,
+--        created_at, updated_at
+-- FROM contact_messages
+-- ORDER BY created_at DESC, id DESC
+-- LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize};
+--
+-- 3. ADMIN COUNT
+--
+-- SELECT COUNT(*)::int AS count FROM contact_messages;
+--
+-- 4. ADMIN DETAIL BY ID
+--
+-- SELECT id, name, email, phone, subject, message, status,
+--        created_at, updated_at
+-- FROM contact_messages
+-- WHERE id = ${id};
+--
+-- 5. ADMIN TRIAGE (status only)
+--
+-- UPDATE contact_messages
+-- SET status = ${status}, updated_at = now()
+-- WHERE id = ${id};

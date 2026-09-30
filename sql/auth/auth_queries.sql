@@ -1,0 +1,130 @@
+-- ============================================================================
+-- PM SETU — Auth module · sql/auth/auth_queries.sql
+-- Endpoints:
+--   POST /api/v1/auth/login            (admin login → JWT access token)
+--   GET  /api/v1/auth/me               (fresh authenticated-user profile)
+--   POST /api/v1/auth/change-password  (authenticated self-service password)
+-- Spec     : RoadMap.md §18 "AUTH APIs"; §27 "MIDDLEWARE ORDER" (security)
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the Auth endpoints. The backend executes
+--   the same statements in src/modules/auth/auth.repository.ts via Prisma
+--   $queryRaw / $executeRaw with bound parameters only. If a query changes
+--   here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU auth schema does NOT exist yet. This file documents the
+--   PLANNED queries and the contract of what the database developer must
+--   create. NOTHING here creates tables. Until the schema exists the queries
+--   fail at runtime and the endpoints return a 500 error envelope. That is
+--   intentional: no fake user records.
+--
+-- SECURITY NOTES
+--   · Passwords are stored ONLY as bcrypt hashes (src/utils/password.ts,
+--     SALT_ROUNDS = 12). password_hash is never returned in any response.
+--   · All values are bound parameters — never string-interpolated.
+--   · Account lockout is NIC-required (RoadMap.md §27). Counters live on
+--     `users` so they survive a server restart (in-memory rate limiting
+--     does not). Thresholds: ACCOUNT_LOCK_MAX_ATTEMPTS / ACCOUNT_LOCK_MINUTES.
+--   · MFA for privileged users is NIC-required "where supported", but the
+--     project has NO established MFA provider/mechanism → NOT implemented,
+--     documented as a TO CONFIRM future integration point. No invented
+--     MFA columns.
+--   · GET /auth/me reads the profile from the database (not just the token
+--     claims) so status/role changes take effect immediately.
+--
+-- REQUIRED DATABASE OBJECTS (DBA-confirm final names/types)
+--   users(id, username, password_hash, full_name, email, status,
+--         failed_login_attempts, locked_until, last_login_at,
+--         created_at, updated_at)
+--   Roles/role-assignment lookups join:
+--     roles / permissions / user_roles / role_permissions
+--     (see sql/roles/role_queries.sql and sql/users/user_queries.sql)
+--
+-- CASTING / CONVENTION NOTES
+--   - All timestamps are TIMESTAMPTZ; Prisma returns them as JS Date.
+--   - COUNT(*) is cast to ::int so Prisma returns JS numbers.
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) POST /auth/login — lookup account by username.
+--    :username — exact-match bound parameter. Username case sensitivity is
+--    TO CONFIRM; current contract stores and matches exactly as provided.
+-- ----------------------------------------------------------------------------
+-- SELECT id, username, full_name, email, status,
+--        password_hash, failed_login_attempts, locked_until, last_login_at
+-- FROM users
+-- WHERE username = :username;
+
+-- ----------------------------------------------------------------------------
+-- 2) Role codes assigned to a user (JWT bearer claims).
+-- ----------------------------------------------------------------------------
+-- SELECT r.code
+-- FROM roles r
+-- JOIN user_roles ur ON ur.role_id = r.id
+-- WHERE ur.user_id = :userId
+-- ORDER BY r.id;
+
+-- ----------------------------------------------------------------------------
+-- 3) Role id/code/name assigned to a user (authenticated-user profile).
+-- ----------------------------------------------------------------------------
+-- SELECT r.id, r.code, r.name
+-- FROM roles r
+-- JOIN user_roles ur ON ur.role_id = r.id
+-- WHERE ur.user_id = :userId
+-- ORDER BY r.id;
+
+-- ----------------------------------------------------------------------------
+-- 4) Permission codes available to a user (JWT claims + RBAC middleware).
+-- ----------------------------------------------------------------------------
+-- SELECT DISTINCT p.code
+-- FROM permissions p
+-- JOIN role_permissions rp ON rp.permission_id = p.id
+-- JOIN user_roles ur       ON ur.role_id = rp.role_id
+-- WHERE ur.user_id = :userId
+-- ORDER BY p.code;
+
+-- ----------------------------------------------------------------------------
+-- 5) GET /auth/me — fresh profile by id (DB lookup, not token decode).
+-- ----------------------------------------------------------------------------
+-- SELECT id, username, full_name, email, status, created_at
+-- FROM users
+-- WHERE id = :userId;
+
+-- ----------------------------------------------------------------------------
+-- 6) POST /auth/change-password — password row for the current-password check.
+-- ----------------------------------------------------------------------------
+-- SELECT id, password_hash
+-- FROM users
+-- WHERE id = :userId;
+
+-- ----------------------------------------------------------------------------
+-- 7) Record another failed login attempt.
+-- ----------------------------------------------------------------------------
+-- UPDATE users
+-- SET failed_login_attempts = :attempts, updated_at = now()
+-- WHERE id = :userId;
+
+-- ----------------------------------------------------------------------------
+-- 8) Lock the account (resets the counter for the next lock cycle).
+-- ----------------------------------------------------------------------------
+-- UPDATE users
+-- SET failed_login_attempts = 0, locked_until = :lockedUntil, updated_at = now()
+-- WHERE id = :userId;
+
+-- ----------------------------------------------------------------------------
+-- 9) Successful login — clear lockout and record last_login_at.
+-- ----------------------------------------------------------------------------
+-- UPDATE users
+-- SET failed_login_attempts = 0, locked_until = NULL,
+--     last_login_at = now(), updated_at = now()
+-- WHERE id = :userId;
+
+-- ----------------------------------------------------------------------------
+-- 10) POST /auth/change-password — replace the password hash.
+-- ----------------------------------------------------------------------------
+-- UPDATE users
+-- SET password_hash = :passwordHash, updated_at = now()
+-- WHERE id = :userId;

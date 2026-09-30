@@ -1,0 +1,246 @@
+-- ============================================================================
+-- PM SETU — Approvals module · sql/approvals/approval_queries.sql
+-- Endpoints:
+--   GET  /api/v1/admin/approvals              (list + INFERRED filters)
+--   GET  /api/v1/admin/approvals/:id          (detail)
+--   POST /api/v1/admin/approvals/:id/submit   (submit)
+--   POST /api/v1/admin/approvals/:id/review   (review)
+--   POST /api/v1/admin/approvals/:id/approve  (approve)
+--   POST /api/v1/admin/approvals/:id/reject   (reject)
+--   POST /api/v1/admin/approvals/:id/request-revision (request-revision)
+-- Spec     : RoadMap.md §21 "APPROVAL APIs"
+-- ============================================================================
+
+-- PURPOSE
+--   Canonical PostgreSQL sources of the approvals endpoints. The backend
+--   executes the same statements in src/modules/approvals/approval.repository.ts
+--   via Prisma $queryRaw / $executeRaw with bound parameters only. If a query
+--   changes here, mirror the change there (and vice versa).
+
+-- STATUS  READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what the
+--   database developer must create. NOTHING here creates tables — schema
+--   creation is owned by the database developer. Until the schema exists the
+--   queries fail at runtime and the endpoints return a 500 error envelope.
+--   That is intentional: no fake approval records.
+
+-- CONFIRMED REQUIREMENTS (RoadMap §21 + §22)
+--   - Approval endpoints: list, detail, and the 5 actions submit/review/
+--     approve/reject/request-revision (§21).
+--   - Transactions need user, time, old value, new value, approval status
+--     and audit metadata (§21/§22).
+--   - The approval module references other modules' entities by type + id
+--     (reusable foundation).
+
+-- PROPOSED / TO CONFIRM — table and column set
+--   The columns below are a PROPOSED schema; none are established by the
+--   current project. The DBA must confirm names, types, nullability and
+--   whether columns like stage/assigned_to/per-stage timestamps even exist.
+--   Only the confirmed CORE columns are treated as required by the backend:
+--     id, entity_type, entity_id, status, submitted_by, reviewed_by,
+--     approved_by, remarks, created_at, updated_at
+--   INFERRED / TO CONFIRM proposed columns (may be trimmed by DBA):
+--     stage            VARCHAR        — INFERRED workflow stage; TO CONFIRM
+--     assigned_to      VARCHAR        — INFERRED assignee user id; TO CONFIRM
+--     submitted_at     TIMESTAMPTZ    — INFERRED; TO CONFIRM
+--     reviewed_at      TIMESTAMPTZ    — INFERRED; TO CONFIRM
+--     decision_at      TIMESTAMPTZ    — INFERRED; TO CONFIRM
+--   The approval status vocabulary is a proposal (separate from sips.status):
+--     PENDING, SUBMITTED, UNDER_REVIEW, REVISION_REQUESTED, RECOMMENDED,
+--     APPROVED, REJECTED
+--   The entity_type vocabulary is a proposal (TO CONFIRM enum vs free text):
+--     DOCUMENT, NEWS, GALLERY, SIP, BANNER
+
+-- SIP SEPARATION
+--   The SIP module owns sips.status and its own workflow (see
+--   sql/sips/sip_queries.sql). This approvals module does NOT modify
+--   sips.status and does NOT define SIP-specific transition endpoints.
+--   It may reference a SIP as entity_type = SIP / entity_id = <sip id>
+--   once that integration is confirmed.
+
+-- ============================================================================
+
+-- REQUIRED CORE COLUMNS (proposed; TO CONFIRM with DBA)
+--   Table approvals (PROPOSED name — TO CONFIRM)
+--     id             BIGSERIAL PK
+--     entity_type    VARCHAR NOT NULL  — TO CONFIRM enum vs free text
+--     entity_id      INTEGER NOT NULL  — id in the owning module
+--     status         VARCHAR NOT NULL  — TO CONFIRM enum vs free text
+--     stage          VARCHAR           — INFERRED; TO CONFIRM
+--     assigned_to    VARCHAR           — INFERRED assignee; TO CONFIRM
+--     submitted_by   VARCHAR NOT NULL  — acting user id (string per req.user.id;
+--                                          TO CONFIRM numeric vs string with DBA)
+--     reviewed_by    VARCHAR           — acting reviewer id
+--     approved_by    VARCHAR           — acting approver id
+--     submitted_at   TIMESTAMPTZ       — INFERRED; TO CONFIRM
+--     reviewed_at    TIMESTAMPTZ       — INFERRED; TO CONFIRM
+--     decision_at    TIMESTAMPTZ       — INFERRED; TO CONFIRM
+--     remarks        TEXT              — free text
+--     created_at     TIMESTAMPTZ NOT NULL
+--     updated_at     TIMESTAMPTZ NOT NULL
+
+-- ============================================================================
+
+-- ============================================================================
+-- PM SETU — Approvals module · sql/approvals/approval_queries.sql
+-- Endpoints:
+--   GET  /api/v1/admin/approvals              (list + INFERRED filters)
+--   GET  /api/v1/admin/approvals/:id          (detail)
+--   POST /api/v1/admin/approvals/:id/submit   (submit)
+--   POST /api/v1/admin/approvals/:id/review   (review)
+--   POST /api/v1/admin/approvals/:id/approve  (approve)
+--   POST /api/v1/admin/approvals/:id/reject   (reject)
+--   POST /api/v1/admin/approvals/:id/request-revision (request-revision)
+-- Spec     : RoadMap.md §21 "APPROVAL APIs"
+-- ============================================================================
+|
+-- ----------------------------------------------------------------------------
+-- 1) GET /admin/approvals — list with INFERRED filters.
+--    RoadMap §21 documents no filters; these are value-add and TO CONFIRM.
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     a.id, a.entity_type, a.entity_id, a.status, a.stage, a.assigned_to,
+--     a.submitted_by, a.reviewed_by, a.approved_by, a.submitted_at,
+--     a.reviewed_at, a.decision_at, a.remarks, a.created_at, a.updated_at
+-- FROM approvals a
+-- WHERE
+--     (:entity_type IS NULL OR a.entity_type = :entity_type) AND
+--     (:entity_id   IS NULL OR a.entity_id   = :entity_id) AND
+--     (:status      IS NULL OR a.status      = :status) AND
+--     (:submitted_by IS NULL OR a.submitted_by = :submitted_by) AND
+--     (:reviewed_by IS NULL OR a.reviewed_by = :reviewed_by) AND
+--     (:approved_by IS NULL OR a.approved_by = :approved_by) AND
+--     (:from        IS NULL OR a.created_at >= :from) AND
+--     (:to          IS NULL OR a.created_at <  :to)
+-- ORDER BY a.updated_at DESC, a.id DESC
+-- LIMIT :pageSize OFFSET :offset;
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /admin/approvals — total rows (pagination meta).
+-- ----------------------------------------------------------------------------
+-- SELECT COUNT(*)::int AS total
+-- FROM approvals
+-- WHERE
+--     (:entity_type IS NULL OR entity_type = :entity_type) AND
+--     (:entity_id   IS NULL OR entity_id   = :entity_id) AND
+--     (:status      IS NULL OR status      = :status) AND
+--     (:submitted_by IS NULL OR submitted_by = :submitted_by) AND
+--     (:reviewed_by IS NULL OR reviewed_by = :reviewed_by) AND
+--     (:approved_by IS NULL OR approved_by = :approved_by) AND
+--     (:from        IS NULL OR created_at >= :from) AND
+--     (:to          IS NULL OR created_at <  :to);
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /admin/approvals/:id — single approval detail.
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     a.id, a.entity_type, a.entity_id, a.status, a.stage, a.assigned_to,
+--     a.submitted_by, a.reviewed_by, a.approved_by, a.submitted_at,
+--     a.reviewed_at, a.decision_at, a.remarks, a.created_at, a.updated_at
+-- FROM approvals a
+-- WHERE a.id = :id;
+
+-- ----------------------------------------------------------------------------
+-- 4) Transition: SUBMIT  (PENDING -> SUBMITTED)
+--    Optimistic guard: only update if current status = PENDING.
+--    INFERRED timestamp/actor column updates — TO CONFIRM with DBA.
+-- ----------------------------------------------------------------------------
+-- UPDATE approvals
+-- SET
+--     status = :newStatus,
+--     stage = COALESCE(:stage, stage),
+--     assigned_to = COALESCE(:assignedTo, assigned_to),
+--     submitted_by = :actingUserId,
+--     submitted_at = NOW(),
+--     updated_at = NOW()
+-- WHERE id = :id AND status = :expectedStatus
+-- RETURNING id;
+
+-- ----------------------------------------------------------------------------
+-- 5) Transition: REVIEW  (SUBMITTED -> UNDER_REVIEW)
+--    Optimistic guard: only update if current status = SUBMITTED.
+--    INFERRED timestamp/actor column updates — TO CONFIRM with DBA.
+-- ----------------------------------------------------------------------------
+-- UPDATE approvals
+-- SET
+--     status = :newStatus,
+--     stage = COALESCE(:stage, stage),
+--     assigned_to = COALESCE(:assignedTo, assigned_to),
+--     reviewed_by = :actingUserId,
+--     reviewed_at = NOW(),
+--     updated_at = NOW()
+-- WHERE id = :id AND status = :expectedStatus
+-- RETURNING id;
+
+-- ----------------------------------------------------------------------------
+-- 6) Transition: APPROVE  (UNDER_REVIEW -> APPROVED)
+--    Optimistic guard: only update if current status = UNDER_REVIEW.
+--    INFERRED timestamp/actor column updates — TO CONFIRM with DBA.
+-- ----------------------------------------------------------------------------
+-- UPDATE approvals
+-- SET
+--     status = :newStatus,
+--     stage = COALESCE(:stage, stage),
+--     assigned_to = COALESCE(:assignedTo, assigned_to),
+--     approved_by = :actingUserId,
+--     decision_at = NOW(),
+--     updated_at = NOW()
+-- WHERE id = :id AND status = :expectedStatus
+-- RETURNING id;
+
+-- ----------------------------------------------------------------------------
+-- 7) Transition: REJECT  (UNDER_REVIEW -> REJECTED)
+--    Optimistic guard: only update if current status = UNDER_REVIEW.
+--    INFERRED timestamp/actor column updates — TO CONFIRM with DBA.
+-- ----------------------------------------------------------------------------
+-- UPDATE approvals
+-- SET
+--     status = :newStatus,
+--     stage = COALESCE(:stage, stage),
+--     assigned_to = COALESCE(:assignedTo, assigned_to),
+--     approved_by = :actingUserId,
+--     decision_at = NOW(),
+--     updated_at = NOW()
+-- WHERE id = :id AND status = :expectedStatus
+-- RETURNING id;
+
+-- ----------------------------------------------------------------------------
+-- 8) Transition: REQUEST_REVISION  (UNDER_REVIEW -> REVISION_REQUESTED)
+--    Optimistic guard: only update if current status = UNDER_REVIEW.
+--    INFERRED timestamp/actor column updates — TO CONFIRM with DBA.
+-- ----------------------------------------------------------------------------
+-- UPDATE approvals
+-- SET
+--     status = :newStatus,
+--     stage = COALESCE(:stage, stage),
+--     assigned_to = COALESCE(:assignedTo, assigned_to),
+--     reviewed_by = :actingUserId,
+--     decision_at = NOW(),
+--     updated_at = NOW()
+-- WHERE id = :id AND status = :expectedStatus
+-- RETURNING id;
+
+-- ============================================================================
+-- NOTES
+--   - The backend uses Prisma.sql tagged templates with bound parameters;
+--     the :param style above is the canonical placeholder notation for the DBA.
+--   - COUNT(*) is cast to ::int so Prisma returns JS numbers (not bigint).
+--   - The filter style using :param IS NULL OR ... keeps every clause
+--     parameterized and stable; the backend achieves the same effect by
+--     building WHERE clauses only from supplied filters (see
+--     approval.repository.ts buildApprovalFilterClauses()).
+--   - The optimistic guard (WHERE status = :expectedStatus) is the repository-layer
+--     defense-in-depth for the state machine; the service also validates the
+--     transition semantically.
+--   - TO CONFIRM with DBA: final table/column names, types, nullability, indexes.
+--   - TO CONFIRM with DBA/NIC: whether stage/assigned_to/per-stage timestamps
+--     exist at all; the backend is written to be tolerant (COALESCE into
+--     existing values) but the columns must be confirmed.
+--   - SIP SEPARATION: this module does NOT touch sips.status (see
+--     sql/sips/sip_queries.sql). SIP-specific workflow endpoints belong to the
+--     SIP module, not here.
+-- ============================================================================
+

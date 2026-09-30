@@ -1,0 +1,114 @@
+-- ============================================================================
+-- PM SETU — SPV module · sql/spvs/spv_queries.sql
+-- Endpoints:
+--   GET /api/v1/spvs                     (paginated list — no spec'd filters)
+--   GET /api/v1/spvs/{id}                (single SPV)
+--   GET /api/v1/clusters/{clusterId}/spv (SPVs of one cluster; singular path
+--                                          exactly as specified in RoadMap §9)
+-- Spec     : RoadMap.md §9 "SPV APIs"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the public SPV endpoints. The backend
+--   executes the same statements in src/modules/spvs/spv.repository.ts via
+--   Prisma $queryRaw. If a query changes here, mirror the change there
+--   (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer (Prisma models or raw SQL, their choice). Until
+--   the schema exists the queries fail at runtime and the endpoints return
+--   a 500 error envelope. That is intentional: no fake SPV records.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table    Columns needed by these queries
+--   -------- ------------------------------------------------------------------
+--   spvs     id          PK (int)
+--            name        NOT NULL — registry identifier. ⚠ SPEC-IMPLIED:
+--                        §9 lists no fields; a registry entity needs an
+--                        identifying column (also the list ordering key).
+--                        TO CONFIRM (A)
+--            status      NOT NULL — §9 lifecycle state. Specified states:
+--                        Proposed / Under Formation / Incorporated /
+--                        Operational. "such as" means the list may grow;
+--                        exact DB storage values (e.g. 'PROPOSED',
+--                        'UNDER_FORMATION', 'INCORPORATED', 'OPERATIONAL')
+--                        and whether more states exist are TO CONFIRM (B).
+--            cluster_id  nullable FK → clusters.id (§25 SPV → Cluster; the
+--                        clusters table is established by
+--                        sql/clusters/cluster_queries.sql)
+--            aip_id      nullable FK → aips.id (§25 AIP → SPV; the aips
+--                        table is established by sql/aips/aip_queries.sql,
+--                        including its name column used for the summary)
+--
+--   clusters id PK, name — embedded cluster summary (established table).
+--   aips     id PK, name — embedded AIP summary (established table).
+--
+--   (A) Field list: §9 defines no SPV fields; only the lifecycle is named.
+--       `id` + `name` + `status` + the two FKs are the minimal registry
+--       contract. Do NOT add speculative columns (sector, investment,
+--       contact, ...) — the API only exposes what exists.
+--   (B) Lifecycle values: the API passes `status` through as-is; no enum is
+--       enforced in code. Recommend a CHECK constraint / Postgres ENUM once
+--       the DBA fixes the storage values.
+--
+-- INTENTIONALLY DEFERRED (specified in RoadMap §9/§25 but out of scope —
+-- do NOT fabricate these):
+--   · SIP relationship (§25 SPV → SIP): the sips table does not exist yet;
+--     belongs to the future SIP module.
+--   · Admin CRUD (POST/PATCH/DELETE /api/v1/admin/spvs...) and the
+--     lifecycle transition endpoint PATCH /api/v1/admin/spvs/:id/status
+--     (§9 "Status") — separate tasks.
+--   · No list filters are implemented: §9 documents none.
+--
+-- CASTING / CONVENTION NOTES
+--   - COUNT(*) is cast to ::int so Prisma returns JS numbers (not bigint).
+--   - All user input (ids) is bound by Prisma as query parameters; the
+--     backend never interpolates values into these statements as text.
+--   - List ordering: ORDER BY name (stable, user-facing).
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) GET /spvs — paginated list (no filters per §9).
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     spvs.id, spvs.name, spvs.status,
+--     clusters.id AS cluster_id, clusters.name AS cluster_name,
+--     aips.id AS aip_id, aips.name AS aip_name
+-- FROM spvs
+-- LEFT JOIN clusters ON clusters.id = spvs.cluster_id
+-- LEFT JOIN aips ON aips.id = spvs.aip_id
+-- ORDER BY spvs.name
+-- LIMIT :pageSize OFFSET :offset;
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /spvs — total rows (pagination meta).
+-- ----------------------------------------------------------------------------
+-- SELECT COUNT(*)::int AS total
+-- FROM spvs;
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /spvs/{id} — single SPV by primary key.
+-- ----------------------------------------------------------------------------
+-- SELECT ...same column list as (1)...
+-- FROM spvs
+-- LEFT JOIN clusters ON clusters.id = spvs.cluster_id
+-- LEFT JOIN aips ON aips.id = spvs.aip_id
+-- WHERE spvs.id = :id;
+
+-- ----------------------------------------------------------------------------
+-- 4) GET /clusters/{clusterId}/spv — full SPV list of one cluster
+--    (unpaginated per current scope; ordered by name).
+-- ----------------------------------------------------------------------------
+-- SELECT ...same column list as (1)...
+-- FROM spvs
+-- LEFT JOIN clusters ON clusters.id = spvs.cluster_id
+-- LEFT JOIN aips ON aips.id = spvs.aip_id
+-- WHERE spvs.cluster_id = :clusterId
+-- ORDER BY spvs.name;

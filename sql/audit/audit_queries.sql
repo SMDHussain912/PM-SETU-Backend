@@ -1,0 +1,134 @@
+-- ============================================================================
+-- PM SETU — Audit module · sql/audit/audit_queries.sql
+-- Endpoints:
+--   GET /api/v1/admin/audit-logs          (paginated list + INFERRED filters)
+--   GET /api/v1/admin/audit-logs/{id}     (single audit entry detail)
+-- Spec     : RoadMap.md §22 "AUDIT APIs"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the audit endpoints. The backend executes
+--   the same statements in src/modules/audit/audit.repository.ts via Prisma
+--   $queryRaw / $executeRaw with bound parameters only. If a query changes
+--   here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what the
+--   database developer must create. NOTHING here creates tables — schema
+--   creation is owned by the database developer. Until the schema exists the
+--   queries fail at runtime and the endpoints return a 500 error envelope.
+--   That is intentional: no fake audit records.
+--
+-- CONFIRMED REQUIREMENTS (RoadMap §22 example record)
+--   An audit entry records: user_id, action, entity, entity_id, old_value,
+--   new_value, timestamp, approval_status.
+--
+-- INFERRED / TO CONFIRM — column set, types, and storage strategy
+--   Proposed columns (all TO CONFIRM with DBA/NIC):
+--     id             BIGSERIAL PK        — row id (the API returns this)
+--     user_id        VARCHAR NOT NULL    — acting user; TO CONFIRM type
+--                                          (§22 example shows numeric; current
+--                                          req.user.id is a string JWT sub).
+--                                          Must align with users.id and the JWT.
+--     action         VARCHAR NOT NULL    — TO CONFIRM enum vs free text
+--     entity         VARCHAR NOT NULL    — TO CONFIRM enum vs free text
+--     entity_id      INTEGER NOT NULL    — id in the owning module
+--     old_value      JSONB               — previous state (nullable for creates)
+--     new_value      JSONB               — new state (nullable for deletes)
+--     approval_status VARCHAR            — PENDING/APPROVED/REJECTED etc.; nullable
+--     ip_address     VARCHAR             — TO CONFIRM whether stored
+--     user_agent     VARCHAR             — TO CONFIRM whether stored
+--     path           VARCHAR             — TO CONFIRM whether stored (req.originalUrl)
+--     timestamp      TIMESTAMPTZ NOT NULL — §22 example uses "timestamp"
+--
+--   TO CONFIRM with DBA:
+--     - JSONB vs text for old_value/new_value
+--     - whether ip_address/user_agent/path are columns at all
+--     - indexes / partitioning / retention (out of scope to decide)
+--     - user_id type (string vs numeric)
+--
+-- APPEND-ONLY CONTRACT
+--   Audit entries are created ONLY by trusted internal services (approval
+--   transitions and future CMS CRUD). There is NO public POST/PATCH/DELETE
+--   audit endpoint. The backend never exposes an audit-create HTTP route.
+--
+-- SECURITY RULE (documented, enforced by caller discipline)
+--   Never store or return passwords, password hashes, JWTs/tokens, or other
+--   authentication credentials in old_value/new_value. The backend does not
+--   auto-strip credentials; the calling service must supply audit-safe payloads.
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) GET /admin/audit-logs — paginated list with INFERRED filters.
+--    RoadMap §22 documents no filters; these are value-add and TO CONFIRM.
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     id, user_id, action, entity, entity_id,
+--     old_value, new_value, approval_status,
+--     ip_address, user_agent, path, timestamp
+-- FROM audit_logs
+-- WHERE
+--     (:entity      IS NULL OR entity      = :entity) AND
+--     (:entity_id   IS NULL OR entity_id   = :entity_id) AND
+--     (:action      IS NULL OR action      = :action) AND
+--     (:user_id     IS NULL OR user_id     = :user_id) AND
+--     (:approval_status IS NULL OR approval_status = :approval_status) AND
+--     (:from        IS NULL OR timestamp   >= :from) AND
+--     (:to          IS NULL OR timestamp   <  :to)
+-- ORDER BY timestamp DESC, id DESC
+-- LIMIT :pageSize OFFSET :offset;
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /admin/audit-logs — total rows (pagination meta).
+-- ----------------------------------------------------------------------------
+-- SELECT COUNT(*)::int AS total
+-- FROM audit_logs
+-- WHERE
+--     (:entity      IS NULL OR entity      = :entity) AND
+--     (:entity_id   IS NULL OR entity_id   = :entity_id) AND
+--     (:action      IS NULL OR action      = :action) AND
+--     (:user_id     IS NULL OR user_id     = :user_id) AND
+--     (:approval_status IS NULL OR approval_status = :approval_status) AND
+--     (:from        IS NULL OR timestamp   >= :from) AND
+--     (:to          IS NULL OR timestamp   <  :to);
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /admin/audit-logs/{id} — single audit entry.
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     id, user_id, action, entity, entity_id,
+--     old_value, new_value, approval_status,
+--     ip_address, user_agent, path, timestamp
+-- FROM audit_logs
+-- WHERE id = :id;
+
+-- ----------------------------------------------------------------------------
+-- 4) Internal audit-create (NOT a public endpoint).
+--    Called by trusted services only. TO CONFIRM column list/types with DBA.
+-- ----------------------------------------------------------------------------
+-- INSERT INTO audit_logs (
+--     user_id, action, entity, entity_id,
+--     old_value, new_value, approval_status,
+--     ip_address, user_agent, path, timestamp
+-- )
+-- VALUES (
+--     :userId, :action, :entity, :entityId,
+--     :oldValue, :newValue, :approvalStatus,
+--     :ipAddress, :userAgent, :path, :timestamp
+-- )
+-- RETURNING id;
+
+-- ============================================================================
+-- NOTES
+--   - The backend uses Prisma.sql tagged templates with bound parameters; the
+--     :param style above is the canonical placeholder notation for the DBA.
+--   - COUNT(*) is cast to ::int so Prisma returns JS numbers (not bigint).
+--   - The filter style using :param IS NULL OR ... keeps every clause
+--     parameterized and stable; the backend achieves the same effect by
+--     building WHERE clauses only from supplied filters (see
+--     audit.repository.ts auditFilterClauses()).
+-- ============================================================================

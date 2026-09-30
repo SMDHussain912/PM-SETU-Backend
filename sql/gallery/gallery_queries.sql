@@ -1,0 +1,167 @@
+-- ============================================================================
+-- PM SETU — Gallery Management module · sql/gallery/gallery_queries.sql
+-- Endpoints:
+--   GET /api/v1/gallery        (paginated list - all items)
+--   GET /api/v1/gallery/:id    (single gallery item)
+--   GET /api/v1/gallery/photos (paginated list - photos only)
+--   GET /api/v1/gallery/videos (paginated list - videos only)
+-- Admin (RoadMap §14 + §24):
+--   POST   /api/v1/admin/gallery          (create)
+--   PATCH  /api/v1/admin/gallery/{id}     (update supplied columns)
+--   DELETE /api/v1/admin/gallery/{id}     (delete)
+--   POST   /api/v1/admin/gallery/upload   (media upload — §24 explicit,
+--                                           row-less: returns file metadata)
+-- Spec     : RoadMap.md §14 "GALLERY APIs", §24 "FILE UPLOAD API"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the public Gallery endpoints. The
+--   backend executes the same statements in
+--   src/modules/gallery/gallery.repository.ts via Prisma $queryRaw. If a query
+--   changes here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer (Prisma models or raw SQL, their choice). Until
+--   the schema exists the queries fail at runtime and the endpoints return
+--   a 500 error envelope. That is intentional: no fake gallery records.
+--
+-- DATABASE FIELD NOTICE
+--   §14 defines NO field list. The fields below are sourced from the task
+--   brief and are NOT verifiable in RoadMap.md. They are TO CONFIRM pending
+--   NIC-document verification.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table             Columns needed by these queries
+--   ----------------  -------------------------------------------------------
+--   gallery_items     id                      PK (int)
+--                     title                   nullable — item title (A)
+--                     description             nullable — item description (A)
+--                     type                    nullable — PHOTO | VIDEO | PRESS_RELEASE (A)
+--                                             (vocabulary TO CONFIRM)
+--                     media_url               nullable — media file URL/path (A)
+--                     thumbnail_url           nullable — thumbnail URL/path (A)
+--                     published_date          nullable DATE/TIMESTAMP (A)
+--                     category                nullable — category; vocabulary TO CONFIRM (A)
+--                     is_published            nullable BOOLEAN (A)
+--                     display_order           nullable INT — display ordering (A)
+--                     created_at              nullable TIMESTAMP
+--                     updated_at              nullable TIMESTAMP
+--
+--   (A) field sourced from task brief, NOT verifiable in RoadMap.md §14.
+--
+-- INTENTIONALLY DEFERRED (not in §14/§24 — do NOT fabricate):
+--   · GET /admin/gallery / GET /admin/gallery/:id — §14 defines no admin reads
+--   · Publish/archive endpoints — §14 defines them for News (§13) and Banners
+--     (§15) but NOT for Gallery; gallery items are managed via
+--     is_published boolean on create/update instead (TO CONFIRM).
+--   · Video upload endpoint — the storage wrapper is image-only; videos are
+--     referenced by URL via POST/PATCH (media_url). TO CONFIRM if a dedicated
+--     video upload endpoint is wanted.
+--
+-- RECOMMENDED INDEXES
+--   CREATE INDEX idx_gallery_items_type ON gallery_items(type);
+--   CREATE INDEX idx_gallery_items_published_date ON gallery_items(published_date);
+--   CREATE INDEX idx_gallery_items_display_order ON gallery_items(display_order);
+--   CREATE INDEX idx_gallery_items_is_published ON gallery_items(is_published);
+--
+-- ============================================================================
+-- QUERIES
+-- ============================================================================
+--
+-- 1. LIST ALL (paginated, ordered by display_order, published_date)
+--
+-- SELECT
+--     gallery_items.id,
+--     gallery_items.title,
+--     gallery_items.description,
+--     gallery_items.type,
+--     gallery_items.media_url,
+--     gallery_items.thumbnail_url,
+--     gallery_items.published_date,
+--     gallery_items.category,
+--     gallery_items.is_published,
+--     gallery_items.display_order,
+--     gallery_items.created_at,
+--     gallery_items.updated_at
+-- FROM gallery_items
+-- ORDER BY gallery_items.display_order ASC NULLS LAST,
+--          gallery_items.published_date DESC NULLS LAST,
+--          gallery_items.id DESC
+-- LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize};
+--
+-- 2. COUNT ALL
+--
+-- SELECT COUNT(*)::int AS count FROM gallery_items;
+--
+-- 3. DETAIL BY ID
+--
+-- SELECT <same columns>
+-- FROM gallery_items
+-- WHERE gallery_items.id = ${id};
+--
+-- 4. LIST PHOTOS (paginated)
+--
+-- SELECT <same columns>
+-- FROM gallery_items
+-- WHERE gallery_items.type = 'PHOTO'
+-- ORDER BY gallery_items.display_order ASC NULLS LAST,
+--          gallery_items.published_date DESC NULLS LAST,
+--          gallery_items.id DESC
+-- LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize};
+--
+-- 5. COUNT PHOTOS
+--
+-- SELECT COUNT(*)::int AS count FROM gallery_items WHERE type = 'PHOTO';
+--
+-- 6. LIST VIDEOS (paginated)
+--
+-- SELECT <same columns>
+-- FROM gallery_items
+-- WHERE gallery_items.type = 'VIDEO'
+-- ORDER BY gallery_items.display_order ASC NULLS LAST,
+--          gallery_items.published_date DESC NULLS LAST,
+--          gallery_items.id DESC
+-- LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize};
+--
+-- 7. COUNT VIDEOS
+--
+-- SELECT COUNT(*)::int AS count FROM gallery_items WHERE type = 'VIDEO';
+--
+-- ============================================================================
+-- ADMIN QUERIES (RoadMap §14 + §24; all INFERRED / TO CONFIRM)
+-- ============================================================================
+--
+-- 8. CREATE (inserts with is_published default FALSE — DRAFT, INFERRED)
+--
+-- INSERT INTO gallery_items (title, description, type, media_url,
+--                            thumbnail_url, published_date, category,
+--                            is_published, display_order)
+-- VALUES (${title}, ${description}, ${type}, ${media_url},
+--         ${thumbnail_url}, ${published_date}, ${category}, FALSE, ${display_order})
+-- RETURNING id;
+--
+-- 9. UPDATE (only supplied columns; built with Prisma.join of bound params)
+--
+-- UPDATE gallery_items
+-- SET title = ${title}, description = ${description}, type = ${type},
+--     media_url = ${media_url}, thumbnail_url = ${thumbnail_url},
+--     published_date = ${published_date}, category = ${category},
+--     is_published = ${is_published}, display_order = ${display_order},
+--     updated_at = now()
+-- WHERE id = ${id};
+--
+-- 10. DELETE
+--
+-- DELETE FROM gallery_items WHERE id = ${id};
+--
+-- 11. MEDIA UPLOAD — row-less (§24: POST /admin/gallery/upload).
+--     No SQL is required here beyond the file landing in uploads/gallery/;
+--     the backend returns { file_path, file_name, mime_type, file_size } and
+--     the client stores the returned path/URL via POST/PATCH (media_url /
+--     thumbnail_url). Metadata persists in the gallery_items row.

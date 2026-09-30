@@ -1,0 +1,101 @@
+-- ============================================================================
+-- PM SETU — Governance module · sql/governance/governance_queries.sql
+-- Endpoints:
+--   GET /api/v1/governance          (alias of /members — see note below)
+--   GET /api/v1/governance/members  (paginated directory list)
+--   GET /api/v1/governance/members/{id} (single member)
+-- Spec     : RoadMap.md §11 "GOVERNANCE APIs"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the public governance endpoints. The
+--   backend executes the same statements in
+--   src/modules/governance/governance.repository.ts via Prisma $queryRaw.
+--   If a query changes here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer (Prisma models or raw SQL, their choice). Until
+--   the schema exists the queries fail at runtime and the endpoints return
+--   a 500 error envelope. That is intentional: no fake members.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table               Columns needed by these queries
+--   ------------------- ------------------------------------------------------
+--   governance_members  id             PK (int)
+--                       name           NOT NULL — member name (A)
+--                       designation    nullable (A)
+--                       organisation   nullable (A)
+--                       role           nullable (A)
+--                       photograph     nullable (A)
+--                       email          nullable (A)
+--                       contact        nullable (A)
+--                       display_order  nullable INT (A)
+--                       effective_date nullable DATE (A)
+--
+--   (A) ⚠ TO CONFIRM: §11 defines NO field list (verified: none of these
+--       field names appear anywhere in RoadMap.md). All columns above come
+--       from the requirement brief ("name, designation, organisation, role,
+--       photograph, email, contact, display order, tenure/effective date")
+--       and need NIC-document verification. The entity name
+--       `GovernanceMember` IS established (§25); the snake_case plural table
+--       name `governance_members` follows the project convention
+--       (clusters/itis/aips/spvs/sips) — final name TO CONFIRM.
+--   (A) photograph: URL string vs file reference vs §24 file-upload
+--       metadata — TO CONFIRM.
+--   (A) "tenure/effective date": single effective_date drafted; a tenure
+--       range (from/to) is an alternative — TO CONFIRM.
+--   (A) Ordering: RoadMap documents no ordering requirement; the draft
+--       orders by display_order ASC NULLS LAST, then id. If display_order
+--       is dropped, reduce to ORDER BY id.
+--   (A) Controlled vocabularies (role/organisation): none documented.
+--
+-- INTENTIONALLY DEFERRED (specified in RoadMap §11 but out of scope —
+-- do NOT fabricate these):
+--   · Six group-specific endpoints: GET /governance/steering-committee,
+--     /pmu, /officers, /cluster-officers, /spv, /contacts. The grouping
+--     mechanism (column + vocabulary) they need is specified nowhere; the
+--     `role` column is the likely basis once defined. /contacts may even be
+--     a separate entity — TO CONFIRM.
+--   · Admin CRUD (POST/PATCH/DELETE /api/v1/admin/governance/members...) —
+--     separate task (email/date validation belongs there).
+--   · Approval workflow (§21) is NOT referenced by §11 — not applicable.
+--   · No list filters are implemented: §11 documents none.
+--
+-- CASTING / CONVENTION NOTES
+--   - COUNT(*) is cast to ::int so Prisma returns JS numbers (not bigint).
+--   - All user input (ids) is bound by Prisma as query parameters; the
+--     backend never interpolates values into these statements as text.
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) GET /governance + /governance/members — paginated member list
+--    (both paths served by the same handler; §11 defines no distinct
+--    behaviour for the root path).
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     id, name, designation, organisation, role, photograph,
+--     email, contact, display_order, effective_date
+-- FROM governance_members
+-- ORDER BY display_order ASC NULLS LAST, id
+-- LIMIT :pageSize OFFSET :offset;
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /governance/members — total rows (pagination meta).
+-- ----------------------------------------------------------------------------
+-- SELECT COUNT(*)::int AS total
+-- FROM governance_members;
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /governance/members/{id} — single member by primary key.
+-- ----------------------------------------------------------------------------
+-- SELECT id, name, designation, organisation, role, photograph,
+--        email, contact, display_order, effective_date
+-- FROM governance_members
+-- WHERE id = :id;

@@ -1,0 +1,133 @@
+-- ============================================================================
+-- PM SETU — SIP module · sql/sips/sip_queries.sql
+-- Endpoints:
+--   GET /api/v1/sips                     (paginated list — no spec'd filters)
+--   GET /api/v1/sips/{id}                (single SIP)
+--   GET /api/v1/clusters/{clusterId}/sip (SIPs of one cluster; singular path
+--                                          exactly as specified in RoadMap §10)
+-- Spec     : RoadMap.md §10 "SIP APIs"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the public SIP endpoints. The backend
+--   executes the same statements in src/modules/sips/sip.repository.ts via
+--   Prisma $queryRaw. If a query changes here, mirror the change there
+--   (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer (Prisma models or raw SQL, their choice). Until
+--   the schema exists the queries fail at runtime and the endpoints return
+--   a 500 error envelope. That is intentional: no fake SIP records.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table    Columns needed by these queries
+--   -------- ------------------------------------------------------------------
+--   sips     id          PK (int)
+--            status      NOT NULL — §10 workflow state. CANONICAL values
+--                        (established verbatim by RoadMap §10, "directly from
+--                        the NIC specification"; consistent with the Home KPI
+--                        contract sql/home/home_kpis.sql which already uses
+--                        'SUBMITTED'/'APPROVED'):
+--                          DRAFT, SUBMITTED, UNDER_SCRUTINY,
+--                          REVISION_REQUESTED, RECOMMENDED, APPROVED,
+--                        IMPLEMENTATION
+--                        Recommend a CHECK constraint / Postgres ENUM with
+--                        exactly these values.
+--            cluster_id  nullable FK → clusters.id (§25 SIP → Cluster; the
+--                        clusters table is established by
+--                        sql/clusters/cluster_queries.sql)
+--            aip_id      nullable FK → aips.id (§25 SIP → AIP; the aips
+--                        table is established by sql/aips/aip_queries.sql,
+--                        including its name column used for the summary)
+--
+--   ⚠ (A) TO CONFIRM — task-brief fields NOT present in RoadMap.md §10
+--       (§10 defines no field list). Included here because the requirement
+--       brief names them; final names/types need NIC verification:
+--            submission_date            DATE        — date format TO CONFIRM
+--            version                    INT         — semantics TO CONFIRM
+--                                                     (revision number vs
+--                                                     §21 document versioning)
+--            proposed_investment        NUMERIC     — assumed INR
+--            infrastructure_contribution NUMERIC    — assumed INR
+--            equipment_contribution      NUMERIC    — assumed INR
+--            training_contribution       NUMERIC    — assumed INR
+--            industry_contribution       NUMERIC    — assumed INR
+--            government_contribution     NUMERIC    — assumed INR
+--            approval_date              DATE        — nullable; meaningful
+--                                                     from APPROVED onwards
+--            remarks                    TEXT        — free text
+--
+--   clusters id PK, name — embedded cluster summary (established table).
+--   aips     id PK, name — embedded AIP summary (established table).
+--
+-- INTENTIONALLY DEFERRED (specified in RoadMap §10/§25 but out of scope —
+-- do NOT fabricate these):
+--   · Admin CRUD (POST/GET/GET:id/PATCH/DELETE /api/v1/admin/sips...).
+--   · The 7 workflow transition endpoints (POST /api/v1/admin/sips/:id/
+--     submit|review|request-revision|recommend|approve|reject|implement) —
+--     they own the state machine over `status` and belong to a separate
+--     admin task (§21 approval/audit metadata applies there).
+--   · SPV ↔ SIP link (§25 SPV └── SIP): the direction/column is not
+--     established (an spvs-side or sips-side FK — DBA decision). No join in
+--     these queries.
+--   · No list filters are implemented: §10 documents none. A future status
+--     filter would use the canonical workflow values above.
+--
+-- CASTING / CONVENTION NOTES
+--   - COUNT(*) is cast to ::int so Prisma returns JS numbers (not bigint).
+--   - Contribution/investment columns are expected NUMERIC; the API returns
+--     them as JSON numbers (double precision semantics on the JS side).
+--   - All user input (ids) is bound by Prisma as query parameters; the
+--     backend never interpolates values into these statements as text.
+--   - List ordering: ORDER BY sips.id (stable; no other spec'd ordering).
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) GET /sips — paginated list (no filters per §10).
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     sips.id, sips.status,
+--     clusters.id AS cluster_id, clusters.name AS cluster_name,
+--     aips.id AS aip_id, aips.name AS aip_name,
+--     sips.submission_date, sips.version, sips.proposed_investment,
+--     sips.infrastructure_contribution, sips.equipment_contribution,
+--     sips.training_contribution, sips.industry_contribution,
+--     sips.government_contribution, sips.approval_date, sips.remarks
+-- FROM sips
+-- LEFT JOIN clusters ON clusters.id = sips.cluster_id
+-- LEFT JOIN aips ON aips.id = sips.aip_id
+-- ORDER BY sips.id
+-- LIMIT :pageSize OFFSET :offset;
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /sips — total rows (pagination meta).
+-- ----------------------------------------------------------------------------
+-- SELECT COUNT(*)::int AS total
+-- FROM sips;
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /sips/{id} — single SIP by primary key.
+-- ----------------------------------------------------------------------------
+-- SELECT ...same column list as (1)...
+-- FROM sips
+-- LEFT JOIN clusters ON clusters.id = sips.cluster_id
+-- LEFT JOIN aips ON aips.id = sips.aip_id
+-- WHERE sips.id = :id;
+
+-- ----------------------------------------------------------------------------
+-- 4) GET /clusters/{clusterId}/sip — full SIP list of one cluster
+--    (unpaginated per current scope; ordered by id).
+-- ----------------------------------------------------------------------------
+-- SELECT ...same column list as (1)...
+-- FROM sips
+-- LEFT JOIN clusters ON clusters.id = sips.cluster_id
+-- LEFT JOIN aips ON aips.id = sips.aip_id
+-- WHERE sips.cluster_id = :clusterId
+-- ORDER BY sips.id;

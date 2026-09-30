@@ -1,0 +1,221 @@
+-- ============================================================================
+-- PM SETU — Document Management module · sql/documents/document_queries.sql
+-- Endpoints:
+--   GET /api/v1/documents                    (list + 6 filters + pagination)
+--   GET /api/v1/documents/{id}               (single document)
+--   GET /api/v1/documents/{id}/download      (file download)
+--   GET /api/v1/documents/{id}/versions      (version history)
+--   POST /api/v1/admin/documents             (admin create)
+--   PATCH /api/v1/admin/documents/:id        (admin update)
+--   DELETE /api/v1/admin/documents/:id       (admin delete)
+--   POST /api/v1/admin/documents/:id/publish (admin publish)
+--   POST /api/v1/admin/documents/:id/archive (admin archive)
+--   POST /api/v1/admin/documents/:id/version (admin version snapshot)
+--   POST /api/v1/admin/documents/upload      (admin file upload, §24)
+-- Spec     : RoadMap.md §12 "DOCUMENT APIs"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the public Document endpoints. The
+--   backend executes the same statements in
+--   src/modules/documents/document.repository.ts via Prisma $queryRaw. If a
+--   query changes here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer (Prisma models or raw SQL, their choice). Until
+--   the schema exists the queries fail at runtime and the endpoints return
+--   a 500 error envelope. That is intentional: no fake document records.
+--
+-- DATABASE FIELD NOTICE
+--   §12 defines NO field list. The fields below are sourced from the task
+--   brief and are NOT verifiable in RoadMap.md. They are TO CONFIRM pending
+--   NIC-document verification. The 6 documented §12 filters (type, cluster_id,
+--   year, department, keyword, from/to) are explicitly supported.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table             Columns needed by these queries
+--   ----------------  -------------------------------------------------------
+--   documents         id                      PK (int)
+--                     title                   nullable — document title (A)
+--                     document_number         nullable — official document number (A)
+--                     type                    nullable — document type; ?type= filter (A)
+--                     department              nullable — issuing department; ?department= (A)
+--                     issue_date              nullable DATE; ?from=/?to= date-range filters (A)
+--                     financial_year          nullable — ?year= filter (format TO CONFIRM) (A)
+--                     cluster_id              nullable FK → clusters.id; ?cluster_id= filter
+--                     keywords                nullable — keyword search target (A)
+--                     publish_status          nullable — vocabulary TO CONFIRM (A)
+--                     version                 nullable — version number (A)
+--                     file_path               nullable — path within uploads/ (A)
+--                     file_size               nullable — bytes (A)
+--                     mime_type               nullable — MIME type (A)
+--                     original_name           nullable — original upload filename (A)
+--                     language                nullable — language code; vocabulary TO CONFIRM (A)
+--                     created_at              nullable TIMESTAMP
+--                     updated_at              nullable TIMESTAMP
+--
+--   document_versions  id                     PK (int)
+--                      document_id            FK → documents.id
+--                      version                version number (A)
+--                      file_path              path within uploads/ (A)
+--                      file_size              bytes (A)
+--                      mime_type              MIME type (A)
+--                      original_name          original upload filename (A)
+--                      created_by             nullable — user reference; TO CONFIRM (B)
+--                      created_at             nullable TIMESTAMP
+--
+--   clusters           id PK, name — only for the embedded cluster summary
+--                      returned with each document (established table; see
+--                      sql/clusters/cluster_queries.sql).
+--
+--   (A) field sourced from task brief, NOT verifiable in RoadMap.md §12.
+--   (B) created_by may reference a users table (not yet implemented).
+--
+-- INTENTIONALLY DEFERRED (specified in RoadMap §12/§24 but out of scope —
+-- do NOT fabricate these):
+--   · Admin CRUD (POST/PATCH/DELETE /admin/documents) — IMPLEMENTED in code
+--     (documentAdminRouter); SQL contracts for queries #5–#7 below.
+--   · Workflow transitions (publish/archive/version endpoints) — IMPLEMENTED
+--     in code; SQL contracts for queries #8–#10 below.
+--   · File upload endpoint (POST /admin/documents/upload) — IMPLEMENTED in
+--     code; files land in uploads/documents/ and the document row file
+--     columns are updated (queries #11–#12 below).
+--
+-- RECOMMENDED INDEXES
+--   CREATE INDEX idx_documents_type ON documents(type);
+--   CREATE INDEX idx_documents_cluster_id ON documents(cluster_id);
+--   CREATE INDEX idx_documents_financial_year ON documents(financial_year);
+--   CREATE INDEX idx_documents_department ON documents(department);
+--   CREATE INDEX idx_documents_issue_date ON documents(issue_date);
+--   CREATE INDEX idx_document_versions_document_id ON document_versions(document_id);
+--
+-- ============================================================================
+-- QUERIES
+-- ============================================================================
+--
+-- 1. LIST (with 6 documented filters + pagination)
+--
+-- SELECT
+--     documents.id,
+--     documents.title,
+--     documents.document_number,
+--     documents.type,
+--     documents.department,
+--     documents.issue_date,
+--     documents.financial_year,
+--     clusters.id AS cluster_id,
+--     clusters.name AS cluster_name,
+--     documents.keywords,
+--     documents.publish_status,
+--     documents.version,
+--     documents.file_path,
+--     documents.file_size,
+--     documents.mime_type,
+--     documents.original_name,
+--     documents.language,
+--     documents.created_at,
+--     documents.updated_at
+-- FROM documents
+-- LEFT JOIN clusters ON clusters.id = documents.cluster_id
+-- WHERE
+--     documents.type = ${type}                             -- optional
+--     AND documents.cluster_id = ${cluster_id}             -- optional
+--     AND documents.financial_year = ${year}               -- optional
+--     AND documents.department = ${department}             -- optional
+--     AND (documents.keywords ILIKE ${keyword}
+--          OR documents.title ILIKE ${keyword})            -- optional
+--     AND documents.issue_date >= ${from}::date            -- optional
+--     AND documents.issue_date <= ${to}::date             -- optional
+-- ORDER BY documents.created_at DESC, documents.id DESC
+-- LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize};
+--
+-- 2. COUNT (same filters)
+--
+-- SELECT COUNT(*)::int AS count FROM documents WHERE <same filters>;
+--
+-- 3. DETAIL BY ID
+--
+-- SELECT <same columns>
+-- FROM documents
+-- LEFT JOIN clusters ON clusters.id = documents.cluster_id
+-- WHERE documents.id = ${id};
+--
+-- 4. VERSIONS LIST
+--
+-- SELECT id, document_id, version, file_path, file_size, mime_type,
+--        original_name, created_by, created_at
+-- FROM document_versions
+-- WHERE document_id = ${documentId}
+-- ORDER BY version DESC;
+--
+-- ============================================================================
+-- QUERIES 5–12: ADMIN (RoadMap §12 admin + §24 upload)
+-- ============================================================================
+-- All columns below are TO CONFIRM (see DATABASE FIELD NOTICE above).
+-- New documents start with publish_status DRAFT-equivalent + version 1
+-- (INFERRED / TO CONFIRM — vocabulary owned by the DBA).
+--
+-- 5. ADMIN CREATE
+--
+-- INSERT INTO documents (title, document_number, type, department, issue_date,
+--                        financial_year, cluster_id, keywords, publish_status,
+--                        version, file_path, file_size, mime_type,
+--                        original_name, language)
+-- VALUES (${title}, ${document_number}, ${type}, ${department}, ${issue_date},
+--         ${financial_year}, ${cluster_id}, ${keywords}, 'DRAFT',
+--         1, ${file_path}, ${file_size}, ${mime_type},
+--         ${original_name}, ${language})
+-- RETURNING id;
+--
+-- 6. ADMIN UPDATE (only supplied columns are written)
+--
+-- UPDATE documents
+-- SET <supplied columns>, updated_at = now()
+-- WHERE id = ${id};
+--
+-- 7. ADMIN DELETE
+--
+-- DELETE FROM documents WHERE id = ${id};
+--
+-- 8. ADMIN PUBLISH
+--
+-- UPDATE documents
+-- SET publish_status = 'PUBLISHED', updated_at = now()
+-- WHERE id = ${id};
+--
+-- 9. ADMIN ARCHIVE
+--
+-- UPDATE documents
+-- SET publish_status = 'ARCHIVED', updated_at = now()
+-- WHERE id = ${id};
+--
+-- 10. ADMIN VERSION (snapshot current row into document_versions, bump version)
+--
+-- INSERT INTO document_versions (document_id, version, file_path, file_size,
+--                                mime_type, original_name, created_by)
+-- SELECT id, version, file_path, file_size, mime_type, original_name,
+--        ${created_by}
+-- FROM documents
+-- WHERE id = ${id};
+-- UPDATE documents
+-- SET version = version + 1, updated_at = now()
+-- WHERE id = ${id};
+--
+-- 11. ADMIN FILE UPDATE (after upload to uploads/documents/)
+--
+-- UPDATE documents
+-- SET file_path = ${file_path}, file_size = ${file_size},
+--     mime_type = ${mime_type}, original_name = ${original_name},
+--     updated_at = now()
+-- WHERE id = ${id};
+--
+-- 12. ADMIN VERSION FILE UPDATE (after upload with version snapshot)
+--
+-- Same as #11, executed after #10 when the upload requests a version
+-- snapshot (INFERRED behavior / TO CONFIRM).

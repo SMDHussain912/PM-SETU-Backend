@@ -1,0 +1,189 @@
+-- ============================================================================
+-- PM SETU — Search module · sql/search/search_queries.sql
+-- Endpoint:
+--   GET /api/v1/search  (portal-wide search)
+-- Spec     : RoadMap.md §17 "SEARCH API"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the portal-wide search endpoint. The
+--   backend executes the same statements in
+--   src/modules/search/search.repository.ts via Prisma $queryRaw. If a query
+--   changes here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer (Prisma models or raw SQL, their choice). Until
+--   the schema exists the queries fail at runtime and the endpoints return
+--   a 500 error envelope. That is intentional: no fake search results.
+--
+-- SEARCHABLE ENTITIES (existing tables only)
+--   Search is limited to entities with established database tables:
+--     · clusters   (sql/clusters/cluster_queries.sql)
+--     · itis       (sql/itis/iti_queries.sql)
+--     · aips       (sql/aips/aip_queries.sql)
+--     · spvs       (sql/spvs/spv_queries.sql)
+--     · sips       (sql/sips/sip_queries.sql)
+--     · documents  (sql/documents/document_queries.sql)
+--     · news       (sql/news/news_queries.sql)
+--
+-- FUTURE INTEGRATION POINTS (TO CONFIRM — do NOT add until tables exist)
+--   The following entities are mentioned in RoadMap §17 but have NO tables:
+--     · GO          (Government Orders)
+--     · RFP         (Request for Proposals)
+--     · Circular
+--     · District
+--   These should be added as UNION ALL branches only after their tables are
+--   created by the database developer.
+--
+-- SEARCHABLE FIELDS (INFERRED from existing SQL contracts — TO CONFIRM)
+--   All searchable fields below are INFERRED from the existing entity SQL
+--   contracts and are NOT verifiable in RoadMap.md. They should be confirmed
+--   against the NIC document.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table         Searchable fields (INFERRED)
+--   ------------  -----------------------------------------------------------
+--   clusters      name, district, sector
+--   itis          iti_name, iti_code, district
+--   aips          name, sector
+--   spvs          name
+--   sips          status
+--   documents     title, document_number, keywords
+--   news          title, summary, content
+--
+-- INTENTIONALLY DEFERRED (specified in RoadMap §17 but out of scope —
+-- do NOT fabricate these tables or queries):
+--   · GO (Government Orders)
+--   · RFP (Request for Proposals)
+--   · Circular
+--   · District
+--
+-- RECOMMENDED INDEXES
+--   CREATE INDEX idx_clusters_name ON clusters(name);
+--   CREATE INDEX idx_clusters_district ON clusters(district);
+--   CREATE INDEX idx_itis_iti_name ON itis(iti_name);
+--   CREATE INDEX idx_itis_district ON itis(district);
+--   CREATE INDEX idx_aips_name ON aips(name);
+--   CREATE INDEX idx_spvs_name ON spvs(name);
+--   CREATE INDEX idx_documents_title ON documents(title);
+--   CREATE INDEX idx_news_title ON news(title);
+--
+-- ============================================================================
+-- QUERIES
+-- ============================================================================
+--
+-- 1. SEARCH (paginated, UNION ALL across all searchable entities)
+--
+-- SELECT * FROM (
+--     -- Clusters
+--     SELECT
+--         clusters.id AS id,
+--         'cluster' AS type,
+--         clusters.name AS title,
+--         clusters.district AS summary,
+--         '/clusters/' || clusters.id AS url,
+--         jsonb_build_object('district', clusters.district, 'sector', clusters.sector) AS metadata
+--     FROM clusters
+--     WHERE clusters.name ILIKE $q
+--         OR clusters.district ILIKE $q
+--         OR clusters.sector ILIKE $q
+--
+--     UNION ALL
+--
+--     -- ITIs
+--     SELECT
+--         itis.id AS id,
+--         'iti' AS type,
+--         itis.iti_name AS title,
+--         itis.district AS summary,
+--         '/itis/' || itis.id AS url,
+--         jsonb_build_object('district', itis.district, 'type', itis.type) AS metadata
+--     FROM itis
+--     WHERE itis.iti_name ILIKE $q
+--         OR itis.iti_code ILIKE $q
+--         OR itis.district ILIKE $q
+--
+--     UNION ALL
+--
+--     -- AIPs
+--     SELECT
+--         aips.id AS id,
+--         'aip' AS type,
+--         aips.name AS title,
+--         aips.sector AS summary,
+--         '/aips/' || aips.id AS url,
+--         jsonb_build_object('sector', aips.sector, 'status', aips.status) AS metadata
+--     FROM aips
+--     WHERE aips.name ILIKE $q
+--         OR aips.sector ILIKE $q
+--
+--     UNION ALL
+--
+--     -- SPVs
+--     SELECT
+--         spvs.id AS id,
+--         'spv' AS type,
+--         spvs.name AS title,
+--         spvs.status AS summary,
+--         '/spvs/' || spvs.id AS url,
+--         jsonb_build_object('status', spvs.status) AS metadata
+--     FROM spvs
+--     WHERE spvs.name ILIKE $q
+--
+--     UNION ALL
+--
+--     -- SIPs
+--     SELECT
+--         sips.id AS id,
+--         'sip' AS type,
+--         sips.status AS title,
+--         NULL AS summary,
+--         '/sips/' || sips.id AS url,
+--         jsonb_build_object('status', sips.status) AS metadata
+--     FROM sips
+--     WHERE sips.status ILIKE $q
+--
+--     UNION ALL
+--
+--     -- Documents
+--     SELECT
+--         documents.id AS id,
+--         'document' AS type,
+--         documents.title AS title,
+--         documents.document_number AS summary,
+--         '/documents/' || documents.id AS url,
+--         jsonb_build_object('type', documents.type, 'issue_date', documents.issue_date) AS metadata
+--     FROM documents
+--     WHERE documents.title ILIKE $q
+--         OR documents.document_number ILIKE $q
+--         OR documents.keywords ILIKE $q
+--
+--     UNION ALL
+--
+--     -- News
+--     SELECT
+--         news.id AS id,
+--         'news' AS type,
+--         news.title AS title,
+--         news.summary AS summary,
+--         '/news/' || news.id AS url,
+--         jsonb_build_object('published_date', news.published_date, 'category', news.category) AS metadata
+--     FROM news
+--     WHERE news.title ILIKE $q
+--         OR news.summary ILIKE $q
+--         OR news.content ILIKE $q
+-- ) AS search_results
+-- ORDER BY type, id
+-- LIMIT $pageSize OFFSET ($page - 1) * $pageSize;
+--
+-- 2. COUNT (same UNION ALL without LIMIT/OFFSET)
+--
+-- SELECT COUNT(*)::int AS count FROM (
+--     -- Same UNION ALL subqueries as above
+-- ) AS search_results;

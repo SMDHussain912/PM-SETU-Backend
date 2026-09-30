@@ -1,0 +1,138 @@
+-- ============================================================================
+-- PM SETU — Roles module · sql/roles/role_queries.sql
+-- Endpoints:
+--   GET    /api/v1/admin/roles            (role list)
+--   GET    /api/v1/admin/roles/{id}       (role + permission codes)
+--   POST   /api/v1/admin/roles            (custom role creation)
+--   PATCH  /api/v1/admin/roles/{id}       (role update)
+--   DELETE /api/v1/admin/roles/{id}       (role deletion — system roles safe)
+--   GET    /api/v1/admin/permissions      (permission code list)
+-- Spec     : RoadMap.md §20 "ROLE / PERMISSION APIs"; §25 (Role/Permission/
+--           RolePermission/UserRole)
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the Roles endpoints. The backend executes
+--   the same statements in src/modules/roles/role.repository.ts via Prisma
+--   $queryRaw / $executeRaw with bound parameters only. If a query changes
+--   here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet. This file documents the PLANNED
+--   queries and the contract of what the database developer must create.
+--   NOTHING here creates tables. Until the schema exists the queries fail at
+--   runtime and the endpoints return a 500 error envelope. That is
+--   intentional: no fake role records.
+--
+-- ROLE NAME → CODE MAPPING
+--   RoadMap.md §20 documents the ten role NAMES verbatim (never renamed).
+--   Database-safe slugs are an INFERRED mapping (TO CONFIRM with the DBA):
+--
+--     Super Administrator   → super_admin
+--     State PMU Admin       → state_pmu_admin
+--     DET Content Admin     → det_content_admin
+--     Cluster Admin         → cluster_admin
+--     Hub ITI User          → hub_iti_user
+--     Spoke ITI User        → spoke_iti_user
+--     AIP User              → aip_user
+--     SPV User              → spv_user
+--     Dashboard Viewer      → dashboard_viewer
+--     Approving Authority   → approving_authority
+--
+--   JWT role claims and the RBAC middleware (src/middleware/rbac.middleware.ts)
+--   use these codes; `name` stores the documented title.
+--
+-- PERMISSION CODES (INFERRED / TO CONFIRM)
+--   Minimal initial vocabulary so requirePermissions() is usable:
+--     user.read · user.write · role.read · role.write
+--   Future modules add their own codes (cms.*, dashboard.read, approval.*,
+--   audit.read, ...) when those modules are built — nothing invented here.
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) GET /admin/roles — full role list.
+-- ----------------------------------------------------------------------------
+-- SELECT id, code, name, description, is_system
+-- FROM roles
+-- ORDER BY id;
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /admin/roles/{id} — one role with its permission codes
+--    (one row per permission; the backend flattens them).
+-- ----------------------------------------------------------------------------
+-- SELECT r.id, r.code, r.name, r.description, r.is_system,
+--        p.code AS permission_code
+-- FROM roles r
+-- LEFT JOIN role_permissions rp ON rp.role_id = r.id
+-- LEFT JOIN permissions p       ON p.id = rp.permission_id
+-- WHERE r.id = :roleId;
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /admin/permissions — permission code list.
+-- ----------------------------------------------------------------------------
+-- SELECT id, code, name
+-- FROM permissions
+-- ORDER BY id;
+
+-- ----------------------------------------------------------------------------
+-- 4) POST /admin/roles — create a custom role. Duplicate code → unique
+--    constraint violation (Prisma P2002 → 409 DUPLICATE_RECORD).
+-- ----------------------------------------------------------------------------
+-- INSERT INTO roles (code, name, description, is_system)
+-- VALUES (:code, :name, :description, FALSE)
+-- RETURNING id;
+
+-- ----------------------------------------------------------------------------
+-- 5) POST /admin/roles — assign one permission. Called INSIDE a transaction
+--    with #4. ON CONFLICT keeps re-assignment idempotent.
+-- ----------------------------------------------------------------------------
+-- INSERT INTO role_permissions (role_id, permission_id)
+-- VALUES (:roleId, :permissionId)
+-- ON CONFLICT DO NOTHING;
+
+-- ----------------------------------------------------------------------------
+-- 6) PATCH /admin/roles/{id} — update name/description only. `code` and
+--    `is_system` are immutable (JWT/authorization depend on stable codes).
+--    The backend composes ONLY the supplied columns (bound parameters).
+-- ----------------------------------------------------------------------------
+
+-- ----------------------------------------------------------------------------
+-- 7) PATCH /admin/roles/{id} — replace permission mappings (DELETE + INSERTs
+--    in ONE transaction).
+-- ----------------------------------------------------------------------------
+-- DELETE FROM role_permissions WHERE role_id = :roleId;
+-- INSERT INTO role_permissions (role_id, permission_id)
+-- VALUES (:roleId, :permissionId)    -- repeated once per new permission id
+-- ON CONFLICT DO NOTHING;
+
+-- ----------------------------------------------------------------------------
+-- 8) DELETE /admin/roles/{id} — system roles (is_system = TRUE) are
+--    protected; a custom role delete that matches no row is a 404.
+-- ----------------------------------------------------------------------------
+-- DELETE FROM roles
+-- WHERE id = :roleId AND is_system = FALSE;
+
+-- ============================================================================
+-- 9) SEED — the ten documented PM SETU roles (RoadMap.md §20).
+--    DBA-owned bootstrap data; the backend never creates roles at runtime.
+--    Run once when the schema is created.
+-- ============================================================================
+-- INSERT INTO roles (code, name, description, is_system) VALUES
+--   ('super_admin',         'Super Administrator', 'Full portal administration', TRUE),
+--   ('state_pmu_admin',     'State PMU Admin',     'State PMU administration',   TRUE),
+--   ('det_content_admin',   'DET Content Admin',   'DET content management',     TRUE),
+--   ('cluster_admin',       'Cluster Admin',       'Cluster-level administration', TRUE),
+--   ('hub_iti_user',        'Hub ITI User',        'Hub ITI operator',           TRUE),
+--   ('spoke_iti_user',      'Spoke ITI User',      'Spoke ITI operator',         TRUE),
+--   ('aip_user',            'AIP User',            'Anchor Industry Partner operator', TRUE),
+--   ('spv_user',            'SPV User',            'Special Purpose Vehicle operator', TRUE),
+--   ('dashboard_viewer',    'Dashboard Viewer',    'Read-only dashboard access', TRUE),
+--   ('approving_authority', 'Approving Authority', 'Content/approval authority', TRUE);
+--
+-- Initial permission seed (INFERRED / TO CONFIRM):
+-- INSERT INTO permissions (code, name) VALUES
+--   ('user.read',   'View users'),
+--   ('user.write',  'Create/update/deactivate users'),
+--   ('role.read',   'View roles and permissions'),
+--   ('role.write',  'Create/update/delete roles');

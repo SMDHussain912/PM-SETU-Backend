@@ -1,0 +1,541 @@
+// Prisma schema — https://pris.ly/docs/prisma-schema
+// NOTE (Prisma 7):
+//  - The "prisma-client" generator requires a custom output path. The client
+//    is generated to ../src/generated/prisma (inside src), importable from both
+//    src/ (tsx dev) and dist/ (tsc build).
+//  - The datasource no longer takes a `url`. The connection string for CLI
+//    commands (migrate etc.) lives in prisma.config.ts, and the runtime
+//    connection is provided by the driver adapter in src/config/database.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+// ============================================================================
+// WS-0 — PM SETU database schema
+//
+// Transcribed from the canonical SQL contracts in sql/**/*.sql. Every table and
+// column below is required by a live endpoint in src/modules/*/ *.repository.ts.
+//
+// RULES (do not break — see MASTER_PLAN.md §4.2):
+//  1. itis.type stores EXACTLY 'HUB' | 'SPOKE'. home_kpis.sql filters on those
+//     literals; any other casing silently returns 0 for the Hub/Spoke KPIs.
+//  2. aips.investment_amount is the name already established by the KPI
+//     contract. Renaming it breaks sql/home/home_kpis.sql.
+//  3. sips.status must contain 'SUBMITTED' and 'APPROVED' (KPI contract), plus
+//     the seven canonical §10 workflow states.
+//  4. Status/category vocabularies marked TO CONFIRM are stored as TEXT with a
+//     CHECK constraint (see prisma/migrations/*_init/migration.sql) rather than
+//     a Postgres ENUM, so the DBA can revise them without a type migration.
+//  5. trainees and industries_engaged have NO source column anywhere in §25.
+//     They stay NULL at the API layer — never substitute fake numbers.
+// ============================================================================
+
+// ── Registry entities (§6, §7, §8, §9, §10) ───────────────────────────────
+
+/// Cluster master. Columns: sql/clusters/cluster_queries.sql
+model Cluster {
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+
+  id       Int    @id @default(autoincrement())
+  name     String
+  district String
+  sector   String
+
+  itis Iti[]
+  aips Aip[]
+  spvs Spv[]
+  sips Sip[]
+  news News[]
+  docs Document[]
+
+  @@index([name], map: "idx_clusters_name")
+  @@index([district], map: "idx_clusters_district")
+  @@index([sector], map: "idx_clusters_sector")
+  @@map("clusters")
+}
+
+/// ITI registry. Columns: sql/itis/iti_queries.sql
+/// `type` is the HUB/SPOKE discriminator consumed by the Home KPIs.
+model Iti {
+  id        Int    @id @default(autoincrement())
+  itiCode   String @map("iti_code")
+  itiName   String @map("iti_name")
+  /// CHECK (type IN ('HUB','SPOKE')) — see migration SQL.
+  type      String
+  district  String
+  clusterId Int?   @map("cluster_id")
+  address   String?
+  principal String?
+  contact   String?
+  email     String?
+
+  /// Stored as PostgreSQL text[] (the queries assume single-column array
+  /// storage; see iti_queries.sql note (A)). Child tables remain an option.
+  existingTrades String[] @default([]) @map("existing_trades")
+  proposedTrades String[] @default([]) @map("proposed_trades")
+  studentStrength Int?     @map("student_strength")
+
+  infrastructure String?
+  labDetails     String?  @map("lab_details")
+  latitude       Float?
+  longitude      Float?
+  photos         String[] @default([])
+  /// Lifecycle status — vocabulary TO CONFIRM, free text passthrough.
+  status         String   @default("ACTIVE")
+
+  cluster Cluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+
+  @@unique([itiCode], map: "idx_itis_iti_code")
+  @@index([itiName], map: "idx_itis_iti_name")
+  @@index([district], map: "idx_itis_district")
+  @@index([type], map: "idx_itis_type")
+  @@index([clusterId], map: "idx_itis_cluster_id")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("itis")
+}
+
+/// Anchor Industry Partners. Columns: sql/aips/aip_queries.sql
+model Aip {
+  id        Int    @id @default(autoincrement())
+  name      String
+  sector    String
+  status    String
+  /// ⚠ Column name is fixed by sql/home/home_kpis.sql — do not rename.
+  investmentAmount Decimal? @map("investment_amount") @db.Decimal(18, 2)
+  logoUrl          String?  @map("logo_url")
+  clusterId        Int?     @map("cluster_id")
+  academicPartner  Boolean  @default(false) @map("academic_partner")
+  contact          String?
+  website          String?
+
+  cluster Cluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  spvs    Spv[]
+  sips    Sip[]
+
+  @@index([name], map: "idx_aips_name")
+  @@index([sector], map: "idx_aips_sector")
+  @@index([status], map: "idx_aips_status")
+  @@index([clusterId], map: "idx_aips_cluster_id")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("aips")
+}
+
+/// Special Purpose Vehicles. Columns: sql/spvs/spv_queries.sql
+/// §9 names only the lifecycle; no speculative columns are added.
+model Spv {
+  id        Int    @id @default(autoincrement())
+  name      String
+  /// CHECK (status IN ('PROPOSED','UNDER_FORMATION','INCORPORATED','OPERATIONAL'))
+  status    String
+  clusterId Int?   @map("cluster_id")
+  aipId     Int?   @map("aip_id")
+
+  cluster Cluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  aip     Aip?     @relation(fields: [aipId], references: [id], onDelete: SetNull)
+
+  @@index([name], map: "idx_spvs_name")
+  @@index([status], map: "idx_spvs_status")
+  @@index([clusterId], map: "idx_spvs_cluster_id")
+  @@index([aipId], map: "idx_spvs_aip_id")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("spvs")
+}
+
+/// Strategic Investment Plans. Columns: sql/sips/sip_queries.sql
+/// Seven canonical §10 workflow states, verbatim from the NIC specification.
+model Sip {
+  id Int @id @default(autoincrement())
+  /// CHECK: DRAFT | SUBMITTED | UNDER_SCRUTINY | REVISION_REQUESTED |
+  ///        RECOMMENDED | APPROVED | IMPLEMENTATION
+  status String
+
+  clusterId Int? @map("cluster_id")
+  aipId     Int? @map("aip_id")
+
+  // ⚠ Task-brief fields, NOT in RoadMap §10 — NIC verification pending.
+  submissionDate             DateTime? @map("submission_date") @db.Date
+  version                    Int?
+  proposedInvestment         Decimal?  @map("proposed_investment") @db.Decimal(18, 2)
+  infrastructureContribution Decimal?  @map("infrastructure_contribution") @db.Decimal(18, 2)
+  equipmentContribution      Decimal?  @map("equipment_contribution") @db.Decimal(18, 2)
+  trainingContribution       Decimal?  @map("training_contribution") @db.Decimal(18, 2)
+  industryContribution       Decimal?  @map("industry_contribution") @db.Decimal(18, 2)
+  governmentContribution     Decimal?  @map("government_contribution") @db.Decimal(18, 2)
+  approvalDate               DateTime? @map("approval_date") @db.Date
+  remarks                    String?
+
+  cluster Cluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  aip     Aip?     @relation(fields: [aipId], references: [id], onDelete: SetNull)
+
+  @@index([status], map: "idx_sips_status")
+  @@index([clusterId], map: "idx_sips_cluster_id")
+  @@index([aipId], map: "idx_sips_aip_id")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("sips")
+}
+
+// ── Content & governance (§11, §13, §15, §16, §23, §12) ────────────────────
+
+/// Governance directory. Columns: sql/governance/governance_queries.sql
+/// ⚠ §11 defines NO field list — every column below is TO CONFIRM with NIC.
+/// Ordering: display_order ASC NULLS LAST, then id.
+model GovernanceMember {
+  id            Int       @id @default(autoincrement())
+  name          String
+  designation   String?
+  organisation  String?
+  role          String?
+  photograph    String?
+  email         String?
+  contact       String?
+  displayOrder  Int?      @map("display_order")
+  effectiveDate DateTime? @map("effective_date") @db.Date
+
+  @@index([displayOrder], map: "idx_governance_members_display_order")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("governance_members")
+}
+
+/// Document repository (DMS). Columns: sql/documents/document_queries.sql
+model Document {
+  id             Int       @id @default(autoincrement())
+  title          String?
+  documentNumber String?   @map("document_number")
+  type           String?
+  department     String?
+  issueDate      DateTime? @map("issue_date") @db.Date
+  financialYear  String?   @map("financial_year")
+  clusterId      Int?      @map("cluster_id")
+  keywords       String?
+  publishStatus  String?   @map("publish_status")
+  version        Int?
+  filePath       String?   @map("file_path")
+  fileSize       Int?      @map("file_size")
+  mimeType       String?   @map("mime_type")
+  originalName   String?   @map("original_name")
+  language       String?
+  createdAt      DateTime? @map("created_at") @default(now())
+  updatedAt      DateTime? @map("updated_at") @updatedAt
+
+  cluster   Cluster?          @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  versions  DocumentVersion[]
+
+  @@index([type], map: "idx_documents_type")
+  @@index([department], map: "idx_documents_department")
+  @@index([financialYear], map: "idx_documents_financial_year")
+  @@index([issueDate], map: "idx_documents_issue_date")
+  @@index([clusterId], map: "idx_documents_cluster_id")
+  @@index([publishStatus], map: "idx_documents_publish_status")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("documents")
+}
+
+/// Document version history (§15 "Version history").
+model DocumentVersion {
+  id           Int       @id @default(autoincrement())
+  documentId   Int       @map("document_id")
+  version      Int
+  filePath     String?   @map("file_path")
+  fileSize     Int?      @map("file_size")
+  mimeType     String?   @map("mime_type")
+  originalName String?   @map("original_name")
+  createdBy    String?   @map("created_by")
+  createdAt    DateTime? @map("created_at") @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, version], map: "idx_document_versions_document_id_version")
+  @@map("document_versions")
+}
+/// News CMS. Columns: sql/news/news_queries.sql
+/// ⚠ §25 shows NO relationship for News; cluster_id is a task-brief field (A).
+model News {
+  id            Int       @id @default(autoincrement())
+  title         String?
+  summary       String?
+  content       String?
+  publishedDate DateTime? @map("published_date")
+  expiryDate    DateTime? @map("expiry_date")
+  category      String?
+  clusterId     Int?      @map("cluster_id")
+  thumbnailUrl  String?   @map("thumbnail_url")
+  isPublished   Boolean?  @map("is_published") @default(false)
+  createdAt     DateTime? @map("created_at") @default(now())
+  updatedAt     DateTime? @map("updated_at") @updatedAt
+
+  cluster     Cluster?         @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  attachments NewsAttachment[]
+
+  @@index([publishedDate], map: "idx_news_published_date")
+  @@index([category], map: "idx_news_category")
+  @@index([isPublished], map: "idx_news_is_published")
+  @@index([clusterId], map: "idx_news_cluster_id")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("news")
+}
+
+/// News attachments (§13 "Attachments").
+model NewsAttachment {
+  id        Int       @id @default(autoincrement())
+  newsId    Int       @map("news_id")
+  filePath  String?   @map("file_path")
+  fileName  String?   @map("file_name")
+  mimeType  String?   @map("mime_type")
+  fileSize  Int?      @map("file_size")
+  createdAt DateTime? @map("created_at") @default(now())
+
+  news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
+
+  @@index([newsId], map: "idx_news_attachments_news_id")
+  @@map("news_attachments")
+}
+
+/// Media gallery. Columns: sql/gallery/gallery_queries.sql
+/// The /photos and /videos endpoints filter `type = 'PHOTO'` / `'VIDEO'`.
+model GalleryItem {
+  id            Int       @id @default(autoincrement())
+  title         String?
+  description   String?
+  /// CHECK (type IN ('PHOTO','VIDEO','PRESS_RELEASE')) — see migration SQL.
+  type          String?
+  mediaUrl      String?   @map("media_url")
+  thumbnailUrl  String?   @map("thumbnail_url")
+  publishedDate DateTime? @map("published_date")
+  category      String?
+  isPublished   Boolean?  @map("is_published") @default(false)
+  displayOrder  Int?      @map("display_order")
+  createdAt     DateTime? @map("created_at") @default(now())
+  updatedAt     DateTime? @map("updated_at") @updatedAt
+
+  @@index([type], map: "idx_gallery_items_type")
+  @@index([publishedDate], map: "idx_gallery_items_published_date")
+  @@index([displayOrder], map: "idx_gallery_items_display_order")
+  @@index([isPublished], map: "idx_gallery_items_is_published")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("gallery_items")
+}
+
+/// Banner management (§5). Columns: sql/banners/banner_queries.sql
+/// Public "active" predicate: is_published AND NOT is_archived
+///   AND (start_date IS NULL OR start_date <= now())
+///   AND (end_date   IS NULL OR end_date   >= now())
+model Banner {
+  id               Int       @id @default(autoincrement())
+  title            String?
+  desktopImageUrl  String?   @map("desktop_image_url")
+  mobileImageUrl   String?   @map("mobile_image_url")
+  ctaText          String?   @map("cta_text")
+  ctaUrl           String?   @map("cta_url")
+  displayOrder     Int       @map("display_order") @default(0)
+  startDate        DateTime? @map("start_date")
+  endDate          DateTime? @map("end_date")
+  isPublished      Boolean?  @map("is_published") @default(false)
+  isArchived       Boolean?  @map("is_archived") @default(false)
+  createdAt        DateTime? @map("created_at") @default(now())
+  updatedAt        DateTime? @map("updated_at") @updatedAt
+
+  @@index([isPublished], map: "idx_banners_is_published")
+  @@index([isArchived], map: "idx_banners_is_archived")
+  @@index([displayOrder], map: "idx_banners_display_order")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("banners")
+}
+
+/// Public contact form submissions (§23). Columns: sql/contact/contact_queries.sql
+/// ⚠ All fields are implementation-sourced (I) — not verifiable in §23.
+model ContactMessage {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  /// CHECK (status IN ('NEW','READ','REPLIED','ARCHIVED')) — see migration SQL.
+  status    String    @default("NEW")
+  createdAt DateTime? @map("created_at") @default(now())
+  updatedAt DateTime? @map("updated_at") @updatedAt
+
+  @@index([status], map: "idx_contact_messages_status")
+  @@index([createdAt], map: "idx_contact_messages_created_at")
+
+  /// Demo/test marker. Rows with is_sample = TRUE are development data seeded by
+  /// `prisma db seed` and MUST be removed before go-live. Nothing produced by the
+  /// admin console sets this, so the flag is a reliable deletion target.
+  isSample Boolean @default(false) @map("is_sample")
+  @@map("contact_messages")
+}
+// ── Auth, RBAC, approvals, audit (§18, §19, §20, §21, §22) ────────────────
+
+/// Columns: sql/auth/auth_queries.sql + sql/users/user_queries.sql
+/// username UNIQUE, email UNIQUE NULL. status ACTIVE | INACTIVE — DELETE is a
+/// SOFT delete (status = 'INACTIVE') so approval/audit references keep resolving.
+model User {
+  id                   Int       @id @default(autoincrement())
+  username             String    @unique
+  passwordHash         String    @map("password_hash")
+  fullName             String?   @map("full_name")
+  email                String?   @unique
+  /// CHECK (status IN ('ACTIVE','INACTIVE'))
+  status               String    @default("ACTIVE")
+  failedLoginAttempts  Int       @default(0) @map("failed_login_attempts")
+  lockedUntil          DateTime? @map("locked_until")
+  lastLoginAt          DateTime? @map("last_login_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  roles UserRole[]
+
+  @@index([status], map: "idx_users_status")
+  @@map("users")
+}
+
+/// Columns: sql/roles/role_queries.sql
+/// `code` is the DB-safe slug used by the RBAC middleware and JWT claims;
+/// `name` stores the documented title from §20 (never renamed).
+model Role {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+/// Columns: sql/roles/role_queries.sql
+/// Minimal initial vocabulary: user.read · user.write · role.read · role.write
+model Permission {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String?
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+/// Join table. Composite PK (user_id, role_id) per user_queries.sql.
+model UserRole {
+  userId     Int      @map("user_id")
+  roleId     Int      @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId], map: "idx_user_roles_role_id")
+  @@map("user_roles")
+}
+
+/// Join table for role → permission grants.
+model RolePermission {
+  roleId       Int @map("role_id")
+  permissionId Int @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId], map: "idx_role_permissions_permission_id")
+  @@map("role_permissions")
+}
+
+/// Content approval workflow (§21). Columns: sql/approvals/approval_queries.sql
+/// Only the CORE columns are required by the backend; the rest are INFERRED.
+/// The approvals module does NOT modify sips.status — SIP owns its own workflow.
+model Approval {
+  id         Int      @id @default(autoincrement())
+  entityType String   @map("entity_type")
+  entityId   Int      @map("entity_id")
+  /// CHECK: PENDING | SUBMITTED | UNDER_REVIEW | REVISION_REQUESTED |
+  ///        RECOMMENDED | APPROVED | REJECTED
+  status     String   @default("PENDING")
+  submittedBy String? @map("submitted_by")
+  reviewedBy  String? @map("reviewed_by")
+  approvedBy  String? @map("approved_by")
+  remarks     String?
+  stage        String?
+  assignedTo   String?  @map("assigned_to")
+  submittedAt  DateTime? @map("submitted_at")
+  reviewedAt   DateTime? @map("reviewed_at")
+  decisionAt   DateTime? @map("decision_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([entityType, entityId], map: "idx_approvals_entity_type_entity_id")
+  @@index([status], map: "idx_approvals_status")
+  @@map("approvals")
+}
+
+/// Audit log (§22). Columns: sql/audit/audit_queries.sql
+/// APPEND-ONLY: created only by trusted internal services. There is no public
+/// POST/PATCH/DELETE audit endpoint.
+model AuditLog {
+  id             Int      @id @default(autoincrement())
+  userId         String   @map("user_id")
+  action         String
+  entity         String
+  entityId       Int      @map("entity_id")
+  oldValue       Json?    @map("old_value")
+  newValue       Json?    @map("new_value")
+  approvalStatus String?  @map("approval_status")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  path           String?
+  timestamp      DateTime @default(now())
+
+  @@index([entity, entityId], map: "idx_audit_logs_entity_entity_id")
+  @@index([userId], map: "idx_audit_logs_user_id")
+  @@index([timestamp], map: "idx_audit_logs_timestamp")
+  @@map("audit_logs")
+}

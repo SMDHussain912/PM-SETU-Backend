@@ -1,0 +1,88 @@
+-- ============================================================================
+-- PM SETU — Cluster module · sql/clusters/cluster_queries.sql
+-- Endpoints:
+--   GET /api/v1/clusters        (list + filters + pagination)
+--   GET /api/v1/clusters/{id}   (single cluster)
+-- Spec     : RoadMap.md §6 "CLUSTER APIs"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the public cluster endpoints. The
+--   backend executes the same statements in
+--   src/modules/clusters/cluster.repository.ts via Prisma $queryRaw. If a
+--   query changes here, mirror the change there (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer (Prisma models or raw SQL, their choice). Until
+--   the schema exists the queries fail at runtime and the endpoints return
+--   a 500 error envelope. That is intentional: no fake cluster records.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table      Columns needed by these queries
+--   ---------- ----------------------------------------------------------------
+--   clusters   id        PK (int) — also referenced by:
+--                          · sql/itis/iti_queries.sql (itis.cluster_id FK,
+--                            which needs only id + name today)
+--                          · sql/home/home_kpis.sql (COUNT(*) only)
+--                          · sql/clusters (this file: all columns below)
+--              name      cluster name (NOT NULL) — also used by the ITI
+--                          module's embedded cluster summary
+--              district  NOT NULL — §6 district view + ?district= filter
+--              sector    NOT NULL — §6 sector view + ?sector= filter (A)
+--
+--   (A) The spec never says whether a cluster can cover multiple sectors.
+--       The current contract is a single sector value; if the DBA decides
+--       clusters are multi-sector, the ?sector= filter becomes an ANY-match
+--       and the SELECT must be adjusted — the API shape stays.
+--
+-- INTENTIONALLY DEFERRED (specified in RoadMap §6 but out of scope here —
+-- do NOT add these columns/tables to make the endpoints look complete):
+--   · ?status=approved filter — no cluster status vocabulary is defined
+--     anywhere in the spec (the §21 approval workflow may apply, TO CONFIRM).
+--   · Related data (hub ITIs, spoke ITIs, AIP, SPV, SIP status, investment,
+--     implementation status) — the spec exposes these through dedicated
+--     endpoints (/:id/summary, /:id/itis, /:id/aip, /:id/spv, /:id/sip, ...).
+--     /:id/itis is already served by the ITI module (sql/itis/iti_queries.sql);
+--     the rest belong to the future AIP/SPV/SIP modules and are NOT part of
+--     the cluster master data. "Academic partner" appears nowhere in the spec.
+--   · /:id/summary and /map endpoints — not implemented yet.
+--
+-- CASTING / CONVENTION NOTES
+--   - COUNT(*) is cast to ::int so Prisma returns JS numbers (not bigint).
+--   - All user input (filters, ids) is bound by Prisma as query parameters;
+--     the backend never interpolates values into these statements as text.
+--   - List ordering: ORDER BY name (stable, user-facing).
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) GET /clusters — paginated list. :district/:sector/:search are optional;
+--    the backend composes ONLY the supplied predicates (all bound
+--    parameters), e.g.  WHERE district = $1 AND sector = $2.
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     id, name, district, sector
+-- FROM clusters
+-- WHERE (:filters)                       -- composed from supplied filters
+-- ORDER BY name
+-- LIMIT :pageSize OFFSET :offset;
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /clusters — total rows for the same filters (pagination meta).
+-- ----------------------------------------------------------------------------
+-- SELECT COUNT(*)::int AS total
+-- FROM clusters
+-- WHERE (:filters);
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /clusters/{id} — single cluster by primary key.
+-- ----------------------------------------------------------------------------
+-- SELECT id, name, district, sector
+-- FROM clusters
+-- WHERE id = :id;

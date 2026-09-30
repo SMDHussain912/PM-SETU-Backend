@@ -1,0 +1,106 @@
+-- ============================================================================
+-- PM SETU — AIP module · sql/aips/aip_queries.sql
+-- Endpoints:
+--   GET /api/v1/aips        (list + filters + pagination)
+--   GET /api/v1/aips/{id}   (single AIP)
+-- Spec     : RoadMap.md §8 "AIP APIs"
+-- ============================================================================
+--
+-- PURPOSE
+--   Canonical PostgreSQL sources of the public AIP endpoints. The backend
+--   executes the same statements in src/modules/aips/aip.repository.ts via
+--   Prisma $queryRaw. If a query changes here, mirror the change there
+--   (and vice versa).
+--
+-- STATUS  ⚠ READ FIRST
+--   The PM SETU schema does NOT exist yet:
+--     - prisma/schema.prisma defines no models
+--     - prisma/migrations/ does not exist
+--   This file documents the PLANNED queries and the contract of what must
+--   be created. NOTHING here creates tables — schema creation is owned by
+--   the database developer (Prisma models or raw SQL, their choice). Until
+--   the schema exists the queries fail at runtime and the endpoints return
+--   a 500 error envelope. That is intentional: no fake AIP records.
+--
+-- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
+--
+--   Table    Columns needed by these queries
+--   -------- ------------------------------------------------------------------
+--   aips     id                 PK (int)
+--            name               NOT NULL — AIP / company name (§8 "company";
+--                               also the ?search= target)
+--            logo_url           nullable — logo URL (A)
+--            cluster_id         nullable FK → clusters.id (§8 "cluster"; the
+--                               clusters table is established by
+--                               sql/clusters/cluster_queries.sql)
+--            sector             NOT NULL — §8 explicit; ?sector= filter
+--            status             NOT NULL — §8 "partnership" status (B)
+--            investment_amount  nullable NUMERIC, INR — §8 "investment";
+--                               COLUMN NAME ALREADY ESTABLISHED by the Home
+--                               KPI contract (sql/home/home_kpis.sql) — keep it
+--            academic_partner   nullable — academic/technology partner (C)
+--            contact            nullable (A)
+--            website            nullable (A)
+--
+--   clusters id PK, name — only for the embedded cluster summary returned
+--            with each AIP (established table; see
+--            sql/clusters/cluster_queries.sql).
+--
+--   (A) storage/format TO CONFIRM by the DBA (user-required fields the §8
+--       sentence covers only via "etc.").
+--   (B) exact status vocabulary TO CONFIRM (e.g. partnership lifecycle).
+--       The ?status= filter is an exact free-string match on this column.
+--   (C) scalar-vs-relational TO CONFIRM — if partners become a related
+--       entity, this column becomes a join and the SELECT must change (the
+--       API shape would then be revised with the owning module).
+--
+-- INTENTIONALLY DEFERRED (specified in RoadMap §8/§25 but out of scope —
+-- do NOT fabricate these joins):
+--   · SIP/SPV information: §8 says the registry contains SIP/SPV info, but
+--     the sips/spvs tables do not exist yet (§25 relationships: AIP → SPV,
+--     AIP → SIP). These belong to the future SIP/SPV modules.
+--   · GET /api/v1/clusters/:clusterId/aips — listed in §8 but not part of
+--     the current task scope.
+--   · Admin CRUD (POST/PATCH/DELETE /api/v1/admin/aips...) and the approval
+--     workflow (§21) — separate tasks.
+--
+-- CASTING / CONVENTION NOTES
+--   - COUNT(*) is cast to ::int so Prisma returns JS numbers (not bigint).
+--   - investment_amount is returned as NUMERIC → double precision in the
+--     API so it serialises as a JSON number.
+--   - All user input (filters, ids) is bound by Prisma as query parameters;
+--     the backend never interpolates values into these statements as text.
+--   - List ordering: ORDER BY name (stable, user-facing).
+--
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1) GET /aips — paginated list. :sector/:cluster_id/:status/:search are
+--    optional; the backend composes ONLY the supplied predicates (all bound
+--    parameters), e.g.  WHERE sector = $1 AND cluster_id = $2.
+-- ----------------------------------------------------------------------------
+-- SELECT
+--     aips.id, aips.name, aips.logo_url,
+--     clusters.id AS cluster_id, clusters.name AS cluster_name,
+--     aips.sector, aips.status, aips.investment_amount,
+--     aips.academic_partner, aips.contact, aips.website
+-- FROM aips
+-- LEFT JOIN clusters ON clusters.id = aips.cluster_id
+-- WHERE (:filters)                       -- composed from supplied filters
+-- ORDER BY aips.name
+-- LIMIT :pageSize OFFSET :offset;
+
+-- ----------------------------------------------------------------------------
+-- 2) GET /aips — total rows for the same filters (pagination meta).
+-- ----------------------------------------------------------------------------
+-- SELECT COUNT(*)::int AS total
+-- FROM aips
+-- WHERE (:filters);
+
+-- ----------------------------------------------------------------------------
+-- 3) GET /aips/{id} — single AIP by primary key.
+-- ----------------------------------------------------------------------------
+-- SELECT ...same column list as (1)...
+-- FROM aips
+-- LEFT JOIN clusters ON clusters.id = aips.cluster_id
+-- WHERE aips.id = :id;
