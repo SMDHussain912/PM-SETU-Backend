@@ -163,11 +163,13 @@ export async function transitionApprovalWithAudit(input: {
     path?: string;
 }): Promise<Approval | null> {
     return prisma.$transaction(async (tx) => {
+        const stage: string | null = null;
+        const assignedTo: string | null = null;
         const fragments: Prisma.Sql[] = [
             Prisma.sql`UPDATE approvals SET`,
             Prisma.sql`status = ${input.newStatus},`,
-            Prisma.sql`stage = COALESCE(${null}, stage),`,
-            Prisma.sql`assigned_to = COALESCE(${null}, assigned_to),`,
+            Prisma.sql`stage = COALESCE(${stage}, stage),`,
+            Prisma.sql`assigned_to = COALESCE(${assignedTo}, assigned_to),`,
         ];
         if (input.action === "SUBMIT") {
             fragments.push(Prisma.sql`submitted_by = ${input.actingUserId}, submitted_at = NOW(),`);
