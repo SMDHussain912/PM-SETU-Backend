@@ -191,6 +191,18 @@ export async function getRoleCodesByIds(roleIds: number[]): Promise<string[]> {
     return rows.map((row) => row.code);
 }
 
+/** Count active users holding a given role; used to protect the last active Super Admin. */
+export async function countActiveUsersWithRole(roleCode: string): Promise<number> {
+    const rows = await prisma.$queryRaw<{ total: number }[]>(Prisma.sql`
+        SELECT COUNT(DISTINCT u.id)::int AS total
+        FROM users u
+        JOIN user_roles ur ON ur.user_id = u.id
+        JOIN roles r ON r.id = ur.role_id
+        WHERE u.status = 'ACTIVE' AND r.code = ${roleCode}
+    `);
+    return rows[0]?.total ?? 0;
+}
+
 export async function replaceUserRoles(userId: number, roleIds: number[]): Promise<void> {
     await prisma.$transaction(async (tx) => {
         await tx.$executeRaw(Prisma.sql`DELETE FROM user_roles WHERE user_id = ${userId}`);
