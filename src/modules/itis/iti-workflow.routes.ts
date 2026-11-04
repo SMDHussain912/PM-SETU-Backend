@@ -1,0 +1,21 @@
+import {Router} from "express";
+import {requireAuth} from "../../middleware/auth.middleware";
+import {requireRoles} from "../../middleware/rbac.middleware";
+import {requireResourceScope} from "../../middleware/scope.middleware";
+import {validate} from "../../middleware/validate.middleware";
+import {ROLE_CODES} from "../roles/role.constants";
+import * as controller from "./iti-workflow.controller";
+import {itiIdParamsSchema} from "./iti.schema";
+import {createItiSubmissionSchema,itiSubmissionParamsSchema,reviewItiSubmissionSchema,updateItiProfileSchema,updateItiSubmissionSchema} from "./iti-workflow.schema";
+
+const router=Router();
+const instituteEditors=[ROLE_CODES.HUB_ITI_USER,ROLE_CODES.SPOKE_ITI_USER,ROLE_CODES.SUPER_ADMIN,ROLE_CODES.STATE_PMU_ADMIN];
+const reviewers=[ROLE_CODES.CLUSTER_ADMIN,ROLE_CODES.STATE_PMU_ADMIN,ROLE_CODES.SUPER_ADMIN,ROLE_CODES.APPROVING_AUTHORITY];
+router.use(requireAuth);
+router.patch("/:id/profile",requireRoles(...instituteEditors),validate({params:itiIdParamsSchema,body:updateItiProfileSchema}),requireResourceScope("ITI"),controller.updateProfile);
+router.get("/:id/submissions",requireRoles(...[...instituteEditors,...reviewers]),validate({params:itiIdParamsSchema}),requireResourceScope("ITI"),controller.list);
+router.post("/:id/submissions",requireRoles(...instituteEditors),validate({params:itiIdParamsSchema,body:createItiSubmissionSchema}),requireResourceScope("ITI"),controller.create);
+router.patch("/:id/submissions/:submissionId",requireRoles(...instituteEditors),validate({params:itiSubmissionParamsSchema,body:updateItiSubmissionSchema}),requireResourceScope("ITI"),controller.update);
+router.post("/:id/submissions/:submissionId/submit",requireRoles(...instituteEditors),validate({params:itiSubmissionParamsSchema}),requireResourceScope("ITI"),controller.submit);
+router.post("/:id/submissions/:submissionId/review",requireRoles(...reviewers),validate({params:itiSubmissionParamsSchema,body:reviewItiSubmissionSchema}),requireResourceScope("ITI"),controller.review);
+export default router;
