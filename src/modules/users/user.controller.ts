@@ -35,39 +35,39 @@ export async function getUserById(_req: Request, res: Response): Promise<Respons
 }
 
 /** POST /api/v1/admin/users — administrative user creation (no self-reg). */
-export async function createUser(_req: Request, res: Response): Promise<Response> {
+export async function createUser(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<CreateUserInput>(res);
-    const user = await userService.createUser(body);
+    const user = await userService.createUser(body, req.user?.roles ?? []);
     return sendCreated(res, user);
 }
 
 /** PATCH /api/v1/admin/users/:id — profile update only. */
-export async function updateUser(_req: Request, res: Response): Promise<Response> {
+export async function updateUser(req: Request, res: Response): Promise<Response> {
     const { body, params } = getValidated<UpdateUserInput, unknown, UserIdParams>(res);
-    const user = await userService.updateUser(params.id, body);
+    const user = await userService.updateUser(params.id, body, req.user?.roles ?? []);
     return sendSuccess(res, user);
 }
 
 /** PATCH /api/v1/admin/users/:id/status — activate/deactivate. */
 export async function updateUserStatus(
-    _req: Request,
+    req: Request,
     res: Response,
 ): Promise<Response> {
     const { body, params } = getValidated<UpdateUserStatusInput, unknown, UserIdParams>(res);
-    const user = await userService.updateUserStatus(params.id, body);
+    const user = await userService.updateUserStatus(params.id, body, req.user?.id ?? '', req.user?.roles ?? []);
     return sendSuccess(res, user);
 }
 
 /** PATCH /api/v1/admin/users/:id/roles — replace role assignments. */
-export async function updateUserRoles(_req: Request, res: Response): Promise<Response> {
+export async function updateUserRoles(req: Request, res: Response): Promise<Response> {
     const { body, params } = getValidated<UpdateUserRolesInput, unknown, UserIdParams>(res);
-    const user = await userService.updateUserRoles(params.id, body);
+    const user = await userService.updateUserRoles(params.id, body, req.user?.id ?? '', req.user?.roles ?? []);
     return sendSuccess(res, user);
 }
 
 /** DELETE /api/v1/admin/users/:id — soft delete (deactivate). */
-export async function deleteUser(_req: Request, res: Response): Promise<Response> {
+export async function deleteUser(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, UserIdParams>(res);
-    const user = await userService.deactivateUser(params.id);
+    const user = await userService.deactivateUser(params.id, req.user?.id ?? '', req.user?.roles ?? []);
     return sendSuccess(res, user);
 }

@@ -55,6 +55,14 @@ export async function findUserByUsername(username: string): Promise<LoginUserRow
     return rows[0] ? mapLoginUser(rows[0]) : null;
 }
 
+/** Minimal active-account check for every protected API request; never fetch password hashes here. */
+export async function findAccountStatusById(id: number): Promise<string | null> {
+    const rows = await prisma.$queryRaw<{ status: string }[]>(Prisma.sql`
+        SELECT status FROM users WHERE id = ${id}
+    `);
+    return rows[0]?.status ?? null;
+}
+
 /** sql/auth #5 — fresh profile lookup by id (GET /auth/me). */
 export async function findUserById(id: number): Promise<LoginUserRow | null> {
     const rows = await prisma.$queryRaw<LoginUserDbRow[]>(Prisma.sql`
