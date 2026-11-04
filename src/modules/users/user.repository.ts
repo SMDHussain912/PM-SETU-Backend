@@ -256,3 +256,9 @@ export async function replaceUserScopes(
         }
     });
 }
+
+
+export async function getItiTypeById(id: number): Promise<string | null> {
+    const rows = await prisma.$queryRaw<{ type: string }[]>(Prisma.sql`SELECT type FROM itis WHERE id = ${id}`);
+    return rows[0]?.type ?? null;
+}
