@@ -18,6 +18,7 @@ import galleryRouter, {
 import governanceRouter from "../modules/governance/governance.routes";
 import homeRouter from "../modules/home/home.routes";
 import itiRouter, { itiClusterRouter } from "../modules/itis/iti.routes";
+import itiWorkflowRouter from "../modules/itis/iti-workflow.routes";
 import newsRouter, {
     newsAdminRouter,
 } from "../modules/news/news.routes";
@@ -69,6 +70,7 @@ router.get("/health", async (_req, res, next: NextFunction) => {
 router.use("/auth", authRouter);
 router.use("/home", homeRouter);
 router.use("/itis", itiRouter);
+router.use("/itis", itiWorkflowRouter);
 // Four routers share the /clusters prefix without conflict: clusterRouter
 // defines only 0-/1-segment paths ("/" and "/:id"), while the ITI module's
 // GET /:clusterId/itis, the SPV module's GET /:clusterId/spv and the SIP
