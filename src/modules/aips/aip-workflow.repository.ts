@@ -1,6 +1,10 @@
 import {Prisma} from "../../generated/prisma/client";
 import {prisma} from "../../config/database";
 import type {CreateAipActivity,CreateAipReport} from "./aip-workflow.schema";
+export async function instituteBelongsToAipCluster(aipId:number,instituteId:number){
+ const rows=await prisma.$queryRaw<{allowed:boolean}[]>(Prisma.sql`SELECT EXISTS(SELECT 1 FROM aips a JOIN itis i ON i.cluster_id=a.cluster_id WHERE a.id=${aipId} AND i.id=${instituteId}) AS allowed`);
+ return rows[0]?.allowed===true;
+}
 export async function listActivities(aipId:number){
  return prisma.$queryRaw<any[]>(Prisma.sql`SELECT a.id,a.aip_id,a.created_by,u.full_name AS creator_name,a.activity_type,a.title,a.description,a.quantity,a.activity_date,a.institute_id,i.iti_name AS institute_name,a.evidence_url,a.created_at,a.updated_at FROM aip_activity_records a JOIN users u ON u.id=a.created_by LEFT JOIN itis i ON i.id=a.institute_id WHERE a.aip_id=${aipId} ORDER BY a.activity_date DESC NULLS LAST,a.id DESC`);
 }
