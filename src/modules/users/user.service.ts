@@ -9,7 +9,7 @@ import type {
     UserListQuery,
 } from "./user.schema";
 import * as userRepository from "./user.repository";
-import type { User, UserStatus, UserWithRoles } from "./user.types";
+import type { UserStatus, UserWithRoles } from "./user.types";
 
 /**
  * Users module — service layer (RoadMap.md §19).
@@ -20,7 +20,7 @@ import type { User, UserStatus, UserWithRoles } from "./user.types";
  */
 
 export interface UserListResult {
-    items: User[];
+    items: UserWithRoles[];
     meta: PaginationMeta;
 }
 
