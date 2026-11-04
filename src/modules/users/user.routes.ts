@@ -11,6 +11,7 @@ import {
     updateUserStatusSchema,
     userIdParamsSchema,
     userListQuerySchema,
+    userScopesSchema,
 } from "./user.schema";
 
 /**
@@ -35,6 +36,19 @@ userRouter.post(
     requireRoles(...USER_WRITE_ROLES),
     validate({ body: createUserSchema }),
     userController.createUser,
+);
+
+userRouter.get(
+    "/:id/scopes",
+    validate({ params: userIdParamsSchema }),
+    userController.getUserScopes,
+);
+
+userRouter.put(
+    "/:id/scopes",
+    requireRoles(...USER_WRITE_ROLES),
+    validate({ params: userIdParamsSchema, body: userScopesSchema }),
+    userController.replaceUserScopes,
 );
 
 userRouter.get(
