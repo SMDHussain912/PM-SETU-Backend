@@ -27,7 +27,8 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "db:seed:demo": "tsx prisma/seed.ts",
-    "db:seed:wipe": "tsx prisma/seed-wipe.ts"
+    "db:seed:wipe": "tsx prisma/seed-wipe.ts",
+    "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
