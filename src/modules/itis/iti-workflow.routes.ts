@@ -10,7 +10,7 @@ import {createItiSubmissionSchema,itiSubmissionParamsSchema,reviewItiSubmissionS
 
 const router=Router();
 const instituteEditors=[ROLE_CODES.HUB_ITI_USER,ROLE_CODES.SPOKE_ITI_USER,ROLE_CODES.SUPER_ADMIN,ROLE_CODES.STATE_PMU_ADMIN];
-const reviewers=[ROLE_CODES.CLUSTER_ADMIN,ROLE_CODES.STATE_PMU_ADMIN,ROLE_CODES.SUPER_ADMIN,ROLE_CODES.APPROVING_AUTHORITY];
+const reviewers=[ROLE_CODES.CLUSTER_ADMIN,ROLE_CODES.STATE_PMU_ADMIN,ROLE_CODES.SUPER_ADMIN];
 router.use(requireAuth);
 router.patch("/:id/profile",requireRoles(...instituteEditors),validate({params:itiIdParamsSchema,body:updateItiProfileSchema}),requireResourceScope("ITI"),controller.updateProfile);
 router.get("/:id/submissions",requireRoles(...[...instituteEditors,...reviewers]),validate({params:itiIdParamsSchema}),requireResourceScope("ITI"),controller.list);
