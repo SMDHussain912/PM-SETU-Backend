@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { NextFunction, Request, Response } from "express";
-import { requirePermissions, requireRoles } from "../src/middleware/rbac.middleware";
+import { requirePermissions, requireRoles } from "../../src/middleware/rbac.middleware";
 
 type Middleware = (
     req: Request,
@@ -32,7 +32,6 @@ test("requireRoles allows a user with one of the permitted roles", () => {
         requireRoles("state_pmu_admin", "cluster_admin"),
         { id: "10", roles: ["cluster_admin"] },
     );
-
     assert.equal(result.nextCalls, 1);
     assert.equal(result.nextError, undefined);
 });
@@ -42,14 +41,12 @@ test("requireRoles denies a user without a permitted role", () => {
         requireRoles("state_pmu_admin", "cluster_admin"),
         { id: "11", roles: ["spoke_iti_user"] },
     );
-
     assert.equal(result.nextCalls, 1);
     assert.ok(result.nextError);
 });
 
 test("requireRoles rejects an unauthenticated request", () => {
     const result = invoke(requireRoles("super_admin"));
-
     assert.equal(result.nextCalls, 1);
     assert.ok(result.nextError);
 });
@@ -57,16 +54,12 @@ test("requireRoles rejects an unauthenticated request", () => {
 test("requirePermissions requires every requested permission", () => {
     const allowed = invoke(
         requirePermissions("document.write", "news.write"),
-        {
-            id: "12",
-            permissions: ["document.write", "news.write", "gallery.write"],
-        },
+        { id: "12", permissions: ["document.write", "news.write", "gallery.write"] },
     );
     const denied = invoke(
         requirePermissions("document.write", "news.write"),
         { id: "13", permissions: ["document.write"] },
     );
-
     assert.equal(allowed.nextError, undefined);
     assert.equal(allowed.nextCalls, 1);
     assert.ok(denied.nextError);
@@ -75,7 +68,6 @@ test("requirePermissions requires every requested permission", () => {
 
 test("requirePermissions rejects an unauthenticated request", () => {
     const result = invoke(requirePermissions("audit.read"));
-
     assert.equal(result.nextCalls, 1);
     assert.ok(result.nextError);
 });
