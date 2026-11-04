@@ -109,8 +109,8 @@ export async function requireAuth(
         // Rehydrate the active account and its current grants from PostgreSQL
         // on every protected request so deactivation and role changes take effect
         // immediately, without waiting for token expiry.
-        const account = await authRepository.findUserById(userId);
-        if (!account || account.status !== "ACTIVE") {
+        const accountStatus = await authRepository.findAccountStatusById(userId);
+        if (accountStatus !== "ACTIVE") {
             throw new ApiError({
                 message: "Account is inactive or no longer exists",
                 statusCode: 401,
