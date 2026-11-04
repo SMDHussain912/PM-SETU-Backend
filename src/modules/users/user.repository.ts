@@ -1,5 +1,6 @@
 import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/database";
+import { ApiError } from "../../utils/response";
 import type {
     AssignedRole,
     User,
@@ -213,4 +214,72 @@ export async function replaceUserRoles(userId: number, roleIds: number[]): Promi
                 ON CONFLICT DO NOTHING`);
         }
     });
+}
+
+
+export interface UserScopeAssignment {
+    id: number;
+    scope_type: "CLUSTER" | "ITI" | "AIP" | "SPV";
+    scope_id: number;
+    scope_name: string;
+}
+
+export async function listUserScopes(userId: number): Promise<UserScopeAssignment[]> {
+    const rows = await prisma.$queryRaw<{ id: number; scope_type: UserScopeAssignment["scope_type"]; scope_id: number; scope_name: string }[]>(Prisma.sql`
+        SELECT usa.id, usa.scope_type, usa.scope_id,
+            CASE usa.scope_type
+                WHEN 'CLUSTER' THEN (SELECT name FROM clusters WHERE id = usa.scope_id)
+                WHEN 'ITI' THEN (SELECT iti_name FROM itis WHERE id = usa.scope_id)
+                WHEN 'AIP' THEN (SELECT name FROM aips WHERE id = usa.scope_id)
+                WHEN 'SPV' THEN (SELECT name FROM spvs WHERE id = usa.scope_id)
+            END AS scope_name
+        FROM user_scope_assignments usa
+        WHERE usa.user_id = ${userId}
+        ORDER BY usa.scope_type, usa.scope_id
+    `);
+    return rows.map((row) => ({ ...row, scope_name: row.scope_name ?? "Unavailable target" }));
+}
+
+export async function replaceUserScopes(
+    userId: number,
+    scopes: Array<{ scope_type: UserScopeAssignment["scope_type"]; scope_id: number }>,
+): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+        for (const scope of scopes) {
+            let exists = false;
+            if (scope.scope_type === "CLUSTER") {
+                const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM clusters WHERE id = ${scope.scope_id}`);
+                exists = rows.length === 1;
+            } else if (scope.scope_type === "ITI") {
+                const rows = await tx.$queryRaw<{ type: string }[]>(Prisma.sql`SELECT type FROM itis WHERE id = ${scope.scope_id}`);
+                exists = rows.length === 1 && ["HUB", "SPOKE"].includes(rows[0]?.type ?? "");
+            } else if (scope.scope_type === "AIP") {
+                const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM aips WHERE id = ${scope.scope_id}`);
+                exists = rows.length === 1;
+            } else {
+                const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM spvs WHERE id = ${scope.scope_id}`);
+                exists = rows.length === 1;
+            }
+            if (!exists) {
+                throw new ApiError({
+                    statusCode: 422,
+                    code: "INVALID_SCOPE_TARGET",
+                    message: "One or more scope assignments reference a missing or incompatible record",
+                });
+            }
+        }
+        await tx.$executeRaw(Prisma.sql`DELETE FROM user_scope_assignments WHERE user_id = ${userId}`);
+        for (const scope of scopes) {
+            await tx.$executeRaw(Prisma.sql`
+                INSERT INTO user_scope_assignments (user_id, scope_type, scope_id)
+                VALUES (${userId}, ${scope.scope_type}, ${scope.scope_id})
+            `);
+        }
+    });
+}
+
+
+export async function getItiTypeById(id: number): Promise<string | null> {
+    const rows = await prisma.$queryRaw<{ type: string }[]>(Prisma.sql`SELECT type FROM itis WHERE id = ${id}`);
+    return rows[0]?.type ?? null;
 }

@@ -74,3 +74,13 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type UpdateUserStatusInput = z.infer<typeof updateUserStatusSchema>;
 export type UpdateUserRolesInput = z.infer<typeof updateUserRolesSchema>;
+
+
+/** Organisation scope assignment for cluster/institute/partner accounts. */
+export const userScopesSchema = z.object({
+    scopes: z.array(z.object({
+        scope_type: z.enum(["CLUSTER", "ITI", "AIP", "SPV"]),
+        scope_id: z.number().int().positive(),
+    })).max(100),
+});
+export type UserScopesInput = z.infer<typeof userScopesSchema>;

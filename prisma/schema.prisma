@@ -430,6 +430,7 @@ model User {
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
   roles UserRole[]
+  scopeAssignments UserScopeAssignment[]
 
   @@index([status], map: "idx_users_status")
   @@map("users")
@@ -538,4 +539,24 @@ model AuditLog {
   @@index([userId], map: "idx_audit_logs_user_id")
   @@index([timestamp], map: "idx_audit_logs_timestamp")
   @@map("audit_logs")
+}
+
+
+/// User-to-organisation scope grants. Scope IDs reference the entity table
+/// selected by scope_type; the service validates the referenced row and the
+/// user's role before writing. Polymorphic references are intentionally
+/// validated in the service because PostgreSQL cannot express one FK to four
+/// different target tables.
+model UserScopeAssignment {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  scopeType String   @map("scope_type")
+  scopeId   Int      @map("scope_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scopeType, scopeId], map: "uq_user_scope_assignments_user_scope")
+  @@index([scopeType, scopeId], map: "idx_user_scope_assignments_scope")
+  @@map("user_scope_assignments")
 }

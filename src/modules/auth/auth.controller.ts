@@ -3,6 +3,7 @@ import { getValidated } from "../../middleware/validate.middleware";
 import { ApiError, sendSuccess } from "../../utils/response";
 import type { ChangePasswordInput, LoginInput } from "./auth.schema";
 import * as authService from "./auth.service";
+import * as userRepository from "../users/user.repository";
 
 /**
  * Auth module — controller layer (RoadMap.md §18).
@@ -39,3 +40,14 @@ export async function changePassword(req: Request, res: Response): Promise<Respo
 }
 
 export { ApiError };
+
+
+/** GET /auth/me/scopes — organisation scopes for the current authenticated account. */
+export async function getMyScopes(req: Request, res: Response): Promise<Response> {
+    const userId = Number(req.user?.id);
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+        return sendSuccess(res, []);
+    }
+    const scopes = await userRepository.listUserScopes(userId);
+    return sendSuccess(res, scopes);
+}
