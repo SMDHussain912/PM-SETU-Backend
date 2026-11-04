@@ -15,12 +15,26 @@ concurrency:
 
 jobs:
   quality:
-    name: Install, generate, typecheck, test and build
+    name: Install, migrate, typecheck, test and build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: pm_setu_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d pm_setu_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      # Prisma 7 loads prisma.config.ts during client generation.
-      # This isolated placeholder is not used to connect to a database.
-      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/pm_setu_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/pm_setu_ci?schema=public
+      NODE_ENV: test
+      PORT: 3000
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -37,10 +51,13 @@ jobs:
       - name: Generate Prisma client
         run: npm run db:generate
 
+      - name: Apply migrations to isolated CI database
+        run: npm run db:migrate:deploy
+
       - name: Run TypeScript typecheck
         run: npm run typecheck
 
-      - name: Run RBAC middleware tests
+      - name: Run middleware and PostgreSQL scope integration tests
         run: npm test
 
       - name: Build production output
