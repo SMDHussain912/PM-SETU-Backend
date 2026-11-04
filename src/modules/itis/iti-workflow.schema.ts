@@ -19,7 +19,7 @@ export const itiSubmissionParamsSchema = z.object({
 export const createItiSubmissionSchema = z.object({
   report_type: z.enum(["PERSONNEL","TRAINING","INFRASTRUCTURE","STUDENT_PROGRESS","MONTHLY_PROGRESS","OTHER"]),
   title: z.string().trim().min(3).max(180),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
 });
 export const updateItiSubmissionSchema = z.object({
   title: z.string().trim().min(3).max(180).optional(),
