@@ -195,17 +195,28 @@
 -- SET publish_status = 'ARCHIVED', updated_at = now()
 -- WHERE id = ${id};
 --
--- 10. ADMIN VERSION (snapshot current row into document_versions, bump version)
+-- 10. ADMIN VERSION (atomic snapshot + monotonic version counter)
 --
--- INSERT INTO document_versions (document_id, version, file_path, file_size,
---                                mime_type, original_name, created_by)
--- SELECT id, version, file_path, file_size, mime_type, original_name,
---        ${created_by}
--- FROM documents
--- WHERE id = ${id};
--- UPDATE documents
--- SET version = version + 1, updated_at = now()
--- WHERE id = ${id};
+-- Execute the following steps in ONE database transaction:
+--   a) Lock the parent document row to serialize concurrent snapshot requests:
+--      SELECT id, version FROM documents WHERE id = ${id} FOR UPDATE;
+--   b) Read MAX(version) from document_versions for this document.
+--   c) Set next_version = GREATEST(COALESCE(documents.version, 1),
+--                                  COALESCE(MAX(document_versions.version), 0) + 1).
+--   d) Snapshot the current file metadata using next_version:
+--      INSERT INTO document_versions (document_id, version, file_path, file_size,
+--                                      mime_type, original_name, created_by)
+--      SELECT id, next_version, file_path, file_size, mime_type, original_name,
+--             ${created_by}
+--      FROM documents
+--      WHERE id = ${id};
+--   e) Advance the parent counter:
+--      UPDATE documents
+--      SET version = next_version + 1, updated_at = now()
+--      WHERE id = ${id};
+--
+-- The row lock prevents two requests from choosing the same version. Using
+-- MAX(version) also repairs a stale parent counter without deleting history.
 --
 -- 11. ADMIN FILE UPDATE (after upload to uploads/documents/)
 --
