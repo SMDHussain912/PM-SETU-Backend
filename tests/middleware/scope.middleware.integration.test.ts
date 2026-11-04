@@ -146,6 +146,11 @@ test("direct ITI and AIP assignments grant access to their own resources", async
     assert.equal(await invokeScope("AIP", aipId, { id: directAipUserId }), undefined);
 });
 
+
+test("direct AIP assignment grants access to SIPs linked to that AIP", async () => {
+    assert.equal(await invokeScope("SIP", sipId, { id: directAipUserId }), undefined);
+});
+
 test("unassigned users are denied access to existing resources", async () => {
     for (const [resource, id] of [
         ["CLUSTER", clusterId],
