@@ -215,6 +215,18 @@ export async function replaceUserScopes(
         throw new ApiError({ statusCode: 422, code: "INVALID_SCOPE_TYPE", message: "Unsupported organisation scope type" });
     }
 
+    const previousScopes = await userRepository.listUserScopes(id);
     await userRepository.replaceUserScopes(id, input.scopes);
-    return userRepository.listUserScopes(id);
+    const updatedScopes = await userRepository.listUserScopes(id);
+    await auditService.recordAuditEntry({
+        userId: actorId,
+        action: "UPDATE",
+        entity: "USER",
+        entityId: id,
+        oldValue: { scopes: previousScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
+        newValue: { scopes: updatedScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
+        approvalStatus: null,
+        context: { userId: actorId },
+    });
+    return updatedScopes;
 }
