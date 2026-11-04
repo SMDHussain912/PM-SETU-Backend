@@ -31,6 +31,7 @@ authRouter.post(
 );
 
 authRouter.get("/me", requireAuth, authController.getMe);
+authRouter.get("/me/scopes", requireAuth, authController.getMyScopes);
 
 authRouter.post(
     "/change-password",
