@@ -182,6 +182,15 @@ export async function updateStatus(id: number, status: UserStatus): Promise<void
         UPDATE users SET status = ${status}, updated_at = now() WHERE id = ${id}`);
 }
 
+/** Resolve role codes before assigning roles; unknown IDs must never be silently ignored. */
+export async function getRoleCodesByIds(roleIds: number[]): Promise<string[]> {
+    if (roleIds.length === 0) return [];
+    const rows = await prisma.$queryRaw<{ id: number; code: string }[]>(Prisma.sql`
+        SELECT id, code FROM roles WHERE id IN (${Prisma.join(roleIds)})
+    `);
+    return rows.map((row) => row.code);
+}
+
 export async function replaceUserRoles(userId: number, roleIds: number[]): Promise<void> {
     await prisma.$transaction(async (tx) => {
         await tx.$executeRaw(Prisma.sql`DELETE FROM user_roles WHERE user_id = ${userId}`);
