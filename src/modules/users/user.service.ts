@@ -136,7 +136,11 @@ export async function updateUserStatus(
     actorId: string,
     actorRoles: string[],
 ): Promise<UserWithRoles> {
-    await assertTargetManageable(id, actorId, actorRoles);
+    const target = await assertTargetManageable(id, actorId, actorRoles);
+    if (input.status === "INACTIVE" && target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN)) {
+        const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
+        if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
+    }
     await userRepository.updateStatus(id, input.status);
     return getUserById(id);
 }
@@ -147,7 +151,15 @@ export async function updateUserRoles(
     actorId: string,
     actorRoles: string[],
 ): Promise<UserWithRoles> {
-    await assertTargetManageable(id, actorId, actorRoles);
+    const target = await assertTargetManageable(id, actorId, actorRoles);
+    const assignedCodes = await userRepository.getRoleCodesByIds([...new Set(input.role_ids)]);
+    if (assignedCodes.length !== new Set(input.role_ids).size) {
+        throw new ApiError({ statusCode: 422, code: "INVALID_ROLE_ASSIGNMENT", message: "One or more selected roles do not exist" });
+    }
+    if (target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN) && !assignedCodes.includes(ROLE_CODES.SUPER_ADMIN)) {
+        const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
+        if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot lose the Super Admin role");
+    }
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
     await userRepository.replaceUserRoles(id, input.role_ids);
     return getUserById(id);
@@ -159,7 +171,11 @@ export async function updateUserRoles(
  * (RoadMap §21/§22). See sql/users/user_queries.sql #9.
  */
 export async function deactivateUser(id: number, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
-    await assertTargetManageable(id, actorId, actorRoles);
+    const target = await assertTargetManageable(id, actorId, actorRoles);
+    if (target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN)) {
+        const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
+        if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
+    }
     await userRepository.updateStatus(id, "INACTIVE");
     return getUserById(id);
 }
