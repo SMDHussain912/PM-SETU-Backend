@@ -1,5 +1,6 @@
 import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/database";
+import { ApiError } from "../../utils/response";
 import type {
     AssignedRole,
     User,
@@ -224,22 +225,26 @@ export async function replaceUserScopes(
 ): Promise<void> {
     await prisma.$transaction(async (tx) => {
         for (const scope of scopes) {
-            const table = scope.scope_type === "CLUSTER" ? "clusters"
-                : scope.scope_type === "ITI" ? "itis"
-                : scope.scope_type === "AIP" ? "aips" : "spvs";
-            const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
-                SELECT id FROM ${Prisma.raw(table)} WHERE id = ${scope.scope_id}
-                `);
-            if (rows.length !== 1) {
-                throw new Error(`Scope target not found: ${scope.scope_type} ${scope.scope_id}`);
+            let exists = false;
+            if (scope.scope_type === "CLUSTER") {
+                const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM clusters WHERE id = ${scope.scope_id}`);
+                exists = rows.length === 1;
+            } else if (scope.scope_type === "ITI") {
+                const rows = await tx.$queryRaw<{ type: string }[]>(Prisma.sql`SELECT type FROM itis WHERE id = ${scope.scope_id}`);
+                exists = rows.length === 1 && ["HUB", "SPOKE"].includes(rows[0].type);
+            } else if (scope.scope_type === "AIP") {
+                const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM aips WHERE id = ${scope.scope_id}`);
+                exists = rows.length === 1;
+            } else {
+                const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM spvs WHERE id = ${scope.scope_id}`);
+                exists = rows.length === 1;
             }
-            if (scope.scope_type === "ITI") {
-                const itiRows = await tx.$queryRaw<{ type: string }[]>(Prisma.sql`
-                    SELECT type FROM itis WHERE id = ${scope.scope_id}
-                `);
-                if (!["HUB", "SPOKE"].includes(itiRows[0]?.type ?? "")) {
-                    throw new Error("ITI scope must reference a HUB or SPOKE institute");
-                }
+            if (!exists) {
+                throw new ApiError({
+                    statusCode: 422,
+                    code: "INVALID_SCOPE_TARGET",
+                    message: "One or more scope assignments reference a missing or incompatible record",
+                });
             }
         }
         await tx.$executeRaw(Prisma.sql`DELETE FROM user_scope_assignments WHERE user_id = ${userId}`);
