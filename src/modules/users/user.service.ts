@@ -7,6 +7,7 @@ import type {
     UpdateUserRolesInput,
     UpdateUserStatusInput,
     UserListQuery,
+    UserScopesInput,
 } from "./user.schema";
 import * as userRepository from "./user.repository";
 import type { UserStatus, UserWithRoles } from "./user.types";
@@ -113,4 +114,80 @@ export async function deactivateUser(id: number): Promise<UserWithRoles> {
     await getUserById(id);
     await userRepository.updateStatus(id, "INACTIVE");
     return getUserById(id);
+}
+
+
+const SCOPE_ROLE_REQUIREMENTS = [
+    { role: ROLE_CODES.CLUSTER_ADMIN, scope: "CLUSTER" },
+    { role: ROLE_CODES.HUB_ITI_USER, scope: "ITI", itiType: "HUB" },
+    { role: ROLE_CODES.SPOKE_ITI_USER, scope: "ITI", itiType: "SPOKE" },
+    { role: ROLE_CODES.AIP_USER, scope: "AIP" },
+    { role: ROLE_CODES.SPV_USER, scope: "SPV" },
+] as const;
+
+export async function getUserScopes(id: number) {
+    await getUserById(id);
+    return userRepository.listUserScopes(id);
+}
+
+export async function replaceUserScopes(
+    id: number,
+    input: UserScopesInput,
+    actorId: string,
+    actorRoles: string[],
+) {
+    if (String(id) === actorId) forbid("You cannot change your own organisation scope assignments");
+    if (!actorRoles.some((role) => [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN].includes(role as typeof ROLE_CODES.SUPER_ADMIN | typeof ROLE_CODES.STATE_PMU_ADMIN))) {
+        forbid("Only Super Admin or State PMU Admin can assign organisation scopes");
+    }
+
+    const target = await getUserById(id);
+    const targetIsPrivileged = target.roles.some((role) => PRIVILEGED_ROLE_CODES.includes(role.code as typeof PRIVILEGED_ROLE_CODES[number]));
+    if (targetIsPrivileged && !actorRoles.includes(ROLE_CODES.SUPER_ADMIN)) {
+        forbid("Only a Super Administrator can change privileged administrator assignments");
+    }
+
+    const unique = new Set(input.scopes.map((scope) => `${scope.scope_type}:${scope.scope_id}`));
+    if (unique.size !== input.scopes.length) {
+        throw new ApiError({ statusCode: 422, code: "DUPLICATE_SCOPE", message: "Duplicate scope assignments are not allowed" });
+    }
+
+    for (const requirement of SCOPE_ROLE_REQUIREMENTS) {
+        const hasRole = target.roles.some((role) => role.code === requirement.role);
+        const matchingScopes = input.scopes.filter((scope) => scope.scope_type === requirement.scope);
+        if (hasRole && matchingScopes.length === 0) {
+            throw new ApiError({
+                statusCode: 422,
+                code: "MISSING_REQUIRED_SCOPE",
+                message: `The assigned ${requirement.role} role requires at least one ${requirement.scope} scope`,
+            });
+        }
+        if (!hasRole && matchingScopes.length > 0) {
+            throw new ApiError({
+                statusCode: 422,
+                code: "SCOPE_ROLE_MISMATCH",
+                message: `The user must have the matching role before a ${requirement.scope} scope can be assigned`,
+            });
+        }
+        if ("itiType" in requirement && hasRole) {
+            for (const scope of matchingScopes) {
+                const actualType = await userRepository.getItiTypeById(scope.scope_id);
+                if (actualType !== requirement.itiType) {
+                    throw new ApiError({
+                        statusCode: 422,
+                        code: "ITI_SCOPE_ROLE_MISMATCH",
+                        message: `${requirement.role} can only be assigned to ${requirement.itiType} ITI records`,
+                    });
+                }
+            }
+        }
+    }
+
+    const allowedTypes = new Set(SCOPE_ROLE_REQUIREMENTS.map((item) => item.scope));
+    if (input.scopes.some((scope) => !allowedTypes.has(scope.scope_type as typeof SCOPE_ROLE_REQUIREMENTS[number]["scope"]))) {
+        throw new ApiError({ statusCode: 422, code: "INVALID_SCOPE_TYPE", message: "Unsupported organisation scope type" });
+    }
+
+    await userRepository.replaceUserScopes(id, input.scopes);
+    return userRepository.listUserScopes(id);
 }
