@@ -9,10 +9,9 @@ async function log(context:Context, action:string, entity:string, id:number, old
   await audit.recordAuditEntry({userId:context.userId,action,entity,entityId:id,oldValue,newValue,approvalStatus:null,context});
 }
 export async function updateProfile(id:number, data:UpdateItiProfile, context:Context) {
-  const before=await repo.getSubmission(-1,id); // no profile data is copied into audit; avoid logging personal contact fields
   const updated=await repo.updateItiProfile(id,data);
   if(!updated) throw missing();
-  await log(context,"UPDATE","ITI",id,{profile:"previous"},{changed_fields:Object.keys(data)});
+  await log(context,"UPDATE","ITI",id,null,{changed_fields:Object.keys(data)});
   return {id,updated_fields:Object.keys(data)};
 }
 export async function create(id:number,userId:number,data:CreateItiSubmission,context:Context) {
