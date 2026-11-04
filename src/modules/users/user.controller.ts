@@ -42,9 +42,9 @@ export async function createUser(req: Request, res: Response): Promise<Response>
 }
 
 /** PATCH /api/v1/admin/users/:id — profile update only. */
-export async function updateUser(_req: Request, res: Response): Promise<Response> {
+export async function updateUser(req: Request, res: Response): Promise<Response> {
     const { body, params } = getValidated<UpdateUserInput, unknown, UserIdParams>(res);
-    const user = await userService.updateUser(params.id, body);
+    const user = await userService.updateUser(params.id, body, req.user?.roles ?? []);
     return sendSuccess(res, user);
 }
 
