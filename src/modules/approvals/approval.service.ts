@@ -1,7 +1,6 @@
 import { ApiError } from "../../utils/response";
 import { buildPaginationMeta } from "../../utils/pagination";
 import * as approvalRepository from "./approval.repository";
-import * as auditService from "../audit/audit.service";
 import { APPROVAL_ACTION, APPROVAL_STATUS } from "./approval.types";
 import type {
     Approval,
@@ -15,7 +14,7 @@ import type {
     ApprovalListQuery,
     ApprovalTransitionBody,
 } from "./approval.schema";
-import type { AuditAction, AuditEntity } from "../audit/audit.types";
+import type { AuditAction } from "../audit/audit.types";
 
 /**
  * Approvals module — service layer (RoadMap.md §21 "APPROVAL APIs").
@@ -164,48 +163,26 @@ async function performTransition(
         });
     }
 
-    // Repository-level optimistic guard: only update if status matches the
-    // current observed status. On zero updated rows, someone else moved it.
-    const updated = await approvalRepository.updateApprovalStatus(
+    // Persist the state change and its audit entry atomically. If the audit
+    // insert fails, the database transaction rolls back the state transition.
+    const refreshed = await approvalRepository.transitionApprovalWithAudit({
         id,
-        currentStatusForGuard,
+        expectedStatus: currentStatusForGuard,
         newStatus,
-        body.remarks,
+        remarks: body.remarks,
         action,
-        context.userId,
-    );
+        actingUserId: context.userId,
+        auditAction: auditActionFor(action),
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+        path: context.path,
+    });
 
-    if (!updated) {
+    if (!refreshed) {
         throw new ApiError({
             statusCode: 422,
             code: "INVALID_APPROVAL_TRANSITION",
             message: `Approval ${id} is no longer in status ${currentStatusForGuard} (concurrent modification)`,
-        });
-    }
-
-    // Write the audit entry (TO CONFIRM failure semantics — see module note).
-    await auditService.recordAuditEntry({
-        userId: context.userId,
-        action: auditActionFor(action),
-        entity: "APPROVAL",
-        entityId: id,
-        oldValue: { status: approval.status },
-        newValue: { status: newStatus },
-        approvalStatus: newStatus,
-        context: {
-            userId: context.userId,
-            ipAddress: context.ipAddress,
-            userAgent: context.userAgent,
-            path: context.path,
-        },
-    });
-
-    const refreshed = await approvalRepository.getApprovalById(id);
-    if (!refreshed) {
-        throw new ApiError({
-            statusCode: 500,
-            code: "INTERNAL_ERROR",
-            message: "Approval record disappeared after transition",
         });
     }
 
