@@ -279,6 +279,53 @@ async function updateApprovalRow(
     );
     return updated.length > 0;
 }
-
-
-
+/**
+ * Persist the approval transition and audit record in one PostgreSQL transaction.
+ * An audit failure rolls back the status change (fail-closed).
+ */
+export async function transitionApprovalWithAudit(input: {
+    id: number;
+    expectedStatus: string;
+    newStatus: string;
+    remarks?: string;
+    action: string;
+    actingUserId: string;
+    auditAction: string;
+    ipAddress?: string;
+    userAgent?: string;
+    path?: string;
+}): Promise<Approval | null> {
+    return prisma.$transaction(async (tx) => {
+        const fragments: Prisma.Sql[] = [
+            Prisma.sql`UPDATE approvals SET`,
+            Prisma.sql`status = ${input.newStatus},`,
+            Prisma.sql`stage = COALESCE(${null}, stage),`,
+            Prisma.sql`assigned_to = COALESCE(${null}, assigned_to),`,
+        ];
+        if (input.action === "SUBMIT") {
+            fragments.push(Prisma.sql`submitted_by = ${input.actingUserId}, submitted_at = NOW(),`);
+        } else if (input.action === "REVIEW" || input.action === "REQUEST_REVISION") {
+            fragments.push(Prisma.sql`reviewed_by = ${input.actingUserId}, reviewed_at = NOW(),`);
+        } else if (input.action === "APPROVE" || input.action === "REJECT") {
+            fragments.push(Prisma.sql`approved_by = ${input.actingUserId}, decision_at = NOW(),`);
+        }
+        fragments.push(Prisma.sql`updated_at = NOW()`);
+        if (input.remarks !== undefined) fragments.push(Prisma.sql`, remarks = ${input.remarks}`);
+        fragments.push(Prisma.sql`WHERE id = ${input.id} AND status = ${input.expectedStatus}`, Prisma.sql`RETURNING id`);
+        const updated = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`${Prisma.join(fragments, " ")}`);
+        if (updated.length === 0) return null;
+        const auditRows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+            INSERT INTO audit_logs (user_id, action, entity, entity_id, old_value, new_value, approval_status, ip_address, user_agent, path, timestamp)
+            VALUES (${input.actingUserId}, ${input.auditAction}, 'APPROVAL', ${input.id},
+                ${JSON.stringify({ status: input.expectedStatus })}::jsonb,
+                ${JSON.stringify({ status: input.newStatus })}::jsonb, ${input.newStatus},
+                ${input.ipAddress ?? null}, ${input.userAgent ?? null}, ${input.path ?? null}, NOW())
+            RETURNING id`);
+        if (auditRows.length === 0) throw new Error("Approval audit entry create returned no rows");
+        const rows = await tx.$queryRaw<ApprovalRow[]>(Prisma.sql`
+            SELECT id, entity_type, entity_id, status, stage, assigned_to, submitted_by, reviewed_by, approved_by,
+                   submitted_at, reviewed_at, decision_at, remarks, created_at, updated_at
+            FROM approvals WHERE id = ${input.id}`);
+        return rows[0] ? mapApprovalRow(rows[0]) : null;
+    });
+}
