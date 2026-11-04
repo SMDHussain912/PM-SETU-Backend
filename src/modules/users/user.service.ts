@@ -41,6 +41,14 @@ async function assertRoleAssignmentAllowed(roleIds: number[], actorRoles: string
     }
 }
 
+async function assertPrivilegedTargetRequiresSuperAdmin(targetId: number, actorRoles: string[]): Promise<void> {
+    const target = await getUserById(targetId);
+    const targetIsPrivileged = target.roles.some((role) => PRIVILEGED_ROLE_CODES.includes(role.code as typeof PRIVILEGED_ROLE_CODES[number]));
+    if (targetIsPrivileged && !actorRoles.includes(ROLE_CODES.SUPER_ADMIN)) {
+        forbid("Only a Super Administrator can manage privileged administrator accounts");
+    }
+}
+
 async function assertTargetManageable(targetId: number, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
     if (String(targetId) === actorId) {
         forbid("You cannot change your own administrative status or role assignments");
@@ -111,9 +119,10 @@ export async function createUser(input: CreateUserInput, actorRoles: string[]): 
 export async function updateUser(
     id: number,
     input: UpdateUserInput,
+    actorRoles: string[],
 ): Promise<UserWithRoles> {
-    // Existence check also documents that password_hash is never updated here.
-    await getUserById(id);
+    // Profile changes to privileged administrator accounts are Super Admin only.
+    await assertPrivilegedTargetRequiresSuperAdmin(id, actorRoles);
     await userRepository.updateUser(id, {
         full_name: input.full_name,
         email: input.email,
