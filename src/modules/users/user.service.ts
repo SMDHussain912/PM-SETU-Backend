@@ -142,6 +142,9 @@ export async function replaceUserScopes(
     }
 
     const target = await getUserById(id);
+    if (target.status !== "ACTIVE") {
+        throw new ApiError({ statusCode: 409, code: "INACTIVE_ACCOUNT", message: "Activate the account before assigning organisation scopes" });
+    }
     const targetIsPrivileged = target.roles.some((role) => PRIVILEGED_ROLE_CODES.includes(role.code as typeof PRIVILEGED_ROLE_CODES[number]));
     if (targetIsPrivileged && !actorRoles.includes(ROLE_CODES.SUPER_ADMIN)) {
         forbid("Only a Super Administrator can change privileged administrator assignments");
