@@ -289,17 +289,49 @@ export async function archiveDocument(id: number): Promise<void> {
  * users; pass-through string accepted until the DBA confirms the column).
  */
 export async function createDocumentVersion(id: number, createdBy: string | null): Promise<void> {
-    await prisma.$executeRaw(Prisma.sql`
-        INSERT INTO document_versions (document_id, version, file_path, file_size, mime_type, original_name, created_by)
-        SELECT id, version, file_path, file_size, mime_type, original_name, ${createdBy}
-        FROM documents
-        WHERE id = ${id}`);
-    await prisma.$executeRaw(Prisma.sql`
-        UPDATE documents
-        SET version = version + 1, updated_at = now()
-        WHERE id = ${id}`);
-}
+    await prisma.$transaction(async (tx) => {
+        // Serialize version creation per document so concurrent requests cannot
+        // read the same version number and race into the unique index.
+        const documents = await tx.$queryRaw<{ id: number; version: number | null }[]>(Prisma.sql`
+            SELECT id, version
+            FROM documents
+            WHERE id = ${id}
+            FOR UPDATE
+        `);
 
+        const document = documents[0];
+        if (!document) {
+            return;
+        }
+
+        // Recover safely if the document counter is behind an existing history
+        // row (for example, after an earlier non-transactional request).
+        const versions = await tx.$queryRaw<{ max_version: number | null }[]>(Prisma.sql`
+            SELECT MAX(version)::int AS max_version
+            FROM document_versions
+            WHERE document_id = ${id}
+        `);
+
+        const nextVersion = Math.max(
+            document.version ?? 1,
+            (versions[0]?.max_version ?? 0) + 1,
+        );
+
+        await tx.$executeRaw(Prisma.sql`
+            INSERT INTO document_versions
+                (document_id, version, file_path, file_size, mime_type, original_name, created_by)
+            SELECT id, ${nextVersion}, file_path, file_size, mime_type, original_name, ${createdBy}
+            FROM documents
+            WHERE id = ${id}
+        `);
+
+        await tx.$executeRaw(Prisma.sql`
+            UPDATE documents
+            SET version = ${nextVersion + 1}, updated_at = now()
+            WHERE id = ${id}
+        `);
+    });
+}
 /** File metadata update after upload (sql/documents #11). */
 export async function updateDocumentFile(
     id: number,
