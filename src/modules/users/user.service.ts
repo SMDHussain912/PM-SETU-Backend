@@ -155,29 +155,54 @@ export async function replaceUserScopes(
     for (const requirement of SCOPE_ROLE_REQUIREMENTS) {
         const hasRole = target.roles.some((role) => role.code === requirement.role);
         const matchingScopes = input.scopes.filter((scope) => scope.scope_type === requirement.scope);
-        if (hasRole && matchingScopes.length === 0) {
-            throw new ApiError({
-                statusCode: 422,
-                code: "MISSING_REQUIRED_SCOPE",
-                message: `The assigned ${requirement.role} role requires at least one ${requirement.scope} scope`,
-            });
-        }
-        if (!hasRole && matchingScopes.length > 0) {
-            throw new ApiError({
-                statusCode: 422,
-                code: "SCOPE_ROLE_MISMATCH",
-                message: `The user must have the matching role before a ${requirement.scope} scope can be assigned`,
-            });
-        }
-        if ("itiType" in requirement && hasRole) {
-            for (const scope of matchingScopes) {
+        if (requirement.scope !== "ITI") {
+            if (hasRole && matchingScopes.length === 0) {
+                throw new ApiError({
+                    statusCode: 422,
+                    code: "MISSING_REQUIRED_SCOPE",
+                    message: `The assigned ${requirement.role} role requires at least one ${requirement.scope} scope`,
+                });
+            }
+            if (!hasRole && matchingScopes.length > 0) {
+                throw new ApiError({
+                    statusCode: 422,
+                    code: "SCOPE_ROLE_MISMATCH",
+                    message: `The user must have the matching role before a ${requirement.scope} scope can be assigned`,
+                });
+            }
+        } else {
+            const itiScopes = matchingScopes;
+            const hasMatchingItiRole = target.roles.some((role) => role.code === ROLE_CODES.HUB_ITI_USER || role.code === ROLE_CODES.SPOKE_ITI_USER);
+            if (itiScopes.length > 0 && !hasMatchingItiRole) {
+                throw new ApiError({ statusCode: 422, code: "SCOPE_ROLE_MISMATCH", message: "ITI scopes require a Hub ITI User or Spoke ITI User role" });
+            }
+            for (const scope of itiScopes) {
                 const actualType = await userRepository.getItiTypeById(scope.scope_id);
-                if (actualType !== requirement.itiType) {
+                const matchingRole = actualType === "HUB" ? ROLE_CODES.HUB_ITI_USER
+                    : actualType === "SPOKE" ? ROLE_CODES.SPOKE_ITI_USER : null;
+                if (!matchingRole || !target.roles.some((role) => role.code === matchingRole)) {
                     throw new ApiError({
                         statusCode: 422,
                         code: "ITI_SCOPE_ROLE_MISMATCH",
-                        message: `${requirement.role} can only be assigned to ${requirement.itiType} ITI records`,
+                        message: "Each ITI assignment must match an assigned Hub or Spoke ITI role",
                     });
+                }
+            }
+            for (const itiRole of [ROLE_CODES.HUB_ITI_USER, ROLE_CODES.SPOKE_ITI_USER]) {
+                if (target.roles.some((role) => role.code === itiRole) &&
+                    !itiScopes.some(async () => false)) {
+                    const expectedType = itiRole === ROLE_CODES.HUB_ITI_USER ? "HUB" : "SPOKE";
+                    let hasExpectedScope = false;
+                    for (const scope of itiScopes) {
+                        if (await userRepository.getItiTypeById(scope.scope_id) === expectedType) hasExpectedScope = true;
+                    }
+                    if (!hasExpectedScope) {
+                        throw new ApiError({
+                            statusCode: 422,
+                            code: "MISSING_REQUIRED_SCOPE",
+                            message: `The assigned ${itiRole} role requires at least one ${expectedType} ITI scope`,
+                        });
+                    }
                 }
             }
         }
