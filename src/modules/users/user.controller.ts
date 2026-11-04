@@ -8,6 +8,7 @@ import type {
     UpdateUserStatusInput,
     UserIdParams,
     UserListQuery,
+    UserScopesInput,
 } from "./user.schema";
 import * as userService from "./user.service";
 
@@ -70,4 +71,24 @@ export async function deleteUser(_req: Request, res: Response): Promise<Response
     const { params } = getValidated<unknown, unknown, UserIdParams>(res);
     const user = await userService.deactivateUser(params.id);
     return sendSuccess(res, user);
+}
+
+
+/** GET /admin/users/:id/scopes — organisation scopes for an official account. */
+export async function getUserScopes(_req: Request, res: Response): Promise<Response> {
+    const { params } = getValidated<unknown, unknown, UserIdParams>(res);
+    const scopes = await userService.getUserScopes(params.id);
+    return sendSuccess(res, scopes);
+}
+
+/** PUT /admin/users/:id/scopes — replace all organisation scope grants. */
+export async function replaceUserScopes(req: Request, res: Response): Promise<Response> {
+    const { params, body } = getValidated<UserScopesInput, unknown, UserIdParams>(res);
+    const scopes = await userService.replaceUserScopes(
+        params.id,
+        body,
+        req.user?.id ?? "",
+        req.user?.roles ?? [],
+    );
+    return sendSuccess(res, scopes);
 }
