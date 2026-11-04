@@ -1,6 +1,7 @@
 import { Router, type NextFunction } from "express";
 import { prisma } from "../config/database";
 import aipRouter from "../modules/aips/aip.routes";
+import aipWorkflowRouter from "../modules/aips/aip-workflow.routes";
 import authRouter from "../modules/auth/auth.routes";
 import approvalRouter from "../modules/approvals/approval.routes";
 import auditRouter from "../modules/audit/audit.routes";
@@ -83,6 +84,7 @@ router.use("/clusters", itiClusterRouter);
 router.use("/clusters", spvClusterRouter);
 router.use("/clusters", sipClusterRouter);
 router.use("/aips", aipRouter);
+router.use("/aips", aipWorkflowRouter);
 router.use("/spvs", spvRouter);
 router.use("/sips", sipRouter);
 router.use("/governance", governanceRouter);
