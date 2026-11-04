@@ -193,3 +193,61 @@ export async function replaceUserRoles(userId: number, roleIds: number[]): Promi
         }
     });
 }
+
+
+export interface UserScopeAssignment {
+    id: number;
+    scope_type: "CLUSTER" | "ITI" | "AIP" | "SPV";
+    scope_id: number;
+    scope_name: string;
+}
+
+export async function listUserScopes(userId: number): Promise<UserScopeAssignment[]> {
+    const rows = await prisma.$queryRaw<{ id: number; scope_type: UserScopeAssignment["scope_type"]; scope_id: number; scope_name: string }[]>(Prisma.sql`
+        SELECT usa.id, usa.scope_type, usa.scope_id,
+            CASE usa.scope_type
+                WHEN 'CLUSTER' THEN (SELECT name FROM clusters WHERE id = usa.scope_id)
+                WHEN 'ITI' THEN (SELECT iti_name FROM itis WHERE id = usa.scope_id)
+                WHEN 'AIP' THEN (SELECT name FROM aips WHERE id = usa.scope_id)
+                WHEN 'SPV' THEN (SELECT name FROM spvs WHERE id = usa.scope_id)
+            END AS scope_name
+        FROM user_scope_assignments usa
+        WHERE usa.user_id = ${userId}
+        ORDER BY usa.scope_type, usa.scope_id
+    `);
+    return rows.map((row) => ({ ...row, scope_name: row.scope_name ?? "Unavailable target" }));
+}
+
+export async function replaceUserScopes(
+    userId: number,
+    scopes: Array<{ scope_type: UserScopeAssignment["scope_type"]; scope_id: number }>,
+): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+        for (const scope of scopes) {
+            const table = scope.scope_type === "CLUSTER" ? "clusters"
+                : scope.scope_type === "ITI" ? "itis"
+                : scope.scope_type === "AIP" ? "aips" : "spvs";
+            const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+                SELECT id FROM ${Prisma.raw(table)} WHERE id = ${scope.scope_id}
+                `);
+            if (rows.length !== 1) {
+                throw new Error(`Scope target not found: ${scope.scope_type} ${scope.scope_id}`);
+            }
+            if (scope.scope_type === "ITI") {
+                const itiRows = await tx.$queryRaw<{ type: string }[]>(Prisma.sql`
+                    SELECT type FROM itis WHERE id = ${scope.scope_id}
+                `);
+                if (!["HUB", "SPOKE"].includes(itiRows[0]?.type ?? "")) {
+                    throw new Error("ITI scope must reference a HUB or SPOKE institute");
+                }
+            }
+        }
+        await tx.$executeRaw(Prisma.sql`DELETE FROM user_scope_assignments WHERE user_id = ${userId}`);
+        for (const scope of scopes) {
+            await tx.$executeRaw(Prisma.sql`
+                INSERT INTO user_scope_assignments (user_id, scope_type, scope_id)
+                VALUES (${userId}, ${scope.scope_type}, ${scope.scope_id})
+            `);
+        }
+    });
+}
