@@ -189,8 +189,7 @@ export async function replaceUserScopes(
                 }
             }
             for (const itiRole of [ROLE_CODES.HUB_ITI_USER, ROLE_CODES.SPOKE_ITI_USER]) {
-                if (target.roles.some((role) => role.code === itiRole) &&
-                    !itiScopes.some(async () => false)) {
+                if (target.roles.some((role) => role.code === itiRole)) {
                     const expectedType = itiRole === ROLE_CODES.HUB_ITI_USER ? "HUB" : "SPOKE";
                     let hasExpectedScope = false;
                     for (const scope of itiScopes) {
