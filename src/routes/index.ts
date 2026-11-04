@@ -6,6 +6,7 @@ import approvalRouter from "../modules/approvals/approval.routes";
 import auditRouter from "../modules/audit/audit.routes";
 import bannerRouter, { bannerAdminRouter } from "../modules/banners/banner.routes";
 import clusterRouter from "../modules/clusters/cluster.routes";
+import clusterWorkflowRouter from "../modules/clusters/cluster-workflow.routes";
 import contactRouter, { contactAdminRouter } from "../modules/contact/contact.routes";
 import dashboardRouter from "../modules/dashboard/dashboard.routes";
 import documentRouter, {
@@ -77,6 +78,7 @@ router.use("/itis", itiWorkflowRouter);
 // module's GET /:clusterId/sip are two-segment paths with distinct literal
 // suffixes that always fall through to their own routers.
 router.use("/clusters", clusterRouter);
+router.use("/clusters", clusterWorkflowRouter);
 router.use("/clusters", itiClusterRouter);
 router.use("/clusters", spvClusterRouter);
 router.use("/clusters", sipClusterRouter);
