@@ -47,19 +47,19 @@ function mapUserWithRoles(row: UserRoleRow, roles: AssignedRole[]): UserWithRole
 function buildFilters(filters: UserListFilters): Prisma.Sql {
     const conditions: Prisma.Sql[] = [];
     if (filters.status !== undefined) {
-        conditions.push(Prisma.sql`users.status = ${filters.status}`);
+        conditions.push(Prisma.sql`u.status = ${filters.status}`);
     }
     if (filters.role !== undefined) {
         conditions.push(Prisma.sql`
             EXISTS (
                 SELECT 1 FROM user_roles ur
                 JOIN roles r ON r.id = ur.role_id
-                WHERE ur.user_id = users.id AND r.code = ${filters.role}
+                WHERE ur.user_id = u.id AND r.code = ${filters.role}
             )`);
     }
     if (filters.search !== undefined) {
         const pattern = `%${filters.search}%`;
-        conditions.push(Prisma.sql`(users.username ILIKE ${pattern} OR users.full_name ILIKE ${pattern})`);
+        conditions.push(Prisma.sql`(u.username ILIKE ${pattern} OR u.full_name ILIKE ${pattern})`);
     }
     return conditions.length > 0
         ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
@@ -69,15 +69,21 @@ function buildFilters(filters: UserListFilters): Prisma.Sql {
 /** GET /admin/users — paginated users with their assigned roles. */
 export async function listUsers(filters: UserListFilters): Promise<UserWithRoles[]> {
     const rows = await prisma.$queryRaw<UserRoleRow[]>(Prisma.sql`
+        WITH page_users AS (
+            SELECT u.id
+            FROM users u
+            ${buildFilters(filters)}
+            ORDER BY u.id
+            LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}
+        )
         SELECT
             u.id, u.username, u.full_name, u.email, u.status, u.created_at,
             r.id AS role_id, r.code AS role_code, r.name AS role_name
-        FROM users u
+        FROM page_users pu
+        JOIN users u ON u.id = pu.id
         LEFT JOIN user_roles ur ON ur.user_id = u.id
         LEFT JOIN roles r ON r.id = ur.role_id
-        ${buildFilters(filters)}
-        ORDER BY u.id, r.id
-        LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}`);
+        ORDER BY u.id, r.id`);
 
     const users = new Map<number, UserWithRoles>();
     for (const row of rows) {
@@ -104,7 +110,7 @@ export async function listUsers(filters: UserListFilters): Promise<UserWithRoles
 
 export async function countUsers(filters: UserListFilters): Promise<number> {
     const rows = await prisma.$queryRaw<{ total: number }[]>(Prisma.sql`
-        SELECT COUNT(*)::int AS total FROM users ${buildFilters(filters)}`);
+        SELECT COUNT(*)::int AS total FROM users u ${buildFilters(filters)}`);
     return rows[0]?.total ?? 0;
 }
 
