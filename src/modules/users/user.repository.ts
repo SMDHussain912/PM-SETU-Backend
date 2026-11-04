@@ -231,7 +231,7 @@ export async function replaceUserScopes(
                 exists = rows.length === 1;
             } else if (scope.scope_type === "ITI") {
                 const rows = await tx.$queryRaw<{ type: string }[]>(Prisma.sql`SELECT type FROM itis WHERE id = ${scope.scope_id}`);
-                exists = rows.length === 1 && ["HUB", "SPOKE"].includes(rows[0].type);
+                exists = rows.length === 1 && ["HUB", "SPOKE"].includes(rows[0]?.type ?? "");
             } else if (scope.scope_type === "AIP") {
                 const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`SELECT id FROM aips WHERE id = ${scope.scope_id}`);
                 exists = rows.length === 1;
