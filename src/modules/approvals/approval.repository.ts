@@ -147,138 +147,54 @@ export async function getApprovalById(id: number): Promise<Approval | null> {
 }
 
 /**
- * Optimistic-guarded status transition (defense-in-depth for the state machine).
- *
- * Updates the approval status (and, where the proposed schema has them, the
- * relevant actor/timestamp columns) only if the current status matches
- * `expectedStatus`. Returns true if a row was updated, false if the status had
- * already changed (concurrent modification) — the service turns a false result
- * into an INVALID_APPROVAL_TRANSITION error.
- *
- * The actor/timestamp column updates are INFERRED / TO CONFIRM with the DBA.
- * Each action uses its own UPDATE template matching sql/approvals/approval_queries.sql
- * sections 4-8. The optional stage/assigned_to columns are bound as null so that
- * COALESCE(null, stage) = stage (no-op) when those columns exist; if a proposed
- * column does not exist in the DBA's schema, Prisma surfaces a runtime error when
- * the query runs — that is expected until the DBA creates the schema and confirms
- * the columns.
+ * Persist the approval transition and audit record in one PostgreSQL transaction.
+ * An audit failure rolls back the status change (fail-closed).
  */
-export async function updateApprovalStatus(
-    id: number,
-    expectedStatus: string,
-    newStatus: string,
-    remarks: string | undefined,
-    action: string,
-    actingUserId: string,
-): Promise<boolean> {
-    const stage = null as string | null;
-    const assignedTo = null as string | null;
-
-    if (action === "SUBMIT") {
-        return updateApprovalRow(
-            id,
-            expectedStatus,
-            newStatus,
-            stage,
-            assignedTo,
-            actingUserId,
-            /*setSubmitted*/ true,
-            /*setReviewed*/ false,
-            /*setDecision*/ false,
-            remarks,
-        );
-    } else if (action === "REVIEW" || action === "REQUEST_REVISION") {
-        return updateApprovalRow(
-            id,
-            expectedStatus,
-            newStatus,
-            stage,
-            assignedTo,
-            actingUserId,
-            /*setSubmitted*/ false,
-            /*setReviewed*/ true,
-            /*setDecision*/ action === "REQUEST_REVISION" ? false : false,
-            remarks,
-        );
-    } else if (action === "APPROVE" || action === "REJECT") {
-        return updateApprovalRow(
-            id,
-            expectedStatus,
-            newStatus,
-            stage,
-            assignedTo,
-            actingUserId,
-            /*setSubmitted*/ false,
-            /*setReviewed*/ false,
-            /*setDecision*/ true,
-            remarks,
-        );
-    } else {
-        // Fallback for any unrecognized action: update status only.
-        const updated = await prisma.$queryRaw<{ id: number }[]>(
-            Prisma.sql`
-                UPDATE approvals
-                SET status = ${newStatus}, updated_at = NOW()
-                    ${remarks !== undefined ? Prisma.sql`, remarks = ${remarks}` : Prisma.sql``}
-                WHERE id = ${id} AND status = ${expectedStatus}
-                RETURNING id`,
-        );
-        return updated.length > 0;
-    }
+export async function transitionApprovalWithAudit(input: {
+    id: number;
+    expectedStatus: string;
+    newStatus: string;
+    remarks?: string;
+    action: string;
+    actingUserId: string;
+    auditAction: string;
+    ipAddress?: string;
+    userAgent?: string;
+    path?: string;
+}): Promise<Approval | null> {
+    return prisma.$transaction(async (tx) => {
+        const stage: string | null = null;
+        const assignedTo: string | null = null;
+        const fragments: Prisma.Sql[] = [
+            Prisma.sql`UPDATE approvals SET`,
+            Prisma.sql`status = ${input.newStatus},`,
+            Prisma.sql`stage = COALESCE(${stage}, stage),`,
+            Prisma.sql`assigned_to = COALESCE(${assignedTo}, assigned_to),`,
+        ];
+        if (input.action === "SUBMIT") {
+            fragments.push(Prisma.sql`submitted_by = ${input.actingUserId}, submitted_at = NOW(),`);
+        } else if (input.action === "REVIEW" || input.action === "REQUEST_REVISION") {
+            fragments.push(Prisma.sql`reviewed_by = ${input.actingUserId}, reviewed_at = NOW(),`);
+        } else if (input.action === "APPROVE" || input.action === "REJECT") {
+            fragments.push(Prisma.sql`approved_by = ${input.actingUserId}, decision_at = NOW(),`);
+        }
+        fragments.push(Prisma.sql`updated_at = NOW()`);
+        if (input.remarks !== undefined) fragments.push(Prisma.sql`, remarks = ${input.remarks}`);
+        fragments.push(Prisma.sql`WHERE id = ${input.id} AND status = ${input.expectedStatus}`, Prisma.sql`RETURNING id`);
+        const updated = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`${Prisma.join(fragments, " ")}`);
+        if (updated.length === 0) return null;
+        const auditRows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+            INSERT INTO audit_logs (user_id, action, entity, entity_id, old_value, new_value, approval_status, ip_address, user_agent, path, timestamp)
+            VALUES (${input.actingUserId}, ${input.auditAction}, 'APPROVAL', ${input.id},
+                ${JSON.stringify({ status: input.expectedStatus })}::jsonb,
+                ${JSON.stringify({ status: input.newStatus })}::jsonb, ${input.newStatus},
+                ${input.ipAddress ?? null}, ${input.userAgent ?? null}, ${input.path ?? null}, NOW())
+            RETURNING id`);
+        if (auditRows.length === 0) throw new Error("Approval audit entry create returned no rows");
+        const rows = await tx.$queryRaw<ApprovalRow[]>(Prisma.sql`
+            SELECT id, entity_type, entity_id, status, stage, assigned_to, submitted_by, reviewed_by, approved_by,
+                   submitted_at, reviewed_at, decision_at, remarks, created_at, updated_at
+            FROM approvals WHERE id = ${input.id}`);
+        return rows[0] ? mapApprovalRow(rows[0]) : null;
+    });
 }
-
-/**
- * Shared UPDATE template for approval status transitions that set actor columns.
- * Matches sql/approvals/approval_queries.sql sections 4-8 (one per action shape).
- *
- * The REVIEW and REQUEST_REVISION actions set reviewed_by + reviewed_at.
- * The APPROVE and REJECT actions set approved_by + decision_at.
- * The SUBMIT action sets submitted_by + submitted_at.
- */
-async function updateApprovalRow(
-    id: number,
-    expectedStatus: string,
-    newStatus: string,
-    stage: string | null,
-    assignedTo: string | null,
-    actingUserId: string,
-    setSubmitted: boolean,
-    setReviewed: boolean,
-    setDecision: boolean,
-    remarks: string | undefined,
-): Promise<boolean> {
-    const fragments: Prisma.Sql[] = [
-        Prisma.sql`UPDATE approvals SET`,
-        Prisma.sql`status = ${newStatus},`,
-        Prisma.sql`stage = COALESCE(${stage}, stage),`,
-        Prisma.sql`assigned_to = COALESCE(${assignedTo}, assigned_to),`,
-    ];
-
-    if (setSubmitted) {
-        fragments.push(Prisma.sql`submitted_by = ${actingUserId}, submitted_at = NOW(),`);
-    }
-    if (setReviewed) {
-        fragments.push(Prisma.sql`reviewed_by = ${actingUserId}, reviewed_at = NOW(),`);
-    }
-    if (setDecision) {
-        fragments.push(Prisma.sql`approved_by = ${actingUserId}, decision_at = NOW(),`);
-    }
-
-    fragments.push(Prisma.sql`updated_at = NOW()`);
-    if (remarks !== undefined) {
-        fragments.push(Prisma.sql`, remarks = ${remarks}`);
-    }
-
-    fragments.push(
-        Prisma.sql` WHERE id = ${id} AND status = ${expectedStatus}`,
-        Prisma.sql` RETURNING id`,
-    );
-
-    const updated = await prisma.$queryRaw<{ id: number }[]>(
-        Prisma.sql`${Prisma.join(fragments, " ")}`,
-    );
-    return updated.length > 0;
-}
-
-
-

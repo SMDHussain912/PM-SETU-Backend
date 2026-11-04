@@ -1,7 +1,6 @@
 import { ApiError } from "../../utils/response";
 import { buildPaginationMeta } from "../../utils/pagination";
 import * as approvalRepository from "./approval.repository";
-import * as auditService from "../audit/audit.service";
 import { APPROVAL_ACTION, APPROVAL_STATUS } from "./approval.types";
 import type {
     Approval,
@@ -15,7 +14,7 @@ import type {
     ApprovalListQuery,
     ApprovalTransitionBody,
 } from "./approval.schema";
-import type { AuditAction, AuditEntity } from "../audit/audit.types";
+import type { AuditAction } from "../audit/audit.types";
 
 /**
  * Approvals module — service layer (RoadMap.md §21 "APPROVAL APIs").
@@ -26,20 +25,16 @@ import type { AuditAction, AuditEntity } from "../audit/audit.types";
  *     (see APPROVAL_TRANSITIONS in approval.types.ts)
  *   - optimistic concurrency guard in the repository (UPDATE ... WHERE status
  *     = :expectedStatus) so concurrent transitions can't both succeed
- *   - audit entry creation after each successful transition via
- *     auditService.recordAuditEntry()
+ *   - atomic persistence of the state transition and audit entry in one
+ *     PostgreSQL transaction, with an optimistic status guard.
  *
  * Auth/RBAC is enforced at the route layer. This service validates transition
- * semantics and writes audit records; it does not itself check roles.
+ * semantics and does not itself check roles.
  *
- * Audit-write-failure semantics: see audit.service.recordAuditEntry() TO CONFIRM
- * note. Here, if the audit write throws, the error propagates to the caller
- * (the HTTP layer). The transition is NOT committed independently of the audit
- * write today — the repository UPDATE runs first inside the service, then the
- * audit write runs. If the audit write fails, the transition has already been
- * persisted; the audit record is missing. This is the current behavior and is
- * NOT a finalized policy (TO CONFIRM with DBA/NIC). The seam is isolated so the
- * policy can be changed in one place later.
+ * Audit policy: approval transitions fail closed. If the audit INSERT fails,
+ * the enclosing transaction rolls back the status update. This implements the
+ * requirement to retain audit evidence for transactions; the broader audit
+ * policy for unrelated modules remains a departmental/DBA decision.
  *
  * No publish/archive/delete/generic-engine logic exists in this module. SIP owns
  * its own workflow (sips.status) — see sql/sips/sip_queries.sql.
@@ -128,16 +123,8 @@ export async function getApprovalById(id: number): Promise<Approval> {
  * Steps:
  *   1. Load the approval record (404 if missing).
  *   2. Validate the transition is allowed from current status to next status.
- *   3. Persist the transition via the repository (optimistic status guard).
- *   4. Write an audit entry via auditService.recordAuditEntry().
- *
- * TO CONFIRM — audit-write failure semantics:
- *   - Today: the repository UPDATE runs first, then the audit write runs. If the
- *     audit write throws, the transition is already persisted and the error
- *     propagates to the HTTP layer. This is NOT a finalized policy; it exists
- *     only so the foundation can be wired up. The policy must be confirmed with
- *     DBA/NIC (fail-closed vs best-effort) and applied in one place later.
- *   - Failures are never silently swallowed.
+ *   3. Persist the transition and audit entry atomically with an optimistic
+ *      status guard. A failed audit write rolls back the transition.
  */
 async function performTransition(
     id: number,
@@ -164,48 +151,26 @@ async function performTransition(
         });
     }
 
-    // Repository-level optimistic guard: only update if status matches the
-    // current observed status. On zero updated rows, someone else moved it.
-    const updated = await approvalRepository.updateApprovalStatus(
+    // Persist the state change and its audit entry atomically. If the audit
+    // insert fails, the database transaction rolls back the state transition.
+    const refreshed = await approvalRepository.transitionApprovalWithAudit({
         id,
-        currentStatusForGuard,
+        expectedStatus: currentStatusForGuard,
         newStatus,
-        body.remarks,
+        remarks: body.remarks,
         action,
-        context.userId,
-    );
+        actingUserId: context.userId,
+        auditAction: auditActionFor(action),
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+        path: context.path,
+    });
 
-    if (!updated) {
+    if (!refreshed) {
         throw new ApiError({
             statusCode: 422,
             code: "INVALID_APPROVAL_TRANSITION",
             message: `Approval ${id} is no longer in status ${currentStatusForGuard} (concurrent modification)`,
-        });
-    }
-
-    // Write the audit entry (TO CONFIRM failure semantics — see module note).
-    await auditService.recordAuditEntry({
-        userId: context.userId,
-        action: auditActionFor(action),
-        entity: "APPROVAL",
-        entityId: id,
-        oldValue: { status: approval.status },
-        newValue: { status: newStatus },
-        approvalStatus: newStatus,
-        context: {
-            userId: context.userId,
-            ipAddress: context.ipAddress,
-            userAgent: context.userAgent,
-            path: context.path,
-        },
-    });
-
-    const refreshed = await approvalRepository.getApprovalById(id);
-    if (!refreshed) {
-        throw new ApiError({
-            statusCode: 500,
-            code: "INTERNAL_ERROR",
-            message: "Approval record disappeared after transition",
         });
     }
 
