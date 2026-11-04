@@ -3,7 +3,7 @@ import helmet from "helmet";
 import cors from "cors";
 import { env } from "./config/env";
 import routes from "./routes";
-import { apiLimiter } from "./middleware/rateLimit.middleware";
+import { adminLimiter, apiLimiter } from "./middleware/rateLimit.middleware";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 import { logger } from "./utils/logger";
 
@@ -28,6 +28,9 @@ app.use(
 
 // 3. Rate limiting for the whole API surface
 app.use("/api/v1", apiLimiter);
+
+// 3a. Additional rate limiting for sensitive administrative APIs.
+app.use("/api/v1/admin", adminLimiter);
 
 // 4. Body parsing
 app.use(express.json({ limit: "1mb" }));
