@@ -12,3 +12,9 @@ export const clusterIdParamsSchema = z.object({
 });
 
 export type ClusterIdParams = z.infer<typeof clusterIdParamsSchema>;
+
+export const itiIdParamsSchema = z.object({
+    id: z.coerce.number().int().positive(),
+});
+
+export type ItiIdParams = z.infer<typeof itiIdParamsSchema>;
