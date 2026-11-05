@@ -4,10 +4,9 @@ import { paginationQuerySchema } from "../../utils/pagination";
 /**
  * SIP request schemas.
  *
- * RoadMap §10 establishes the workflow states, while §25 establishes the
- * SIP relationships to Cluster and AIP. The database field contract beyond
- * those references is still pending DBA/NIC confirmation; admin writes
- * therefore accept only these established fields.
+ * The canonical workflow states are defined by RoadMap §10. Workflow status
+ * is intentionally excluded from registry CRUD: status changes must go
+ * through the dedicated transition/approval workflow, not generic PATCH.
  */
 
 export const SIP_STATUSES = [
@@ -25,13 +24,11 @@ export const sipStatusSchema = z.enum(SIP_STATUSES);
 const nullablePositiveId = z.number().int().positive().nullable();
 
 export const createSipSchema = z.object({
-    status: sipStatusSchema.default("DRAFT"),
     cluster_id: nullablePositiveId.optional(),
     aip_id: nullablePositiveId.optional(),
 }).strict();
 
 export const updateSipSchema = z.object({
-    status: sipStatusSchema.optional(),
     cluster_id: nullablePositiveId.optional(),
     aip_id: nullablePositiveId.optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, {
