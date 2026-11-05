@@ -130,6 +130,7 @@ test("detects duplicate row numbers in persisted metadata", () => {
     assert.equal(result.status, "MISMATCHED");
     if (result.status === "MISMATCHED") {
         assert.ok(result.differences.includes("DUPLICATE_ROW_NUMBER"));
+        assert.ok(result.differences.includes("ROW_2_DUPLICATE"));
         assert.ok(result.differences.includes("PERSISTED_ROW_COUNT_MISMATCH"));
     }
 });
@@ -173,6 +174,7 @@ test("rejects inconsistent execution summary counters and invalid row positions"
     if (result.status === "MISMATCHED") {
         assert.ok(result.differences.includes("EXECUTION_SUMMARY_INCONSISTENT"));
         assert.ok(result.differences.includes("INVALID_EXECUTION_ROW_NUMBER"));
+        assert.ok(result.differences.includes("ROW_1_INVALID_POSITION"));
     }
 });
 
