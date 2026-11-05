@@ -4,11 +4,11 @@
 
 Execution handlers commit rows independently. A later failure to persist batch metadata must not be interpreted as proof that the financial writes did not happen.
 
-The reconciliation helper compares an execution summary with a persisted technical batch snapshot and reports whether the metadata matches.
+The reconciliation helper compares an execution summary with a persisted technical batch snapshot and reports whether the metadata matches. Persisted row diagnostics cover every preview data row, whereas an execution summary contains only rows attempted in that execution. For selective retries, unattempted `VALID` rows and structurally `INVALID` rows are expected to remain in the persisted snapshot; only terminal execution outcomes (`CREATED`, `DUPLICATE`, `REJECTED`) must match execution results. The helper also checks preview valid/invalid counters and full persisted row coverage.
 
 ## Outcomes
 
-- `MATCHED`: counters, record kind, total rows, row outcomes, and target IDs match.
+- `MATCHED`: record kind, preview/attempt counters, full row coverage, attempted row outcomes, and target IDs match. Unattempted `VALID` and `INVALID` preview rows are permitted.
 - `MISMATCHED`: one or more metadata differences are returned for investigation.
 - `METADATA_MISSING`: execution evidence exists but no persisted batch snapshot was supplied.
 
