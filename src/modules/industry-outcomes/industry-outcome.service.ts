@@ -69,3 +69,68 @@ export async function reviewOutcome(id: number, body: ReviewOutcomeBody, actor: 
 export async function getOutcomeSummary() {
     return repository.getOutcomeSummary();
 }
+
+
+type ImportRowError = { index: number; code: string; message: string; details?: unknown };
+
+export async function importOutcomeBatch(body: { records: unknown[] }, actor: number, context: AuditContext) {
+    const userId = actorId(actor);
+    const created: Array<{ index: number; id: number }> = [];
+    const duplicates: number[] = [];
+    const errors: ImportRowError[] = [];
+    const seen = new Set<string>();
+
+    for (let index = 0; index < body.records.length; index += 1) {
+        const parsed = (await import("./industry-outcome.schema")).createOutcomeSchema.safeParse(body.records[index]);
+        if (!parsed.success) {
+            errors.push({ index, code: "INVALID_RECORD", message: "Record validation failed", details: parsed.error.issues });
+            continue;
+        }
+        const record = parsed.data;
+        if (!record.source_record_id) {
+            errors.push({ index, code: "SOURCE_RECORD_ID_REQUIRED", message: "Bulk imports require source_record_id for reliable duplicate prevention" });
+            continue;
+        }
+        const key = JSON.stringify([record.source_system, record.source_record_id]);
+        if (seen.has(key)) {
+            duplicates.push(index);
+            continue;
+        }
+        seen.add(key);
+
+        try {
+            const item = await prisma.$transaction(async (tx) => {
+                const result = await repository.createOutcome(record, userId, tx);
+                if ("missing" in result) {
+                    throw new ApiError({ statusCode: 422, code: `${result.missing}_NOT_FOUND`, message: `${result.missing} does not exist` });
+                }
+                if ("mismatch" in result) {
+                    throw new ApiError({ statusCode: 422, code: "ITI_CLUSTER_MISMATCH", message: "The ITI does not belong to the supplied cluster" });
+                }
+                await audit(tx, userId, "IMPORT_CREATE", result.item.id, null, result.item, context);
+                return result.item;
+            });
+            created.push({ index, id: item.id });
+        } catch (error) {
+            if (error instanceof ApiError) {
+                errors.push({ index, code: error.code, message: error.message, ...(error.details === undefined ? {} : { details: error.details }) });
+                continue;
+            }
+            if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+                duplicates.push(index);
+                continue;
+            }
+            throw error;
+        }
+    }
+
+    return {
+        total: body.records.length,
+        created_count: created.length,
+        duplicate_count: duplicates.length,
+        error_count: errors.length,
+        created,
+        duplicates,
+        errors,
+    };
+}
