@@ -55,9 +55,9 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
     return repo.createRun({ sourceId: source.id, status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: message.slice(0, 1000), startedAt, completedAt: new Date() });
   }
   if (!Array.isArray(page.records) || page.records.length > 500 || typeof page.hasMore !== "boolean" || (page.hasMore && !page.nextCursor)) throw new ApiError({ statusCode: 502, code: "ADAPTER_RESPONSE_INVALID", message: "Adapter returned an invalid page or missing continuation cursor" });
+  if (page.records.length === 0) return repo.createRun({ sourceId: source.id, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: page.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
   const parsed = integrationIngestSchema.safeParse({ records: page.records });
   if (!parsed.success) throw new ApiError({ statusCode: 422, code: "ADAPTER_RECORDS_INVALID", message: "Adapter records failed ingestion validation", details: parsed.error.flatten() });
-  if (!parsed.data.records.length) return repo.createRun({ sourceId: source.id, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: page.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
   return repo.ingestBatch(source.id, parsed.data.records, { cursor: page.nextCursor ?? null, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", startedAt });
 }
 
