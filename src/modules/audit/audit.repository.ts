@@ -173,7 +173,7 @@ export async function createAuditEntry(input: {
             )
             VALUES (
                 ${userId}, ${action}, ${entity}, ${entityId},
-                ${oldValue}, ${newValue}, ${approvalStatus},
+                ${oldValue}::jsonb, ${newValue}::jsonb, ${approvalStatus},
                 ${context.ipAddress}, ${context.userAgent}, ${context.path}, ${new Date().toISOString()}
             )
             RETURNING id`,
