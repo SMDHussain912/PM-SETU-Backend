@@ -30,11 +30,11 @@
 --   · training: Only itis.student_strength (capacity) is available. This
 --     is NOT a training metric — full training data requires a future source.
 --
--- STATUS  ⚠ READ FIRST
---   The PM SETU schema does NOT exist yet. This file documents the PLANNED
---   queries and the contract of what must be created. NOTHING here creates
---   tables. Until the schema exists the queries fail at runtime and the
---   endpoints return a 500 error envelope. That is intentional: no fake data.
+-- EVIDENCE BOUNDARY
+--   Prisma models and migrations exist in the repository, but this SQL file
+--   does not certify that migrations are deployed or production data is
+--   reconciled. REG-01 through REG-05 count non-sample registered entities.
+--   No active/approved status filter is applied without departmental approval.
 --
 -- REQUIRED DATABASE OBJECTS (from existing SQL contracts)
 --   clusters  id, name, district, sector        (sql/clusters/cluster_queries.sql)
@@ -63,39 +63,40 @@
 -- 1. STATE METRICS
 --
 -- SELECT
---     (SELECT COUNT(*)::int FROM clusters) AS clusters,
---     (SELECT COUNT(*)::int FROM itis WHERE type = 'HUB') AS hub_itis,
---     (SELECT COUNT(*)::int FROM itis WHERE type = 'SPOKE') AS spoke_itis,
---     (SELECT COUNT(*)::int FROM aips) AS aips,
---     (SELECT COUNT(*)::int FROM spvs) AS spvs,
+--     (SELECT COUNT(*)::int FROM clusters WHERE is_sample = FALSE) AS clusters,
+--     (SELECT COUNT(*)::int FROM itis WHERE is_sample = FALSE AND type = 'HUB') AS hub_itis,
+--     (SELECT COUNT(*)::int FROM itis WHERE is_sample = FALSE AND type = 'SPOKE') AS spoke_itis,
+--     (SELECT COUNT(*)::int FROM aips WHERE is_sample = FALSE) AS aips,
+--     (SELECT COUNT(*)::int FROM spvs WHERE is_sample = FALSE) AS spvs,
 --     (SELECT COUNT(*)::int FROM sips WHERE status = 'SUBMITTED') AS sips_submitted,
 --     (SELECT COUNT(*)::int FROM sips WHERE status = 'APPROVED') AS sips_approved,
---     (SELECT COALESCE(SUM(investment_amount), 0)::double precision FROM aips) AS investment;
+--     (SELECT COALESCE(SUM(investment_amount), 0)::double precision FROM aips WHERE is_sample = FALSE) AS investment;
 --
 -- 2. CLUSTER SUMMARIES
 --
 -- SELECT
 --     c.id, c.name, c.district, c.sector,
---     (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.type = 'HUB') AS hub_itis,
---     (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.type = 'SPOKE') AS spoke_itis,
---     (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id) AS aips,
---     (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id) AS spvs,
---     (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id) AS investment
+--     (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.is_sample = FALSE AND i.type = 'HUB') AS hub_itis,
+--     (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.is_sample = FALSE AND i.type = 'SPOKE') AS spoke_itis,
+--     (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id AND a.is_sample = FALSE) AS aips,
+--     (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id AND s.is_sample = FALSE) AS spvs,
+--     (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id AND a.is_sample = FALSE) AS investment
 -- FROM clusters c
+-- WHERE c.is_sample = FALSE
 -- ORDER BY c.name;
 --
--- 3. CLUSTER BY ID (same as above, WHERE c.id = ${id})
+-- 3. CLUSTER BY ID (same as above, WHERE c.id = ${id} AND c.is_sample = FALSE)
 --
 -- 4. CLUSTER ITIS
 --
 -- SELECT id, iti_code, iti_name, type, district
--- FROM itis WHERE cluster_id = ${clusterId}
+-- FROM itis WHERE cluster_id = ${clusterId} AND is_sample = FALSE
 -- ORDER BY iti_name;
 --
 -- 5. CLUSTER AIPS
 --
 -- SELECT id, name, sector, status, investment_amount
--- FROM aips WHERE cluster_id = ${clusterId}
+-- FROM aips WHERE cluster_id = ${clusterId} AND is_sample = FALSE
 -- ORDER BY name;
 --
 -- 6. CLUSTER SIP COUNTS
