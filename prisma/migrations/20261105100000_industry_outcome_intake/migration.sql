@@ -32,3 +32,11 @@ ON "industry_outcome_records"("cluster_id", "iti_id");
 
 CREATE INDEX "idx_industry_outcomes_event_date"
 ON "industry_outcome_records"("event_date");
+
+ALTER TABLE "industry_outcome_records"
+ADD CONSTRAINT "industry_outcome_records_type_check"
+CHECK ("outcome_type" IN ('APPRENTICESHIP', 'OJT', 'INDUSTRY_EXPOSURE', 'PLACEMENT', 'EMPLOYER_PARTICIPATION'));
+
+ALTER TABLE "industry_outcome_records"
+ADD CONSTRAINT "industry_outcome_records_review_status_check"
+CHECK ("review_status" IN ('PENDING', 'VERIFIED', 'REJECTED'));
