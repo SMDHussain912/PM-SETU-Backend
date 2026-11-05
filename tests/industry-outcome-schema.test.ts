@@ -3,6 +3,7 @@ import test from "node:test";
 import {
     createOutcomeSchema,
     importOutcomeBatchSchema,
+    outcomePayloadSchema,
     outcomeListQuerySchema,
     reviewOutcomeSchema,
 } from "../src/modules/industry-outcomes/industry-outcome.schema";
@@ -46,4 +47,20 @@ test("industry outcome batch import accepts between one and 200 raw records", ()
     assert.equal(importOutcomeBatchSchema.safeParse({ records: [] }).success, false);
     assert.equal(importOutcomeBatchSchema.safeParse({ records: Array.from({ length: 201 }, () => validRecord) }).success, false);
     assert.equal(importOutcomeBatchSchema.safeParse({ records: [validRecord], dry_run: true }).success, false);
+});
+
+
+test("industry outcome payload accepts bounded JSON objects", () => {
+    assert.equal(outcomePayloadSchema.safeParse({ source: "MIS", count: 12, flags: [true, null] }).success, true);
+});
+
+test("industry outcome payload rejects non-JSON values and excessive nesting", () => {
+    assert.equal(outcomePayloadSchema.safeParse({ value: Number.POSITIVE_INFINITY }).success, false);
+    let nested: unknown = "end";
+    for (let depth = 0; depth < 10; depth += 1) nested = { child: nested };
+    assert.equal(outcomePayloadSchema.safeParse({ nested }).success, false);
+});
+
+test("industry outcome payload enforces a 16 KB serialized size limit", () => {
+    assert.equal(outcomePayloadSchema.safeParse({ note: "x".repeat(16 * 1024) }).success, false);
 });
