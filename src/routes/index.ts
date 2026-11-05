@@ -1,6 +1,6 @@
 import { Router, type NextFunction } from "express";
 import { prisma } from "../config/database";
-import aipRouter from "../modules/aips/aip.routes";
+import aipRouter, { aipAdminRouter } from "../modules/aips/aip.routes";
 import aipWorkflowRouter from "../modules/aips/aip-workflow.routes";
 import authRouter from "../modules/auth/auth.routes";
 import approvalRouter from "../modules/approvals/approval.routes";
@@ -123,6 +123,7 @@ router.use("/admin/contact", contactAdminRouter);
 router.use("/admin/banners", bannerAdminRouter);
 router.use("/admin/clusters", clusterAdminRouter);
 router.use("/admin/itis", itiAdminRouter);
+router.use("/admin/aips", aipAdminRouter);
 
 // RoadMap.md §12 + §24 — document admin CRUD + publish/archive/version/file
 // upload. The module router enforces requireAuth + DOCUMENT_WRITE_ROLES itself.
