@@ -75,7 +75,18 @@ The same review exposed a related preview edge case: when required CSV headers w
 
 Regression coverage is in `tests/finance-import-batch-validation.test.ts`. This is import metadata integrity only; it does not change execution or accounting acceptance policy.
 
-## 6. Review conclusions and limitations
+## 6. PostgreSQL import metadata constraints
+
+The migration `20261106130000_finance_import_batch_integrity_constraints` adds database-level defense in depth for import metadata:
+- allowed record-kind, lifecycle, and row-outcome vocabularies;
+- non-negative batch counters;
+- `total_rows = valid_rows + invalid_rows`;
+- `attempted_rows = created_rows + duplicate_rows + rejected_rows`;
+- CSV diagnostic row numbers start at row 2, after the header.
+
+The migration performs a preflight check and aborts rather than silently rewriting any pre-existing inconsistent metadata. The repository boundary now also rejects row number 1, matching the lifecycle validator. These constraints protect technical import metadata only; they do not represent accounting acceptance.
+
+## 7. Review conclusions and limitations
 
 1. **No source correction/reversal workflow is approved.** The present duplicate behaviour is intentionally immutable; it is not a substitute for an approved correction, reversal, refund, or restatement process.
 2. **No authoritative FMS/source contract is confirmed.** Production ingestion cannot be treated as live until Finance/DET confirms source ownership, interface, mapping, and source evidence.
