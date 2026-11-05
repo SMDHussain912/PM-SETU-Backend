@@ -186,9 +186,10 @@
 --     COUNT(*)::int AS total_itis,
 --     COUNT(student_strength)::int AS itis_with_capacity,
 --     COUNT(*) FILTER (WHERE student_strength IS NULL)::int AS itis_without_capacity,
---     COUNT(*) FILTER (WHERE cluster_id IS NULL)::int AS unassigned_itis
--- FROM itis
--- WHERE is_sample = FALSE;
+--     COUNT(*) FILTER (WHERE c.id IS NULL)::int AS itis_without_reportable_cluster
+-- FROM itis i
+-- LEFT JOIN clusters c ON c.id = i.cluster_id AND c.is_sample = FALSE
+-- WHERE i.is_sample = FALSE;
 --
 -- 14. TRAINING CAPACITY REPORTING — CLUSTER COVERAGE
 --
