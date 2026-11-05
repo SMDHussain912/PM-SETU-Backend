@@ -121,6 +121,7 @@ router.use("/admin/audit-logs", auditRouter);
 // publish/archive/images). See the respective *.routes.ts for exact guards.
 router.use("/admin/contact", contactAdminRouter);
 router.use("/admin/banners", bannerAdminRouter);
+router.use("/admin/clusters", clusterAdminRouter);
 
 // RoadMap.md §12 + §24 — document admin CRUD + publish/archive/version/file
 // upload. The module router enforces requireAuth + DOCUMENT_WRITE_ROLES itself.
