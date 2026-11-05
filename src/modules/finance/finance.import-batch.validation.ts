@@ -49,10 +49,20 @@ export function validateFinanceImportBatchInput(input: CreateFinanceImportBatchI
         attempted !== 0) {
         throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
     }
+    const unattemptedValidRows = input.valid_rows - attempted;
+    if (unattemptedValidRows < 0) throw new Error("FINANCE_IMPORT_ATTEMPTED_ROWS_EXCEED_VALID_ROWS");
+    if ((input.lifecycle === "EXECUTED" || input.lifecycle === "EXECUTED_WITH_REJECTIONS") && unattemptedValidRows !== 0) {
+        throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
+    }
+    if ((input.lifecycle === "PARTIALLY_EXECUTED" || input.lifecycle === "PARTIALLY_EXECUTED_WITH_REJECTIONS") &&
+        (attempted === 0 || unattemptedValidRows === 0)) {
+        throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
+    }
     if (input.lifecycle === "EXECUTED" && (attempted === 0 || rejected > 0 || input.invalid_rows > 0)) {
         throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
     }
-    if (input.lifecycle === "EXECUTED_WITH_REJECTIONS" && rejected === 0 && input.invalid_rows === 0) {
+    if ((input.lifecycle === "EXECUTED_WITH_REJECTIONS" || input.lifecycle === "PARTIALLY_EXECUTED_WITH_REJECTIONS") &&
+        rejected === 0 && input.invalid_rows === 0) {
         throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
     }
 }
