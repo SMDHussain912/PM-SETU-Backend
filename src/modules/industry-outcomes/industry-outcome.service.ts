@@ -58,6 +58,9 @@ export async function reviewOutcome(id: number, body: ReviewOutcomeBody, actor: 
             throw new ApiError({ statusCode: 409, code: "OUTCOME_ALREADY_REVIEWED", message: "Only pending records can be reviewed" });
         }
         const updated = await repository.reviewOutcome(id, body, userId, tx);
+        if (!updated) {
+            throw new ApiError({ statusCode: 409, code: "OUTCOME_ALREADY_REVIEWED", message: "The record was reviewed by another request" });
+        }
         await audit(tx, userId, "REVIEW", id, previous, updated, context);
         return updated;
     });
