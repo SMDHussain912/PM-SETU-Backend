@@ -2659,6 +2659,8 @@ export const openApiSpec = {
                     { name: "cluster_id", in: "query", schema: { type: "integer", minimum: 1 } },
                     { name: "iti_id", in: "query", schema: { type: "integer", minimum: 1 } },
                     { name: "source_system", in: "query", schema: { type: "string" } },
+                    { name: "event_date_from", in: "query", description: "Inclusive event date lower bound (YYYY-MM-DD)", schema: { type: "string", format: "date" } },
+                    { name: "event_date_to", in: "query", description: "Inclusive event date upper bound (YYYY-MM-DD)", schema: { type: "string", format: "date" } },
                     { name: "page", in: "query", schema: { type: "integer", minimum: 1 } },
                     { name: "pageSize", in: "query", schema: { type: "integer", minimum: 1, maximum: 100 } },
                 ],
