@@ -2,31 +2,54 @@ import { z } from "zod";
 import { paginationQuerySchema } from "../../utils/pagination";
 
 /**
- * SIP module request schemas.
+ * SIP request schemas.
  *
- * All SIP endpoints are GET — there is no request body to validate. Only the
- * path parameters and pagination are validated, using the shared validate()
- * middleware (src/middleware/validate.middleware.ts) and the shared
- * pagination schema. §10 documents no list filters, so none are defined here
- * (the canonical workflow values exist, but no filter/workflow endpoint is
- * in scope — no enum is enforced in code yet).
+ * RoadMap §10 establishes the workflow states, while §25 establishes the
+ * SIP relationships to Cluster and AIP. The database field contract beyond
+ * those references is still pending DBA/NIC confirmation; admin writes
+ * therefore accept only these established fields.
  */
 
-/** GET /sips/:id */
+export const SIP_STATUSES = [
+    "DRAFT",
+    "SUBMITTED",
+    "UNDER_SCRUTINY",
+    "REVISION_REQUESTED",
+    "RECOMMENDED",
+    "APPROVED",
+    "IMPLEMENTATION",
+] as const;
+
+export const sipStatusSchema = z.enum(SIP_STATUSES);
+
+const nullablePositiveId = z.number().int().positive().nullable();
+
+export const createSipSchema = z.object({
+    status: sipStatusSchema.default("DRAFT"),
+    cluster_id: nullablePositiveId.optional(),
+    aip_id: nullablePositiveId.optional(),
+}).strict();
+
+export const updateSipSchema = z.object({
+    status: sipStatusSchema.optional(),
+    cluster_id: nullablePositiveId.optional(),
+    aip_id: nullablePositiveId.optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field must be provided",
+});
+
 export const sipIdParamsSchema = z.object({
     id: z.coerce.number().int().positive(),
 });
 
-/** GET /clusters/:clusterId/sip */
 export const clusterIdParamsSchema = z.object({
     clusterId: z.coerce.number().int().positive(),
 });
 
-/**
- * GET /sips — pagination only (RoadMap.md §10 documents no list filters).
- */
 export const sipListQuerySchema = paginationQuerySchema;
 
+export type CreateSipInput = z.infer<typeof createSipSchema>;
+export type UpdateSipInput = z.infer<typeof updateSipSchema>;
 export type SipIdParams = z.infer<typeof sipIdParamsSchema>;
 export type ClusterIdParams = z.infer<typeof clusterIdParamsSchema>;
 export type SipListQuery = z.infer<typeof sipListQuerySchema>;
