@@ -7,6 +7,7 @@ import { transitionApprovalWithAudit } from "../../src/modules/approvals/approva
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 let successfulApprovalId: number;
 let failingApprovalId: number;
+let staleApprovalId: number;
 
 async function createPendingApproval(): Promise<number> {
     const result = await pool.query<{ id: number }>(
@@ -19,6 +20,7 @@ test.before(async () => {
     await prisma.$connect();
     successfulApprovalId = await createPendingApproval();
     failingApprovalId = await createPendingApproval();
+    staleApprovalId = await createPendingApproval();
     await pool.query(`
         CREATE OR REPLACE FUNCTION ci_reject_selected_audit_insert() RETURNS trigger AS $$
         BEGIN
@@ -35,7 +37,7 @@ test.before(async () => {
 test.after(async () => {
     await pool.query("DROP TRIGGER IF EXISTS ci_reject_selected_audit_insert ON audit_logs");
     await pool.query("DROP FUNCTION IF EXISTS ci_reject_selected_audit_insert()");
-    await pool.query("DELETE FROM audit_logs WHERE entity = 'APPROVAL' AND entity_id = ANY($1::int[])", [[successfulApprovalId, failingApprovalId].filter(Boolean)]);
+    await pool.query("DELETE FROM audit_logs WHERE entity = 'APPROVAL' AND entity_id = ANY($1::int[])", [[successfulApprovalId, failingApprovalId, staleApprovalId].filter(Boolean)]);
     await pool.query("DELETE FROM approvals WHERE id = ANY($1::int[])", [[successfulApprovalId, failingApprovalId].filter(Boolean)]);
     await disconnectPrisma();
     await pool.end();
@@ -83,7 +85,7 @@ test("audit insert failure rolls back the approval status transition", async () 
 
 test("optimistic status guard prevents a stale transition from creating an audit row", async () => {
     const result = await transitionApprovalWithAudit({
-        id: successfulApprovalId,
+        id: staleApprovalId,
         expectedStatus: "PENDING",
         newStatus: "UNDER_REVIEW",
         action: "REVIEW",
@@ -93,7 +95,7 @@ test("optimistic status guard prevents a stale transition from creating an audit
     assert.equal(result, null);
     const audit = await pool.query<{ count: string }>(
         "SELECT COUNT(*)::text AS count FROM audit_logs WHERE entity = 'APPROVAL' AND entity_id = $1",
-        [successfulApprovalId],
+        [staleApprovalId],
     );
     assert.equal(audit.rows[0].count, "1");
 });
