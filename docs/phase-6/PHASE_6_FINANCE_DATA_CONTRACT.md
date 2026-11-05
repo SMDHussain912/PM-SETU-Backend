@@ -274,3 +274,11 @@ Added finance-specific batch and row-outcome storage for the CSV ingestion workf
 **Data-retention boundary:** uploaded CSV bytes and normalized financial row payloads are not persisted. This avoids silently introducing a retention policy for sensitive financial source data. Consequently, retrying rejected rows from stored batch data is not supported yet; it requires an approved secure payload-retention policy or re-upload workflow.
 
 No HTTP endpoints, permission grants, audit guarantees, automatic ledger execution, or official KPI calculations are added by this milestone. Validate the Prisma schema/client and full test/build suite locally after pulling.
+
+## Import history and safe re-upload milestone (2026-11-05)
+
+Added an internal paginated batch-history query with filters for record kind, technical lifecycle and creation-date range. Batch detail retrieval returns ordered row outcomes. Pagination is bounded to 100 rows per page, with deterministic newest-first ordering.
+
+Added a pure retry planner for re-uploaded CSV files. It requires the SHA-256 fingerprint of the new upload to match the original batch exactly, validates the new preview, and selects only rows previously marked REJECTED that are still structurally valid. Previously created, duplicate, invalid, and other rows are skipped. A changed file is rejected to prevent row-number drift from replaying the wrong financial record.
+
+**Execution boundary:** this milestone produces a retry plan only; it does not execute rows, reconstruct missing payloads, or add an HTTP route. The caller must re-upload the exact original file. Finance authorization, audit failure semantics and a secure retained-payload policy remain unresolved. Rejected rows that are not valid in the re-uploaded preview are not retried.
