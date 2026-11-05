@@ -4,10 +4,9 @@ import { paginationQuerySchema } from "../../utils/pagination";
 /**
  * AIP module request schemas.
  *
- * Both endpoints are GET — there is no request body to validate. Only the
- * path parameter and the list query string are validated, using the shared
- * validate() middleware (src/middleware/validate.middleware.ts) and the
- * shared pagination schema.
+ * Public read schemas cover the path parameter and list query. The admin
+ * registry schemas below validate create/update payloads against the
+ * persisted AIP model.
  */
 
 /** GET /aips/:id */
