@@ -102,8 +102,8 @@
 -- 6. CLUSTER SIP COUNTS
 --
 -- SELECT
---     (SELECT COUNT(*)::int FROM sips WHERE cluster_id = ${clusterId} AND status = 'SUBMITTED') AS sips_submitted,
---     (SELECT COUNT(*)::int FROM sips WHERE cluster_id = ${clusterId} AND status = 'APPROVED') AS sips_approved;
+--     (SELECT COUNT(*)::int FROM sips WHERE cluster_id = ${clusterId} AND is_sample = FALSE AND status = 'SUBMITTED') AS sips_submitted,
+--     (SELECT COUNT(*)::int FROM sips WHERE cluster_id = ${clusterId} AND is_sample = FALSE AND status = 'APPROVED') AS sips_approved;
 --
 -- 7. FINANCE METRICS
 --
