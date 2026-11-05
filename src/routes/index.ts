@@ -21,6 +21,7 @@ import governanceRouter from "../modules/governance/governance.routes";
 import homeRouter from "../modules/home/home.routes";
 import itiRouter, { itiAdminRouter, itiClusterRouter } from "../modules/itis/iti.routes";
 import itiWorkflowRouter from "../modules/itis/iti-workflow.routes";
+import industryOutcomeRouter from "../modules/industry-outcomes/industry-outcome.routes";
 import newsRouter, {
     newsAdminRouter,
 } from "../modules/news/news.routes";
@@ -97,6 +98,7 @@ router.use("/banners", bannerRouter);
 router.use("/contact", contactRouter);
 router.use("/search", searchRouter);
 router.use("/dashboard", dashboardRouter);
+router.use("/admin/industry-outcomes", industryOutcomeRouter);
 
 // RoadMap.md §19/§20 — administrative user/role management. The module
 // routers enforce requireAuth + requireRoles themselves; these mounts are
