@@ -38,6 +38,11 @@ export async function getFinanceDashboard(_req: Request, res: Response): Promise
     return sendSuccess(res, data);
 }
 
+export async function getTrainingCapacityReportingDashboard(_req: Request, res: Response): Promise<Response> {
+    const data = await dashboardService.getTrainingCapacityReporting();
+    return sendSuccess(res, data);
+}
+
 export async function getTrainingItiDashboard(_req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, ItiIdParams>(res);
     const data = await dashboardService.getTrainingByIti(params.id);
