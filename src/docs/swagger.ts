@@ -193,7 +193,7 @@ export const openApiSpec = {
             Aip: {
                 type: "object",
                 description:
-                    "AIP registry record (RoadMap.md §8). All values come from the database; the backing schema is still pending (see sql/aips/aip_queries.sql). SIP/SPV relationships are deferred to their own modules.",
+                    "AIP registry record (RoadMap.md §8). Values are read from the migrated PM SETU database schema. SIP/SPV relationships are managed by their owning modules.",
                 properties: {
                     id: { type: "integer" },
                     name: { type: "string", description: "AIP / company name" },
@@ -1071,7 +1071,7 @@ export const openApiSpec = {
                     "404": { description: "SIP not found" },
                     "422": { description: "Validation failed (invalid id)" },
                     "429": { description: "Rate limit exceeded" },
-                    "500": { description: "PM SETU database schema not created yet" },
+                    "500": { description: "Unexpected database error" },
                 },
             },
         },
@@ -1112,6 +1112,100 @@ export const openApiSpec = {
                     "422": { description: "Validation failed (invalid clusterId)" },
                     "429": { description: "Rate limit exceeded" },
                     "500": { description: "PM SETU database schema not created yet" },
+                },
+            },
+        },
+        "/admin/aips": {
+            post: {
+                tags: ["AIP"],
+                summary: "Create an AIP registry record",
+                description: "Creates an AIP registry record. Restricted to STATE_PMU_ADMIN and SUPER_ADMIN. The registry write and audit entry commit in one transaction.",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                additionalProperties: false,
+                                required: ["name", "sector", "status"],
+                                properties: {
+                                    name: { type: "string", minLength: 1, maxLength: 200 },
+                                    sector: { type: "string", minLength: 1, maxLength: 200 },
+                                    status: { type: "string", minLength: 1, maxLength: 200, description: "Partnership status; vocabulary remains configurable until NIC confirms it." },
+                                    cluster_id: { type: "integer", minimum: 1, nullable: true },
+                                    logo_url: { type: "string", format: "uri", nullable: true },
+                                    investment_amount: { type: "number", minimum: 0, nullable: true, description: "Investment amount in INR" },
+                                    academic_partner: { type: "boolean", default: false },
+                                    contact: { type: "string", nullable: true },
+                                    website: { type: "string", format: "uri", nullable: true },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "201": { description: "AIP created" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role" },
+                    "422": { description: "Validation failed" },
+                    "500": { description: "Database or audit failure" },
+                },
+            },
+        },
+        "/admin/aips/{id}": {
+            patch: {
+                tags: ["AIP"],
+                summary: "Update AIP registry data",
+                description: "Updates supplied AIP registry fields. Restricted to CLUSTER_ADMIN, STATE_PMU_ADMIN and SUPER_ADMIN; cluster admins require an AIP or parent-cluster assignment and cannot reassign the AIP to another cluster. The write and audit entry commit in one transaction.",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                minProperties: 1,
+                                additionalProperties: false,
+                                properties: {
+                                    name: { type: "string", minLength: 1, maxLength: 200 },
+                                    sector: { type: "string", minLength: 1, maxLength: 200 },
+                                    status: { type: "string", minLength: 1, maxLength: 200 },
+                                    cluster_id: { type: "integer", minimum: 1, nullable: true },
+                                    logo_url: { type: "string", format: "uri", nullable: true },
+                                    investment_amount: { type: "number", minimum: 0, nullable: true },
+                                    academic_partner: { type: "boolean" },
+                                    contact: { type: "string", nullable: true },
+                                    website: { type: "string", format: "uri", nullable: true },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "200": { description: "AIP updated" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role or AIP scope" },
+                    "404": { description: "AIP not found" },
+                    "422": { description: "Validation failed" },
+                    "500": { description: "Database or audit failure" },
+                },
+            },
+            delete: {
+                tags: ["AIP"],
+                summary: "Delete an AIP",
+                description: "Deletes an AIP only when no SPV, SIP, activity, submission or explicit user scope assignment references it. Restricted to CLUSTER_ADMIN, STATE_PMU_ADMIN and SUPER_ADMIN; cluster admins require matching AIP or parent-cluster scope.",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                responses: {
+                    "200": { description: "AIP deleted" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role or AIP scope" },
+                    "404": { description: "AIP not found" },
+                    "409": { description: "AIP is still referenced by related records" },
+                    "422": { description: "Validation failed" },
+                    "500": { description: "Database or audit failure" },
                 },
             },
         },
@@ -1248,7 +1342,7 @@ export const openApiSpec = {
                 tags: ["AIP"],
                 summary: "List AIPs",
                 description:
-                    "Returns a filterable, paginated list of AIPs (RoadMap.md §8). All records come from the database; the endpoint responds 500 until the PM SETU tables exist (see sql/aips/aip_queries.sql).",
+                    "Returns a filterable, paginated list of AIPs (RoadMap.md §8). Records are read from the migrated PM SETU database schema.",
                 security: [],
                 parameters: [
                     {
