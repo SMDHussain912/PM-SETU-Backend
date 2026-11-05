@@ -9,6 +9,7 @@ import {
     getPlacementsDashboard,
     getStateDashboard,
     getTrainingDashboard,
+    getTrainingCapacityReportingDashboard,
     getTrainingItiDashboard,
 } from "./dashboard.controller";
 
@@ -40,6 +41,7 @@ dashboardRouter.get(
 );
 dashboardRouter.get("/finance", getFinanceDashboard);
 dashboardRouter.get("/training", getTrainingDashboard);
+dashboardRouter.get("/training/reporting", getTrainingCapacityReportingDashboard);
 dashboardRouter.get(
     "/training/itis/:id",
     validate({ params: itiIdParamsSchema }),
