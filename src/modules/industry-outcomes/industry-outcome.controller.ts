@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { getValidated } from "../../middleware/validate.middleware";
 import { ApiError, sendCreated, sendSuccess } from "../../utils/response";
-import type { CreateOutcomeBody, OutcomeIdParams, OutcomeListQuery, ReviewOutcomeBody } from "./industry-outcome.schema";
+import type { CreateOutcomeBody, ImportOutcomeBatchBody, OutcomeIdParams, OutcomeListQuery, ReviewOutcomeBody } from "./industry-outcome.schema";
 import * as service from "./industry-outcome.service";
 
 function actor(req: Request): number {
@@ -27,6 +27,10 @@ export async function get(req: Request, res: Response): Promise<Response> {
 export async function create(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<CreateOutcomeBody>(res);
     return sendCreated(res, await service.createOutcome(body, actor(req), context(req)));
+}
+export async function importBatch(req: Request, res: Response): Promise<Response> {
+    const { body } = getValidated<ImportOutcomeBatchBody>(res);
+    return sendSuccess(res, await service.importOutcomeBatch(body, actor(req), context(req)));
 }
 export async function review(req: Request, res: Response): Promise<Response> {
     const { params, body } = getValidated<ReviewOutcomeBody, unknown, OutcomeIdParams>(res);
