@@ -53,7 +53,10 @@ function assertNonNegativeInteger(value: number, field: string): void {
  * This repository is internal-only; no HTTP permission or approval semantics
  * are implied by the lifecycle/outcome labels.
  */
-export async function createFinanceImportBatch(input: CreateFinanceImportBatchInput) {
+export async function createFinanceImportBatch(
+    input: CreateFinanceImportBatchInput,
+    database: Pick<typeof prisma, "$transaction"> = prisma,
+) {
     if (!/^[a-f0-9]{64}$/i.test(input.file_sha256)) throw new Error("INVALID_FILE_SHA256");
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.idempotency_key)) {
         throw new Error("INVALID_FINANCE_IMPORT_IDEMPOTENCY_KEY");
@@ -85,7 +88,7 @@ export async function createFinanceImportBatch(input: CreateFinanceImportBatchIn
         }
     }
 
-    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    return database.$transaction(async (tx: Prisma.TransactionClient) => {
         const inserted = await tx.financeImportBatch.createMany({
             data: [{
                 idempotencyKey: input.idempotency_key.toLowerCase(),
