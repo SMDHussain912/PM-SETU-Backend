@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database";
 import type { Prisma } from "../../generated/prisma/client";
+import { validateFinanceImportBatchInput } from "./finance.import-batch.validation";
 
 export type FinanceImportBatchLifecycle =
     | "PREVIEWED"
@@ -53,6 +54,7 @@ function assertNonNegativeInteger(value: number, field: string): void {
  */
 export async function createFinanceImportBatch(input: CreateFinanceImportBatchInput) {
     if (!/^[a-f0-9]{64}$/i.test(input.file_sha256)) throw new Error("INVALID_FILE_SHA256");
+    validateFinanceImportBatchInput(input);
     for (const [field, value] of Object.entries({
         total_rows: input.total_rows,
         valid_rows: input.valid_rows,
