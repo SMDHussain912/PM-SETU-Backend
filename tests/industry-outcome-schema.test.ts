@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { toOutcomeAuditSnapshot } from "../src/modules/industry-outcomes/industry-outcome.audit";
 import {
     createOutcomeSchema,
     importOutcomeBatchSchema,
@@ -63,4 +64,26 @@ test("industry outcome payload rejects non-JSON values and excessive nesting", (
 
 test("industry outcome payload enforces a 16 KB serialized size limit", () => {
     assert.equal(outcomePayloadSchema.safeParse({ note: "x".repeat(16 * 1024) }).success, false);
+});
+
+
+test("industry outcome audit snapshots omit participant references, evidence refs and raw payload", () => {
+    const snapshot = toOutcomeAuditSnapshot({
+        id: 7,
+        outcomeType: "PLACEMENT",
+        sourceSystem: "DEMO_MIS",
+        sourceRecordId: "P-7",
+        clusterId: 2,
+        itiId: 10,
+        employerName: "Example Employer",
+        eventDate: new Date("2026-01-01T00:00:00.000Z"),
+        reviewStatus: "PENDING",
+    });
+    assert.deepEqual(Object.keys(snapshot).sort(), [
+        "clusterId", "employerName", "eventDate", "id", "itiId",
+        "outcomeType", "reviewStatus", "sourceRecordId", "sourceSystem",
+    ].sort());
+    assert.equal("participantRef" in snapshot, false);
+    assert.equal("evidenceRef" in snapshot, false);
+    assert.equal("payload" in snapshot, false);
 });
