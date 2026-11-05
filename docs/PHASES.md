@@ -175,15 +175,23 @@ Commits:
 - Tests: `56b2e1602907d072df04f0038e7be423db31397b`
 - Documentation: `5efdfe92c5cb7a728ddc3bb1ed26f385d6ecbd46`
 
-#### Completed audit — finance import-batch persistence concurrency
+#### Completed — finance import-batch concurrency audit
 
-The repository/schema audit is documented in `docs/phase-6/FINANCE_IMPORT_BATCH_CONCURRENCY_AUDIT.md`.
+The repository/schema audit is documented in `docs/phase-6/FINANCE_IMPORT_BATCH_CONCURRENCY_AUDIT.md`. It confirmed transactional parent/row persistence, row-number uniqueness within a batch, no mutable lifecycle update path, and the missing attempt-level idempotency contract.
 
-Findings: parent batch + diagnostic rows are persisted in one Prisma transaction; `(batch_id, row_number)` has a database uniqueness constraint; no mutable batch lifecycle update path was found in the inspected repository modules. Duplicate parent creation remains possible after an ambiguous caller timeout because there is no stable attempt idempotency key. `fileSha256` must not be made unique because the same file can be intentionally retried/re-imported. No speculative optimistic locking or state transition code was added.
+#### Implemented — import-attempt idempotency
+
+The batch repository now requires a caller-generated UUID `idempotency_key`. It uses PostgreSQL conflict-safe insertion and reads the canonical batch by that key. Concurrent/repeated submissions using the same key converge on one batch; only the winning transaction persists row diagnostics. Reusing a key with a different record kind or file hash fails with `FINANCE_IMPORT_IDEMPOTENCY_KEY_CONFLICT`. The file hash remains non-unique so deliberate re-imports are allowed.
+
+Schema/migration: `FinanceImportBatch.idempotencyKey` is unique; existing rows receive distinct backfilled UUIDs. The preview projection and persistence contract carry the key. Callers must generate it once per user-initiated attempt, retain it across transport retries, and generate a new one for deliberate re-imports.
+
+Documentation: `docs/phase-6/FINANCE_CSV_PREVIEW_PERSISTENCE.md`.
+
+**Verification limitation:** The code and migration have been committed, but the new changes have not yet been run through typecheck, tests, build, migration deployment, or a real PostgreSQL multi-connection race test. Do not mark the safeguard verified until those checks pass.
 
 #### Current active work — next task
 
-Define and implement a stable finance import-attempt idempotency contract at the orchestration boundary. First inspect all preview/execution persistence call sites and determine the caller identity/attempt lifecycle. Preserve intentional re-imports by using an explicit attempt key rather than file hash. Once the key's ownership and reuse policy are established, add a unique DB constraint, insert-or-return-existing repository behaviour, and PostgreSQL multi-connection integration coverage. Do not invent key scope or persist user identity/extra payload without contract evidence.
+Wire UUID creation and retention into the actual application/API orchestration caller(s) of `persistFinanceCsvPreview` (the current persistence workflow is internal and expects the caller to supply the key). Add repository tests for same-key replay, key/hash mismatch, and a PostgreSQL multi-connection concurrent insert. Confirm generated Prisma client and migration deployment. Preserve the policy that a deliberate re-import uses a new key.
 
 #### Finance data and policy guardrails
 
@@ -298,6 +306,7 @@ Completion evidence should include:
 |---|---|---|---|
 | 2026-11-05 | 6 | Added HTTP-level integration tests for the opt-in finance recovery route factory | Commit `98aab40329205024b33f804e5c3f2a5475935ee5`; user reported the suite passed. Route remains intentionally unmounted pending Finance/DET access approval. |
 | 2026-11-06 | 6 | Made outlay, release, and expenditure source-identity inserts conflict-safe; added duplicate-race unit coverage | Commits `382debac`, `56b2e160`, and `5efdfe92`. Live PostgreSQL multi-connection verification remains outstanding. |
+| 2026-11-06 | 6 | Added caller-keyed finance import-batch idempotency, unique schema constraint, historical UUID backfill migration, and retry contract docs | Commits `2c1cee5`, `cdb7659`, `03e9c1e`, `7837bea`, `ded8215`, `72fbb92`, `ba6c180`, `0441961`, and `07033a4`. Runtime verification and caller wiring remain outstanding. |
 
 ---
 
