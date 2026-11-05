@@ -11,7 +11,12 @@ import {
 } from "./dashboard.controller";
 
 /**
- * Dashboard module — public routes (RoadMap.md §16).
+ * Dashboard module — intentionally public read-only routes (RoadMap.md §16).
+ *
+ * Access decision: project direction selects the public model for all six
+ * dashboard GET endpoints. Do not add requireAuth/RBAC/resource-scope guards
+ * here unless the dashboard audience policy is formally changed. Keep write
+ * operations out of this router; public responses must remain read-only.
  *
  * GET /api/v1/dashboard/state         — state-level overview
  * GET /api/v1/dashboard/clusters      — cluster list with metrics
