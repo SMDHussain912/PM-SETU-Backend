@@ -6,6 +6,7 @@ import { validateFinanceImportBatchInput } from "../src/modules/finance/finance.
 const base: CreateFinanceImportBatchInput = {
     record_kind: "OUTLAY",
     file_sha256: "a".repeat(64),
+    idempotency_key: "123e4567-e89b-42d3-a456-426614174000",
     lifecycle: "PREVIEWED",
     total_rows: 2,
     valid_rows: 2,
