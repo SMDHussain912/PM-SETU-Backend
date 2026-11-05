@@ -4,6 +4,7 @@ import { requireAuth } from "../../middleware/auth.middleware";
 import { requireRoles } from "../../middleware/rbac.middleware";
 import { requireResourceScope } from "../../middleware/scope.middleware";
 import { ROLE_CODES } from "../roles/role.constants";
+import { ApiError } from "../../utils/response";
 import * as itiController from "./iti.controller";
 import { clusterIdParamsSchema, createItiSchema, itiIdParamsSchema, itiListQuerySchema, updateItiSchema } from "./iti.schema";
 
@@ -35,6 +36,19 @@ itiClusterRouter.get(
 );
 
 
+/** Cluster admins may edit scoped ITI data but cannot move an ITI between clusters. */
+function preventClusterAdminReassignment(req: import("express").Request, _res: import("express").Response, next: import("express").NextFunction): void {
+    if (req.user?.roles?.includes(ROLE_CODES.CLUSTER_ADMIN) && req.body?.cluster_id !== undefined) {
+        next(new ApiError({
+            statusCode: 403,
+            code: "CLUSTER_REASSIGNMENT_FORBIDDEN",
+            message: "Only state-level administrators can change an ITI cluster assignment",
+        }));
+        return;
+    }
+    next();
+}
+
 /** ITI master-data administration. Operational profile submissions remain separate. */
 export const itiAdminRouter = Router();
 itiAdminRouter.use(requireAuth);
@@ -48,6 +62,7 @@ itiAdminRouter.patch(
     "/:id",
     requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
     validate({ params: itiIdParamsSchema, body: updateItiSchema }),
+    preventClusterAdminReassignment,
     requireResourceScope("ITI"),
     itiController.updateIti,
 );
