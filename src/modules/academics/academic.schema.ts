@@ -9,7 +9,7 @@ const payloadSchema = z.record(z.string(), z.unknown()).superRefine((value, ctx)
         if (typeof v === "number") return Number.isFinite(v);
         if (Array.isArray(v)) return v.every((item) => jsonSafe(item, depth + 1));
         if (typeof v === "object") return Object.entries(v as Record<string, unknown>).every(([key, item]) =>
-            !/^(name|full_?name|phone|mobile|email|address|aadhaar|aadhar|dob|date_?of_?birth|password)$/i.test(key) && jsonSafe(item, depth + 1));
+            !/(student_?name|trainer_?name|person_?name|full_?name|phone|mobile|email|aadhaar|aadhar|date_?of_?birth|^dob$|password|personal_?address)/i.test(key) && jsonSafe(item, depth + 1));
         return false;
     };
     if (!jsonSafe(value)) ctx.addIssue({ code: "custom", message: "payload must be JSON-safe, depth <= 8, and must not contain direct personal identifiers" });
@@ -23,7 +23,7 @@ export const academicRecordSchema = z.object({
     source_version: z.string().trim().max(100).nullable().optional(),
     cluster_id: z.number().int().positive().nullable().optional(),
     iti_id: z.number().int().positive().nullable().optional(),
-    event_date: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).nullable().optional(),
+    event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
     subject_token: z.string().trim().min(1).max(200).nullable().optional(),
     payload: payloadSchema.default({}),
 }).strict().superRefine((v, ctx) => {
