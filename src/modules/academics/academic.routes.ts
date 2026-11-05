@@ -1,0 +1,20 @@
+import { Router } from "express";
+import { requireAuth } from "../../middleware/auth.middleware";
+import { requireRoles } from "../../middleware/rbac.middleware";
+import { validate } from "../../middleware/validate.middleware";
+import { ROLE_CODES } from "../roles/role.constants";
+import * as controller from "./academic.controller";
+import { academicBatchSchema, academicIdParamsSchema, academicListQuerySchema, academicRecordSchema, academicReviewSchema } from "./academic.schema";
+
+const router = Router();
+const readRoles = [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.DET_CONTENT_ADMIN, ROLE_CODES.APPROVING_AUTHORITY, ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.HUB_ITI_USER, ROLE_CODES.SPOKE_ITI_USER];
+const writeRoles = [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.DET_CONTENT_ADMIN];
+const reviewRoles = [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.APPROVING_AUTHORITY];
+router.use(requireAuth);
+router.get("/summary", requireRoles(...readRoles), controller.summary);
+router.get("/", validate({ query: academicListQuerySchema }), requireRoles(...readRoles), controller.list);
+router.get("/:id", validate({ params: academicIdParamsSchema }), requireRoles(...readRoles), controller.get);
+router.post("/import", validate({ body: academicBatchSchema }), requireRoles(...writeRoles), controller.importBatch);
+router.post("/", validate({ body: academicRecordSchema }), requireRoles(...writeRoles), controller.create);
+router.post("/:id/review", validate({ params: academicIdParamsSchema, body: academicReviewSchema }), requireRoles(...reviewRoles), controller.review);
+export default router;
