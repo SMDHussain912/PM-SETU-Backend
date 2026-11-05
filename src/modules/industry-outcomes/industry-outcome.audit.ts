@@ -23,3 +23,23 @@ export function toOutcomeAuditSnapshot(record: OutcomeAuditSnapshot): OutcomeAud
         reviewStatus: record.reviewStatus,
     };
 }
+
+export type OutcomeAuditHistoryEntry = {
+    id: number;
+    user_id: string;
+    action: string;
+    old_value: unknown;
+    new_value: unknown;
+    timestamp: string;
+};
+
+export function toOutcomeAuditHistoryEntry(entry: OutcomeAuditHistoryEntry): OutcomeAuditHistoryEntry {
+    return {
+        id: entry.id,
+        user_id: entry.user_id,
+        action: entry.action,
+        old_value: entry.old_value,
+        new_value: entry.new_value,
+        timestamp: entry.timestamp,
+    };
+}
