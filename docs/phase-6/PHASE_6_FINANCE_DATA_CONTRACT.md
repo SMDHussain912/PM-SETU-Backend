@@ -238,3 +238,10 @@ Extended the internal read-only reconciliation service with an operational repor
 The export intentionally excludes monetary amounts and full ledger payloads. Findings remain warnings, not confirmed accounting errors. No review acknowledgement, approval status, write route, permission grant, or reviewer identity has been introduced. Those workflows remain blocked on Finance/DET approval of ownership, authorization and audit policy.
 
 The report remains an internal service and is not exposed through the public dashboard. It does not calculate financial KPIs or change ingestion behaviour. Run the full local validation, typecheck, test and build suite after pulling this milestone.
+
+
+## CSV import preparation milestone (2026-11-05)
+
+Added a bounded, pure CSV parser for preparing finance source imports. It supports quoted fields, commas and escaped quotes, CRLF/LF line endings, UTF-8 BOM removal, required-header checks, duplicate/empty-header rejection, row/column consistency checks, and configurable byte/row limits. It rejects malformed quoting and NUL characters and preserves source row numbers for actionable validation feedback.
+
+This is a parsing utility only. It does not map untrusted CSV strings into Prisma decimals/dates, persist finance records, overwrite existing source identities, or establish an import endpoint. Record-kind-specific mapping, row-level domain validation, import batch persistence, authorization and audit semantics remain separate implementation gates. The parser is covered by focused tests.
