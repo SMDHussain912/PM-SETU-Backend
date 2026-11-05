@@ -24,6 +24,9 @@ test("capacity aggregation preserves unavailable values and reports source cover
                 itis_with_capacity: 0,
                 itis_without_capacity: 3,
                 itis_without_reportable_cluster: 1,
+                student_capacity_without_reportable_cluster: null,
+                unassigned_itis_with_capacity: 0,
+                unassigned_itis_without_capacity: 1,
             }];
         }
         return [{
@@ -45,6 +48,13 @@ test("capacity aggregation preserves unavailable values and reports source cover
             total_itis: 3,
             itis_with_capacity: 0,
             itis_without_capacity: 3,
+            itis_without_reportable_cluster: 1,
+        });
+        assert.equal(state.without_reportable_cluster.student_capacity, null);
+        assert.deepEqual(state.without_reportable_cluster.coverage, {
+            total_itis: 1,
+            itis_with_capacity: 0,
+            itis_without_capacity: 1,
             itis_without_reportable_cluster: 1,
         });
         assert.equal(clusters[0]?.student_capacity, null);
@@ -81,6 +91,9 @@ test("capacity aggregation reports a real zero separately from missing capacity"
         itis_with_capacity: 2,
         itis_without_capacity: 0,
         itis_without_reportable_cluster: 0,
+        student_capacity_without_reportable_cluster: 0,
+        unassigned_itis_with_capacity: 0,
+        unassigned_itis_without_capacity: 0,
     }];
 
     try {
