@@ -60,8 +60,8 @@ export function toOutcomeAuditHistoryEntry(entry: OutcomeAuditHistoryEntry): Out
         id: entry.id,
         user_id: entry.user_id,
         action: entry.action,
-        old_value: entry.old_value,
-        new_value: entry.new_value,
+        old_value: redactOutcomeAuditValue(entry.old_value),
+        new_value: redactOutcomeAuditValue(entry.new_value),
         timestamp: entry.timestamp,
     };
 }
