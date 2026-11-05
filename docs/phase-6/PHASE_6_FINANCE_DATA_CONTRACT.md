@@ -199,3 +199,12 @@ Added an internal finance repository and service layer for the three ledger enti
 These functions are internal code only. No finance HTTP routes or permission grants were added. Audit writes are intentionally not claimed or performed by this milestone because the finance audit failure policy and authoritative audit-table deployment status still require confirmation. Concurrent unique-key conflicts return a conflict response; callers may retry to retrieve the already-ingested source record.
 
 This milestone is implementation scaffolding, not production Finance approval. It does not calculate FIN-01 through FIN-05, apply a recognition-basis policy, implement corrections/reversals, or establish maker-checker controls. The Prisma migration and generated client still require local validation and the full test/build suite after pulling these commits.
+
+
+## Read-only ledger query milestone (2026-11-05)
+
+Added an internal read repository and service for approved outlays, fund releases and expenditure source records. Queries support financial-year filtering, optional cluster/ITI/project scope, as-of-date filtering, deterministic newest-first ordering and bounded pagination.
+
+The read layer returns source records and pagination metadata only. It does not aggregate financial amounts, classify expenditure as accepted, or calculate utilisation/balance. It is not mounted as an HTTP route and does not introduce finance permissions. Query validation is covered by focused unit tests for required financial year, pagination bounds, scope identifiers, project references and as-of dates.
+
+The read layer remains subject to local typecheck/test/build verification after pulling. Production exposure still requires the approved Finance authorization matrix and source-system policy.
