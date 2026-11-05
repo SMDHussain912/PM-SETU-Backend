@@ -162,3 +162,10 @@ Repository inspection confirms the following constraints:
 - Add guarded finance routes, using the approved permission matrix.
 - Add integration tests for scope, provenance, decimal precision, audit behavior, duplicate source references, and dashboard non-substitution.
 - Connect the authoritative source and publish KPI calculations only after Finance sign-off.
+
+
+## SQL contract milestone (2026-11-05)
+
+Added `sql/finance/finance_queries.sql` as a design-only SQL contract. It records the proposed logical entities for approved outlays, fund releases and expenditures; exact-decimal storage; source-key idempotency; scope attribution through the outlay relationship; read-query expectations; and required acceptance tests.
+
+This is intentionally NOT a deployable migration. The SQL is clearly marked proposed / TO CONFIRM because the official Finance/FMS schema, expenditure recognition basis, scope rules, correction policy and authorization matrix remain outstanding. No finance tables or write APIs were created by this milestone.
