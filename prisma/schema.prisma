@@ -57,6 +57,7 @@ model Cluster {
   sips Sip[]
   news News[]
   docs Document[]
+  financeOutlays FinanceApprovedOutlay[]
 
   @@index([name], map: "idx_clusters_name")
   @@index([district], map: "idx_clusters_district")
@@ -94,6 +95,7 @@ model Iti {
   status         String   @default("ACTIVE")
 
   cluster Cluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+  financeOutlays FinanceApprovedOutlay[]
 
   @@unique([itiCode], map: "idx_itis_iti_code")
   @@index([itiName], map: "idx_itis_iti_name")
@@ -672,4 +674,98 @@ model IntegrationRecord {
   @@unique([sourceId, sourceRecordId], map: "uq_integration_records_source_external")
   @@index([sourceId, occurredAt], map: "idx_integration_records_source_occurred")
   @@map("integration_records")
+}
+
+
+// ── Finance ledger foundation (Phase 6; no write APIs enabled yet) ──────────
+//
+// These tables preserve the separation between approved sanctions, fund
+// releases and expenditure records. Finance policy (recognition basis,
+// correction/reversal workflow, authorization matrix and KPI formulas) remains
+// subject to official sign-off. No dashboard KPI is calculated from these
+// models until those decisions are approved.
+
+/// Approved outlay / sanction record. Scope is anchored to the outlay; release
+/// and expenditure records inherit scope through their outlay relation.
+model FinanceApprovedOutlay {
+  id                Int      @id @default(autoincrement())
+  sanctionReference String   @map("sanction_reference")
+  sanctionDate      DateTime @map("sanction_date") @db.Date
+  financialYear     String   @map("financial_year")
+  approvedAmount    Decimal  @map("approved_amount") @db.Decimal(18, 2)
+  scopeLevel        String   @map("scope_level")
+  clusterId         Int?     @map("cluster_id")
+  itiId             Int?     @map("iti_id")
+  projectReference  String?  @map("project_reference")
+  sourceSystem      String   @map("source_system")
+  sourceRecordId    String   @map("source_record_id")
+  sourceUpdatedAt   DateTime? @map("source_updated_at")
+  createdBy         String?  @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  cluster      Cluster? @relation(fields: [clusterId], references: [id], onDelete: Restrict)
+  iti          Iti?     @relation(fields: [itiId], references: [id], onDelete: Restrict)
+  fundReleases FinanceFundRelease[]
+  expenditures FinanceExpenditure[]
+
+  @@unique([sourceSystem, sourceRecordId], map: "uq_finance_outlays_source")
+  @@index([financialYear, clusterId], map: "idx_finance_outlays_year_cluster")
+  @@index([financialYear, itiId], map: "idx_finance_outlays_year_iti")
+  @@index([sanctionReference], map: "idx_finance_outlays_sanction")
+  @@map("finance_approved_outlays")
+}
+
+/// Fund release event linked to its approved outlay/sanction.
+model FinanceFundRelease {
+  id                Int      @id @default(autoincrement())
+  outlayId          Int      @map("outlay_id")
+  releaseReference  String   @map("release_reference")
+  releaseDate       DateTime @map("release_date") @db.Date
+  financialYear     String   @map("financial_year")
+  releasedAmount    Decimal  @map("released_amount") @db.Decimal(18, 2)
+  recipientReference String  @map("recipient_reference")
+  sourceSystem      String   @map("source_system")
+  sourceRecordId    String   @map("source_record_id")
+  sourceUpdatedAt   DateTime? @map("source_updated_at")
+  createdBy         String?  @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  outlay       FinanceApprovedOutlay @relation(fields: [outlayId], references: [id], onDelete: Restrict)
+  expenditures FinanceExpenditure[]
+
+  @@unique([sourceSystem, sourceRecordId], map: "uq_finance_releases_source")
+  @@index([outlayId], map: "idx_finance_releases_outlay")
+  @@index([financialYear], map: "idx_finance_releases_year")
+  @@index([releaseReference], map: "idx_finance_releases_reference")
+  @@map("finance_fund_releases")
+}
+
+/// Expenditure event. Recognition basis is stored as source metadata only;
+/// accepted expenditure calculations remain disabled pending Finance policy.
+model FinanceExpenditure {
+  id                    Int      @id @default(autoincrement())
+  outlayId              Int      @map("outlay_id")
+  releaseId             Int?     @map("release_id")
+  transactionReference  String   @map("transaction_reference")
+  transactionDate       DateTime @map("transaction_date") @db.Date
+  financialYear         String   @map("financial_year")
+  amount                Decimal  @db.Decimal(18, 2)
+  payeeReference        String?  @map("payee_reference")
+  evidenceReference     String?  @map("evidence_reference")
+  recognitionBasis      String   @map("recognition_basis")
+  sourceSystem          String   @map("source_system")
+  sourceRecordId        String   @map("source_record_id")
+  sourceUpdatedAt       DateTime? @map("source_updated_at")
+  createdBy             String?  @map("created_by")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  outlay   FinanceApprovedOutlay @relation(fields: [outlayId], references: [id], onDelete: Restrict)
+  release  FinanceFundRelease?   @relation(fields: [releaseId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceSystem, sourceRecordId], map: "uq_finance_expenditures_source")
+  @@index([outlayId], map: "idx_finance_expenditures_outlay")
+  @@index([releaseId], map: "idx_finance_expenditures_release")
+  @@index([financialYear], map: "idx_finance_expenditures_year")
+  @@index([transactionReference], map: "idx_finance_expenditures_reference")
+  @@map("finance_expenditures")
 }
