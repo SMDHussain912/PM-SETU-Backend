@@ -778,6 +778,7 @@ model FinanceExpenditure {
 
 model FinanceImportBatch {
   id             Int      @id @default(autoincrement())
+  idempotencyKey String   @unique(map: "uq_finance_import_batches_idempotency_key") @map("idempotency_key") @db.VarChar(36)
   recordKind     String   @map("record_kind") @db.VarChar(20)
   fileSha256     String   @map("file_sha256") @db.VarChar(64)
   lifecycle      String   @db.VarChar(30)
