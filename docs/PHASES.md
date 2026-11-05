@@ -187,13 +187,23 @@ Schema/migration: `FinanceImportBatch.idempotencyKey` is unique; existing rows r
 
 Documentation: `docs/phase-6/FINANCE_CSV_PREVIEW_PERSISTENCE.md`.
 
-**Verification update:** The user reports that the local typecheck/test/build run now passes after the preview fixture correction. The repository now also has isolated repository-level tests for same-key replay, file-hash mismatch, and record-kind mismatch. These tests inject a transaction client and verify that a replay returns the canonical batch without rewriting the original row diagnostics. They are deterministic unit tests, not a live PostgreSQL concurrency test. The user must run the latest commits locally to verify this newly added test file and repository injection seam.
+**Verification update:** The user reports that local typecheck, tests, and build pass, including the repository-level same-key replay and mismatch tests. A separate opt-in PostgreSQL concurrency test has now been added at `tests/finance-import-batch-postgres-concurrency.test.ts`. It uses only the explicitly supplied `PM_SETU_TEST_DATABASE_URL`, generates a unique UUID per run, and cleans up that exact batch. It is skipped when the variable is absent; a skipped run is not live database verification. See `docs/phase-6/FINANCE_IMPORT_BATCH_POSTGRES_CONCURRENCY_TEST.md`.
 
 **Application integration finding:** A repository-wide inspection of the finance module and route index found no current application/API caller of `persistFinanceCsvPreview`; the workflow is presently internal-only. No upload route is being introduced because Finance permissions, audit semantics, and correction/reversal policy remain unapproved. UUID generation/retention must be integrated when an approved orchestration surface is defined, rather than inventing a route now.
 
 #### Current active work — next task
 
-Run typecheck, tests, and build against the new repository test and injection seam. Then add a PostgreSQL-backed multi-connection test for same-key concurrent creation (using the configured test database only, with isolated unique UUID keys and cleanup). Keep application/API caller wiring explicitly blocked on approved Finance access and audit policy. Preserve the policy that a deliberate re-import uses a new key.
+Run the full checks against the newly added opt-in PostgreSQL concurrency test. Then, against a dedicated migrated PostgreSQL test database only, run:
+
+```bash
+export PM_SETU_TEST_DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/pm_setu_test?schema=public'
+npx tsx --test tests/finance-import-batch-postgres-concurrency.test.ts
+npm run typecheck
+npm test
+npm run build
+```
+
+Do not use production, staging, or a shared database for this test. If the dedicated test database is not available, leave live concurrency verification explicitly pending and continue with database-independent review/test coverage. Keep application/API caller wiring explicitly blocked on approved Finance access and audit policy. Preserve the policy that a deliberate re-import uses a new key.
 
 #### Finance data and policy guardrails
 
@@ -309,6 +319,7 @@ Completion evidence should include:
 | 2026-11-05 | 6 | Added HTTP-level integration tests for the opt-in finance recovery route factory | Commit `98aab40329205024b33f804e5c3f2a5475935ee5`; user reported the suite passed. Route remains intentionally unmounted pending Finance/DET access approval. |
 | 2026-11-06 | 6 | Made outlay, release, and expenditure source-identity inserts conflict-safe; added duplicate-race unit coverage | Commits `382debac`, `56b2e160`, and `5efdfe92`. Live PostgreSQL multi-connection verification remains outstanding. |
 | 2026-11-06 | 6 | Added caller-keyed finance import-batch idempotency, unique schema constraint, historical UUID backfill migration, and retry contract docs | Commits `2c1cee5`, `cdb7659`, `03e9c1e`, `7837bea`, `ded8215`, `72fbb92`, `ba6c180`, `0441961`, and `07033a4`. User reports local verification passes; real PostgreSQL multi-connection verification remains outstanding. |
+| 2026-11-06 | 6 | Added opt-in PostgreSQL concurrent same-key import-batch test and dedicated test-database instructions | Commits `65e3600` and `3340144`. Test uses only `PM_SETU_TEST_DATABASE_URL`, unique UUIDs, and exact-key cleanup; live DB execution is pending. |
 | 2026-11-06 | 6 | Added an injectable transaction boundary and repository tests for same-key replay, immutable row diagnostics on replay, and key reuse conflicts | Commits `dc80e56` and `3c6d96a`. New tests still require local typecheck/test/build verification; they simulate transaction behaviour and are not a live PostgreSQL race test. |
 
 ---
