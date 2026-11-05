@@ -25,6 +25,9 @@ export const AUDIT_ACTION = {
     CREATE: "CREATE",
     UPDATE: "UPDATE",
     DELETE: "DELETE",
+    PUBLISH: "PUBLISH",
+    ARCHIVE: "ARCHIVE",
+    VERSION: "VERSION",
     SUBMIT: "SUBMIT",
     REVIEW: "REVIEW",
     APPROVE: "APPROVE",
@@ -41,6 +44,7 @@ export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];
  * those modules are built and begin writing audit entries. */
 export const AUDIT_ENTITY = {
     APPROVAL: "APPROVAL",
+    DOCUMENT: "DOCUMENT",
     USER: "USER",
     ROLE: "ROLE",
     PERMISSION: "PERMISSION",
