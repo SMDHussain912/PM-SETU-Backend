@@ -167,7 +167,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/documents/' || documents.id AS url,
                 jsonb_build_object('type', documents.type, 'issue_date', documents.issue_date) AS metadata
             FROM documents
-            WHERE ${Prisma.join(docConditions, " OR ")}
+            WHERE documents.publish_status = 'PUBLISHED' AND (${Prisma.join(docConditions, " OR ")})
         `);
     }
 
@@ -192,7 +192,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/news/' || news.id AS url,
                 jsonb_build_object('published_date', news.published_date, 'category', news.category) AS metadata
             FROM news
-            WHERE ${Prisma.join(newsConditions, " OR ")}
+            WHERE news.is_published = TRUE AND (${Prisma.join(newsConditions, " OR ")})
         `);
     }
 
