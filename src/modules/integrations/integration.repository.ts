@@ -8,7 +8,10 @@ export function create(input: IntegrationSourceInput) {
 }
 export function get(id: number) { return prisma.integrationSource.findUnique({ where: { id } }); }
 export function updateEnabled(id: number, enabled: boolean) {
-  return prisma.integrationSource.update({ where: { id }, data: { enabled, nextSyncAt: enabled ? new Date() : null }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, updatedAt: true } });
+  return prisma.integrationSource.update({ where: { id }, data: { enabled, nextSyncAt: enabled ? new Date() : null }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true } });
+}
+export function updateSchedule(id: number, seconds: number | null) {
+  return prisma.integrationSource.update({ where: { id }, data: { syncIntervalSeconds: seconds, nextSyncAt: seconds === null ? null : new Date() }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true } });
 }
 export function createRun(input: { sourceId: number; status: string; recordsRead: number; recordsCreated: number; recordsUpdated: number; recordsRejected: number; cursor: string | null; errorCode: string | null; errorSummary: string | null; startedAt: Date; completedAt: Date }) {
   return prisma.integrationSyncRun.create({ data: input });
