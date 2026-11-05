@@ -37,6 +37,10 @@ export const createOutcomeSchema = z.object({
     path: ["cluster_id"],
 });
 
+export const importOutcomeBatchSchema = z.object({
+    records: z.array(z.unknown()).min(1).max(200),
+}).strict();
+
 export const reviewOutcomeSchema = z.object({
     review_status: z.enum(["VERIFIED", "REJECTED"]),
     review_note: z.string().trim().max(2000).nullable().optional(),
@@ -46,3 +50,4 @@ export type OutcomeIdParams = z.infer<typeof outcomeIdParamsSchema>;
 export type OutcomeListQuery = z.infer<typeof outcomeListQuerySchema>;
 export type CreateOutcomeBody = z.infer<typeof createOutcomeSchema>;
 export type ReviewOutcomeBody = z.infer<typeof reviewOutcomeSchema>;
+export type ImportOutcomeBatchBody = z.infer<typeof importOutcomeBatchSchema>;
