@@ -4,6 +4,8 @@ export interface PersistedFinanceBatchSnapshot {
     id: number;
     recordKind: string;
     totalRows: number;
+    validRows: number;
+    invalidRows: number;
     attemptedRows: number;
     createdRows: number;
     duplicateRows: number;
@@ -22,6 +24,10 @@ export type FinanceImportReconciliation =
 
 /**
  * Compares an execution summary with persisted technical batch metadata.
+ *
+ * Persisted rows cover the entire preview, while execution.results contains
+ * only rows attempted by this execution (notably for selective retries).
+ * VALID and INVALID are therefore legitimate non-executed preview outcomes.
  *
  * A missing/mismatched batch is surfaced for controlled investigation only.
  * This function never replays financial writes: row handlers may already have
@@ -44,6 +50,11 @@ export function reconcileFinanceImportBatch(
     if (persisted.id < 1 || !Number.isSafeInteger(persisted.id)) differences.push("INVALID_BATCH_ID");
     if (persisted.recordKind !== execution.record_kind) differences.push("RECORD_KIND_MISMATCH");
     if (persisted.totalRows !== execution.total_rows) differences.push("TOTAL_ROWS_MISMATCH");
+    if (persisted.validRows < 0 || persisted.invalidRows < 0 ||
+        persisted.validRows + persisted.invalidRows !== persisted.totalRows) {
+        differences.push("PREVIEW_ROW_COUNTS_MISMATCH");
+    }
+    if (persisted.rows.length !== persisted.totalRows) differences.push("PERSISTED_ROW_COUNT_MISMATCH");
     if (persisted.attemptedRows !== execution.attempted_rows) differences.push("ATTEMPTED_ROWS_MISMATCH");
     if (persisted.createdRows !== execution.created) differences.push("CREATED_ROWS_MISMATCH");
     if (persisted.duplicateRows !== execution.duplicates) differences.push("DUPLICATE_ROWS_MISMATCH");
@@ -54,7 +65,6 @@ export function reconcileFinanceImportBatch(
     if (expectedRows.size !== execution.results.length || actualRows.size !== persisted.rows.length) {
         differences.push("DUPLICATE_ROW_NUMBER");
     }
-    if (expectedRows.size !== actualRows.size) differences.push("ROW_RESULT_COUNT_MISMATCH");
 
     for (const [rowNumber, expected] of expectedRows) {
         const actual = actualRows.get(rowNumber);
@@ -67,8 +77,14 @@ export function reconcileFinanceImportBatch(
             differences.push(`ROW_${rowNumber}_TARGET_ID_MISMATCH`);
         }
     }
-    for (const rowNumber of actualRows.keys()) {
-        if (!expectedRows.has(rowNumber)) differences.push(`ROW_${rowNumber}_UNEXPECTED`);
+    for (const [rowNumber, actual] of actualRows) {
+        if (expectedRows.has(rowNumber)) continue;
+        if (actual.outcome !== "VALID" && actual.outcome !== "INVALID") {
+            differences.push(`ROW_${rowNumber}_UNEXPECTED`);
+        }
+        if (actual.targetRecordId !== null) {
+            differences.push(`ROW_${rowNumber}_UNEXPECTED_TARGET_ID`);
+        }
     }
 
     return differences.length === 0
