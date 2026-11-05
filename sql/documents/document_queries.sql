@@ -123,8 +123,8 @@
 --     documents.updated_at
 -- FROM documents
 -- LEFT JOIN clusters ON clusters.id = documents.cluster_id
--- WHERE
---     documents.type = ${type}                             -- optional
+-- WHERE documents.publish_status = 'PUBLISHED'
+--     AND documents.type = ${type}                             -- optional
 --     AND documents.cluster_id = ${cluster_id}             -- optional
 --     AND documents.financial_year = ${year}               -- optional
 --     AND documents.department = ${department}             -- optional
@@ -137,14 +137,14 @@
 --
 -- 2. COUNT (same filters)
 --
--- SELECT COUNT(*)::int AS count FROM documents WHERE <same filters>;
+-- SELECT COUNT(*)::int AS count FROM documents WHERE publish_status = 'PUBLISHED' AND <same filters>;
 --
 -- 3. DETAIL BY ID
 --
 -- SELECT <same columns>
 -- FROM documents
 -- LEFT JOIN clusters ON clusters.id = documents.cluster_id
--- WHERE documents.id = ${id};
+-- WHERE documents.id = ${id} AND documents.publish_status = 'PUBLISHED';
 --
 -- 4. VERSIONS LIST
 --
