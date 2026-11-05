@@ -4,6 +4,7 @@ import * as auditService from "../audit/audit.service";
 import { buildPaginationMeta } from "../../utils/pagination";
 import { ApiError } from "../../utils/response";
 import * as repository from "./industry-outcome.repository";
+import { toOutcomeAuditSnapshot } from "./industry-outcome.audit";
 import { createOutcomeSchema, type CreateOutcomeBody, type OutcomeListQuery, type ReviewOutcomeBody } from "./industry-outcome.schema";
 
 function actorId(value: number): number {
@@ -15,41 +16,6 @@ function actorId(value: number): number {
 
 type AuditContext = { ipAddress?: string; userAgent?: string; path?: string };
 
-type OutcomeAuditSnapshot = {
-    id: number;
-    outcomeType: string;
-    sourceSystem: string;
-    sourceRecordId: string | null;
-    clusterId: number | null;
-    itiId: number | null;
-    employerName: string | null;
-    eventDate: Date | null;
-    reviewStatus: string;
-};
-
-export function toOutcomeAuditSnapshot(record: {
-    id: number;
-    outcomeType: string;
-    sourceSystem: string;
-    sourceRecordId: string | null;
-    clusterId: number | null;
-    itiId: number | null;
-    employerName: string | null;
-    eventDate: Date | null;
-    reviewStatus: string;
-}): OutcomeAuditSnapshot {
-    return {
-        id: record.id,
-        outcomeType: record.outcomeType,
-        sourceSystem: record.sourceSystem,
-        sourceRecordId: record.sourceRecordId,
-        clusterId: record.clusterId,
-        itiId: record.itiId,
-        employerName: record.employerName,
-        eventDate: record.eventDate,
-        reviewStatus: record.reviewStatus,
-    };
-}
 
 async function audit(tx: Prisma.TransactionClient, userId: number, action: string, id: number, oldValue: unknown, newValue: unknown, context: AuditContext) {
     await auditService.recordAuditEntry({
