@@ -1,0 +1,91 @@
+# Phase 7 — Dashboard KPI and source inventory
+
+**Status:** Initial source inventory; implementation contract not yet approved  
+**Working branch:** `main`  
+**Purpose:** Establish an evidence-based dashboard baseline before adding new aggregations or public response fields.
+
+This document records what the current backend actually reads, what it labels, and which data gaps remain. It does not create new KPI definitions or certify the accuracy of production data.
+
+## 1. Existing dashboard API surface
+
+The current public, read-only dashboard router exposes:
+
+| Endpoint | Current output area | Current implementation |
+|---|---|---|
+| `GET /api/v1/dashboard/state` | State overview | Counts registry entities and sums AIP investment registry values |
+| `GET /api/v1/dashboard/clusters` | Cluster summaries | Per-cluster ITI/AIP/SPV counts and AIP investment registry values |
+| `GET /api/v1/dashboard/clusters/:id` | Cluster detail | Cluster registry metrics, ITI list, AIP list, SIP submitted/approved counts |
+| `GET /api/v1/dashboard/finance` | Finance overview | AIP/SIP planning and registry indicators; official finance progress is explicitly unavailable |
+| `GET /api/v1/dashboard/training` | Training overview | ITI `student_strength` capacity only |
+| `GET /api/v1/dashboard/placements` | Placement overview | Informative source-not-established response |
+
+These routes are intentionally public and read-only under the current project decision. Do not add write operations or expose finance ledgers through this router.
+
+## 2. Current source inventory
+
+| Displayed field / measure | Current source | Interpretation and limitation |
+|---|---|---|
+| Cluster count | `clusters` | Registry count excluding `is_sample = TRUE` |
+| Hub ITI count | `itis` where type = HUB | Registry count excluding sample rows |
+| Spoke ITI count | `itis` where type = SPOKE | Registry count excluding sample rows |
+| AIP count | `aips` | Registry count excluding sample rows; no unapproved status filter |
+| SPV count | `spvs` | Registry count excluding sample rows |
+| SIP submitted / approved | `sips.status` | Counts for the exact SUBMITTED / APPROVED statuses |
+| Investment | `aips.investment_amount` | AIP registry/planning indicator, not approved outlay or expenditure |
+| SIP proposed and contribution categories | SIP proposal/contribution fields | Planning indicators, not actual release or expenditure |
+| Student capacity | `itis.student_strength` | Capacity/strength field; not trainees trained, assessed, or placed |
+| Industries engaged | No established source in current dashboard query | Unavailable; do not infer from AIP count |
+| Trainees | No established source in current dashboard query | Unavailable; do not infer from ITI capacity |
+| Placements | No established source in current dashboard module | Unavailable; do not return fabricated zero |
+| Official finance progress | Finance-approved source not connected | FIN-01..FIN-05 remain unavailable; do not substitute AIP/SIP values |
+
+All registry queries currently exclude sample rows. This source inventory does not certify that the underlying production records are complete, current, or reconciled.
+
+## 3. Finance reporting boundary
+
+The official source mapping identifies FIN-01 through FIN-05:
+
+- FIN-01 — Approved outlay
+- FIN-02 — Funds released
+- FIN-03 — Expenditure
+- FIN-04 — Utilisation percentage
+- FIN-05 — Balance
+
+Required drilldown: State → Cluster → ITI / Project. Reporting context: financial year and as-of date.
+
+Phase 6 provides internal ledger and ingestion foundations, but Finance/DET decisions are still required for authoritative source ownership, expenditure recognition, utilisation/balance formulas, correction/reversal handling, access control, audit semantics, and retention. The dashboard must continue to report official financial progress as unavailable until those decisions and authoritative data are approved.
+
+Existing AIP investment and SIP proposed contribution values may remain visible only with their correct planning/registry labels. They must not be relabelled as FIN-01, FIN-02, or FIN-03.
+
+## 4. Reporting contract requirements for future work
+
+Before adding or changing a dashboard metric, record:
+
+1. Metric identifier and exact display label.
+2. Authoritative source table/system and source owner.
+3. Inclusion/exclusion rules, including sample/test data handling.
+4. Aggregation grain and hierarchy (State, Cluster, ITI, Project).
+5. Reporting period and as-of-date semantics.
+6. Null/unavailable behaviour and coverage limitations.
+7. Whether the value is a count, capacity, planning indicator, verified outcome, or official KPI.
+8. Reconciliation and acceptance evidence.
+9. Public/internal visibility decision.
+
+Do not turn missing data into zero unless the source contract explicitly establishes that zero is the correct value. Do not create a formula merely because the dashboard needs a number.
+
+## 5. Next implementation sequence
+
+1. Confirm source definitions and ownership for physical, academic/training, industry/employment, and finance metrics.
+2. Define a versioned dashboard response contract that carries metric identity, reporting context, source freshness, and availability/coverage status without changing existing fields prematurely.
+3. Add focused tests for null/unavailable versus genuine zero, sample-row exclusion, scope aggregation, and reporting-period boundaries.
+4. Add only those aggregations supported by approved sources and definitions.
+5. Keep the existing public dashboard read-only and preserve the Finance guardrails from Phase 6.
+
+## 6. Explicit non-goals
+
+- No new finance formulas.
+- No use of AIP/SIP planning values as official financial performance.
+- No inferred trainees, industries-engaged, or placement totals.
+- No invented KPI targets, thresholds, or traffic-light statuses.
+- No new public finance write or recovery endpoints.
+- No claim of production data reconciliation or stakeholder acceptance.
