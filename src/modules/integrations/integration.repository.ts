@@ -16,3 +16,21 @@ export function createRun(input: { sourceId: number; status: string; recordsRead
 export function listRuns(sourceId: number, take = 20) {
   return prisma.integrationSyncRun.findMany({ where: { sourceId }, orderBy: { startedAt: "desc" }, take });
 }
+
+export async function ingestBatch(sourceId: number, records: Array<{ source_record_id: string; source_version?: string | null; occurred_at?: string | null; payload: Record<string, unknown> }>) {
+  return prisma.$transaction(async (tx) => {
+    let created = 0; let updated = 0;
+    for (const record of records) {
+      const existing = await tx.integrationRecord.findUnique({ where: { sourceId_sourceRecordId: { sourceId, sourceRecordId: record.source_record_id } }, select: { id: true, sourceVersion: true, payload: true } });
+      await tx.integrationRecord.upsert({
+        where: { sourceId_sourceRecordId: { sourceId, sourceRecordId: record.source_record_id } },
+        create: { sourceId, sourceRecordId: record.source_record_id, sourceVersion: record.source_version ?? null, occurredAt: record.occurred_at ? new Date(record.occurred_at) : null, payload: record.payload as import("../../generated/prisma/client").Prisma.InputJsonValue },
+        update: { sourceVersion: record.source_version ?? null, occurredAt: record.occurred_at ? new Date(record.occurred_at) : null, payload: record.payload as import("../../generated/prisma/client").Prisma.InputJsonValue, lastSeenAt: new Date() },
+      });
+      if (existing) updated++; else created++;
+    }
+    const now = new Date();
+    const run = await tx.integrationSyncRun.create({ data: { sourceId, status: "SUCCEEDED", recordsRead: records.length, recordsCreated: created, recordsUpdated: updated, recordsRejected: 0, startedAt: now, completedAt: now } });
+    return { run, records_read: records.length, records_created: created, records_updated: updated, records_rejected: 0 };
+  });
+}
