@@ -33,6 +33,28 @@ export type OutcomeAuditHistoryEntry = {
     timestamp: string;
 };
 
+const SENSITIVE_OUTCOME_AUDIT_KEYS = new Set([
+    "participantRef",
+    "participant_ref",
+    "evidenceRef",
+    "evidence_ref",
+    "payload",
+    "reviewNote",
+    "review_note",
+]);
+
+function redactOutcomeAuditValue(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(redactOutcomeAuditValue);
+    if (value === null || typeof value !== "object" || value instanceof Date) return value;
+    const safe: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+        if (!SENSITIVE_OUTCOME_AUDIT_KEYS.has(key)) {
+            safe[key] = redactOutcomeAuditValue(nested);
+        }
+    }
+    return safe;
+}
+
 export function toOutcomeAuditHistoryEntry(entry: OutcomeAuditHistoryEntry): OutcomeAuditHistoryEntry {
     return {
         id: entry.id,
