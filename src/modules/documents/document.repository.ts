@@ -173,6 +173,14 @@ export async function getDocumentById(id: number, db: DbClient = prisma): Promis
     return rows[0] ? mapDocumentRow(rows[0]) : null;
 }
 
+/** Lock a document row before a mutation to serialize concurrent admin writes. */
+export async function getDocumentByIdForUpdate(id: number, db: DbClient): Promise<Document | null> {
+    const rows = await db.$queryRaw<DocumentRow[]>(
+        Prisma.sql`${DOCUMENT_SELECT} WHERE documents.id = ${id} FOR UPDATE OF documents`,
+    );
+    return rows[0] ? mapDocumentRow(rows[0]) : null;
+}
+
 export async function getPublishedDocumentById(id: number): Promise<Document | null> {
     const rows = await prisma.$queryRaw<DocumentRow[]>(
         Prisma.sql`${DOCUMENT_SELECT} WHERE documents.id = ${id} AND documents.publish_status = 'PUBLISHED'`,
