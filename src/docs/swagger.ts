@@ -2674,7 +2674,7 @@ export const openApiSpec = {
                     employer_name: { type: "string", nullable: true }, participant_ref: { type: "string", nullable: true },
                     event_date: { type: "string", format: "date-time", nullable: true }, evidence_ref: { type: "string", nullable: true }, payload: { type: "object" },
                 }}}}},
-                responses: { "201": { description: "Created as PENDING review" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" }, "422": { description: "Invalid attribution or payload" } },
+                responses: { "201": { description: "Created as PENDING review" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" }, "409": { description: "Duplicate source_system + source_record_id" }, "422": { description: "Invalid attribution or payload" } },
             },
         },
         "/admin/industry-outcomes/{id}": {
