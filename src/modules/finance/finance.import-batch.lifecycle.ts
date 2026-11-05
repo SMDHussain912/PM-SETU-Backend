@@ -105,7 +105,7 @@ export function buildFinanceImportBatchInput(
         duplicate_rows: execution?.duplicates ?? 0,
         rejected_rows: execution?.rejected ?? 0,
         created_by: options.created_by,
-        completed_at: execution ? (options.completed_at ?? new Date()) : undefined,
+        completed_at: execution ? options.completed_at : undefined,
         rows,
     };
 }
