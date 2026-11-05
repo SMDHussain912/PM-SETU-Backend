@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { validate } from "../../middleware/validate.middleware";
-import { clusterIdParamsSchema } from "./dashboard.schema";
+import { clusterIdParamsSchema, itiIdParamsSchema } from "./dashboard.schema";
 import {
     getClusterDashboard,
     getDashboardContract,
@@ -9,6 +9,7 @@ import {
     getPlacementsDashboard,
     getStateDashboard,
     getTrainingDashboard,
+    getTrainingItiDashboard,
 } from "./dashboard.controller";
 
 /**
@@ -39,6 +40,11 @@ dashboardRouter.get(
 );
 dashboardRouter.get("/finance", getFinanceDashboard);
 dashboardRouter.get("/training", getTrainingDashboard);
+dashboardRouter.get(
+    "/training/itis/:id",
+    validate({ params: itiIdParamsSchema }),
+    getTrainingItiDashboard,
+);
 dashboardRouter.get("/placements", getPlacementsDashboard);
 
 export default dashboardRouter;
