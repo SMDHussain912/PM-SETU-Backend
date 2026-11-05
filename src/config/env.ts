@@ -56,7 +56,7 @@ export const env = {
     port: requirePort(process.env.PORT),
 
     // Database (optional until the Prisma client is actually created)
-    databaseUrl: process.env.DATABASE_URL,
+    databaseUrl: nodeEnv === "test" ? process.env.TEST_DATABASE_URL : process.env.DATABASE_URL,
 
     // CORS — comma-separated list of origins, or "*" to allow all
     corsOrigins: parseOrigins(process.env.CORS_ORIGIN),
