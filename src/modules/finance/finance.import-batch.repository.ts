@@ -110,14 +110,42 @@ export async function createFinanceImportBatch(
 
         const batch = await tx.financeImportBatch.findUnique({
             where: { idempotencyKey: input.idempotency_key.toLowerCase() },
+            include: { rows: { orderBy: { rowNumber: "asc" } } },
         });
         if (!batch) throw new Error("FINANCE_IMPORT_BATCH_INSERT_NOT_CONFIRMED");
 
         if (inserted.count === 0) {
-            if (batch.recordKind !== input.record_kind ||
-                batch.fileSha256 !== input.file_sha256.toLowerCase()) {
-                throw new Error("FINANCE_IMPORT_IDEMPOTENCY_KEY_CONFLICT");
-            }
+            const expectedRows = [...input.rows]
+                .sort((a, b) => a.row_number - b.row_number)
+                .map((row) => ({
+                    rowNumber: row.row_number,
+                    outcome: row.outcome,
+                    targetRecordId: row.target_record_id ?? null,
+                    errorCode: row.error_code?.slice(0, 100) ?? null,
+                    errorMessage: row.error_message?.slice(0, 500) ?? null,
+                }));
+            const existingRows = batch.rows.map((row) => ({
+                rowNumber: row.rowNumber,
+                outcome: row.outcome,
+                targetRecordId: row.targetRecordId,
+                errorCode: row.errorCode,
+                errorMessage: row.errorMessage,
+            }));
+            const sameRequest =
+                batch.recordKind === input.record_kind &&
+                batch.fileSha256 === input.file_sha256.toLowerCase() &&
+                batch.lifecycle === input.lifecycle &&
+                batch.totalRows === input.total_rows &&
+                batch.validRows === input.valid_rows &&
+                batch.invalidRows === input.invalid_rows &&
+                batch.attemptedRows === (input.attempted_rows ?? 0) &&
+                batch.createdRows === (input.created_rows ?? 0) &&
+                batch.duplicateRows === (input.duplicate_rows ?? 0) &&
+                batch.rejectedRows === (input.rejected_rows ?? 0) &&
+                batch.createdBy === (input.created_by ?? null) &&
+                (batch.completedAt?.getTime() ?? null) === (input.completed_at?.getTime() ?? null) &&
+                JSON.stringify(existingRows) === JSON.stringify(expectedRows);
+            if (!sameRequest) throw new Error("FINANCE_IMPORT_IDEMPOTENCY_KEY_CONFLICT");
             return batch;
         }
 
