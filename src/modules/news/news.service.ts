@@ -43,7 +43,7 @@ export async function listNews(query: NewsListQuery): Promise<NewsListResult> {
 }
 
 export async function getNewsById(id: number): Promise<News> {
-    const news = await newsRepository.getNewsByIdForAdmin(id);
+    const news = await newsRepository.getNewsById(id);
     if (!news) {
         throw new ApiError({
             statusCode: 404,
@@ -61,7 +61,7 @@ export async function getLatestNews(limit: number = 5): Promise<News[]> {
 }
 
 async function requireNews(id: number): Promise<News> {
-    const news = await newsRepository.getNewsById(id);
+    const news = await newsRepository.getNewsByIdForAdmin(id);
     if (!news) {
         throw new ApiError({
             statusCode: 404,
