@@ -368,3 +368,17 @@ Completed the source-readiness audit in `docs/phase-7/ACADEMIC_INDUSTRY_OUTCOME_
 - ACD-01..ACD-05 and IND-01..IND-06 remain blocked on approved definitions, source identity, periods, evidence, deduplication, scope, and visibility. IND-05 additionally requires an approved numerator/denominator and eligible-completer cohort.
 - No official academic or industry dashboard aggregation was added.
 - Next: consolidate Phase 7 source gaps and approval dependencies into an implementation/acceptance backlog; keep finance gated by Phase 6 decisions.
+
+
+### Phase 7 continuation — KPI approval register and implementation backlog
+
+Created `docs/phase-7/KPI_APPROVAL_REGISTER_AND_IMPLEMENTATION_BACKLOG.md` (commit `437705021894a115fbc042e4e9de290864386b18`).
+
+- Consolidates the physical PHY-01..PHY-04, academic ACD-01..ACD-05, industry IND-01..IND-06, and finance FIN-01..FIN-05 decision dependencies.
+- Records the evidence currently present, required authority/source decisions, owner roles to confirm, and per-KPI blocked state.
+- Defines decision states from blocked through accepted, with explicit evidence requirements.
+- Establishes an eight-item engineering backlog from authority decisions through operational sign-off.
+- Confirms no KPI has been approved by this engineering register; no schema/API change or new aggregation is authorised.
+- Preserves current safe reporting: registry counts, labelled AIP/SIP planning indicators, and ITI student capacity. Official physical, academic outcome, industry outcome, and finance KPIs remain gated.
+
+**Current active work:** Phase 7 is now in the decision/contract preparation stage. The next actionable task is to obtain or record actual source-owner/DET decisions for one KPI family. Until an approved source contract is available, do not invent metric formulas or add proxy dashboard values. The engineering team can prepare contract templates and acceptance fixtures, but must label them as drafts rather than approvals.
