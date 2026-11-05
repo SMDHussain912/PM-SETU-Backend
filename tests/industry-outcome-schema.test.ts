@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { toOutcomeAuditSnapshot } from "../src/modules/industry-outcomes/industry-outcome.audit";
+import { toOutcomeAuditHistoryEntry, toOutcomeAuditSnapshot } from "../src/modules/industry-outcomes/industry-outcome.audit";
 import {
     createOutcomeSchema,
     importOutcomeBatchSchema,
@@ -96,4 +96,20 @@ test("industry outcome list accepts valid event date ranges", () => {
 
 test("industry outcome list rejects reversed event date ranges", () => {
     assert.equal(outcomeListQuerySchema.safeParse({ event_date_from: "2026-12-31", event_date_to: "2026-01-01" }).success, false);
+});
+
+
+test("industry outcome audit history projection omits network metadata", () => {
+    const entry = toOutcomeAuditHistoryEntry({
+        id: 4,
+        user_id: "12",
+        action: "REVIEW",
+        old_value: { reviewStatus: "PENDING" },
+        new_value: { reviewStatus: "VERIFIED" },
+        timestamp: "2026-11-05T12:00:00.000Z",
+    });
+    assert.deepEqual(Object.keys(entry).sort(), ["action", "id", "new_value", "old_value", "timestamp", "user_id"].sort());
+    assert.equal("ip_address" in entry, false);
+    assert.equal("user_agent" in entry, false);
+    assert.equal("path" in entry, false);
 });
