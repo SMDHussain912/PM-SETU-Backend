@@ -30,7 +30,10 @@ export function createFinanceImportRecoveryRouter(
     const router = Router();
     router.get("/:batchId/recovery-report.json", dependencies.authorize, async (req, res, next) => {
         try {
-            const batchId = parseFinanceRecoveryBatchId(req.params.batchId);
+            const rawBatchId = req.params.batchId;
+            const batchId = typeof rawBatchId === "string"
+                ? parseFinanceRecoveryBatchId(rawBatchId)
+                : null;
             if (batchId === null) {
                 res.status(400).json({ success: false, error: { code: "INVALID_BATCH_ID" } });
                 return;
