@@ -92,7 +92,8 @@ export async function archiveDocument(req: Request, res: Response): Promise<Resp
 
 export async function createDocumentVersion(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, DocumentIdParams>(res);
-    const document = await documentService.createDocumentVersion(params.id, req.user?.id ?? null);
+    const context = getDocumentAuditContext(req);
+    const document = await documentService.createDocumentVersion(params.id, context.userId, context);
     return sendCreated(res, document);
 }
 
