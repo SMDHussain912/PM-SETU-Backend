@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { getValidated } from "../../middleware/validate.middleware";
-import { sendSuccess } from "../../utils/response";
-import type { AipIdParams, AipListQuery } from "./aip.schema";
+import { ApiError, sendCreated, sendSuccess } from "../../utils/response";
+import type { AipIdParams, AipListQuery, CreateAipBody, UpdateAipBody } from "./aip.schema";
 import * as aipService from "./aip.service";
 
 /**
@@ -26,4 +26,42 @@ export async function getAipById(_req: Request, res: Response): Promise<Response
     const { params } = getValidated<unknown, unknown, AipIdParams>(res);
     const aip = await aipService.getAipById(params.id);
     return sendSuccess(res, aip);
+}
+
+
+function getActorId(req: Request): number {
+    const id = Number(req.user?.id);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new ApiError({ statusCode: 401, code: "UNAUTHENTICATED", message: "Authentication required" });
+    }
+    return id;
+}
+
+function getAuditContext(req: Request) {
+    return {
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent") ?? undefined,
+        path: req.originalUrl,
+    };
+}
+
+/** POST /api/v1/admin/aips */
+export async function createAip(req: Request, res: Response): Promise<Response> {
+    const { body } = getValidated<CreateAipBody>(res);
+    const item = await aipService.createAip(body, getActorId(req), getAuditContext(req));
+    return sendCreated(res, item);
+}
+
+/** PATCH /api/v1/admin/aips/:id */
+export async function updateAip(req: Request, res: Response): Promise<Response> {
+    const { params, body } = getValidated<UpdateAipBody, unknown, AipIdParams>(res);
+    const item = await aipService.updateAip(params.id, body, getActorId(req), getAuditContext(req));
+    return sendSuccess(res, item);
+}
+
+/** DELETE /api/v1/admin/aips/:id */
+export async function deleteAip(req: Request, res: Response): Promise<Response> {
+    const { params } = getValidated<unknown, unknown, AipIdParams>(res);
+    await aipService.deleteAip(params.id, getActorId(req), getAuditContext(req));
+    return sendSuccess(res, { id: params.id });
 }
