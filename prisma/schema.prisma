@@ -633,6 +633,7 @@ model IntegrationSource {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   runs          IntegrationSyncRun[]
+  records       IntegrationRecord[]
   @@map("integration_sources")
 }
 
@@ -653,4 +654,20 @@ model IntegrationSyncRun {
   source         IntegrationSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   @@index([sourceId, startedAt(sort: Desc)], map: "idx_integration_sync_runs_source_started")
   @@map("integration_sync_runs")
+}
+
+/// Idempotent raw landing zone for connector/webhook/file ingestion.
+model IntegrationRecord {
+  id             Int      @id @default(autoincrement())
+  sourceId       Int      @map("source_id")
+  sourceRecordId String   @map("source_record_id") @db.VarChar(200)
+  sourceVersion  String?  @map("source_version") @db.VarChar(100)
+  occurredAt     DateTime? @map("occurred_at")
+  payload        Json
+  firstSeenAt    DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt     DateTime @updatedAt @map("last_seen_at")
+  source         IntegrationSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  @@unique([sourceId, sourceRecordId], map: "uq_integration_records_source_external")
+  @@index([sourceId, occurredAt], map: "idx_integration_records_source_occurred")
+  @@map("integration_records")
 }
