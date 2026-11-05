@@ -2622,7 +2622,7 @@ export const openApiSpec = {
             post: {
                 tags: ["Industry Outcomes"],
                 summary: "Import industry outcome records in a validated batch",
-                description: "Accepts 1–200 JSON records. Each record requires source_system and a non-empty source_record_id. Rows are processed independently; valid rows are committed with audit entries while duplicates and validation/attribution errors are reported by input index. Duplicate identity is source_system + source_record_id.",
+                description: "Accepts 1–200 JSON records. Each record requires source_system and a non-empty source_record_id. Optional payloads are limited to 16 KB and nesting depth 8. Rows are processed independently; valid rows are committed with privacy-minimized audit entries while duplicates and validation/attribution errors are reported by input index. Duplicate identity is source_system + source_record_id. Audit snapshots omit participant references, evidence references and raw payloads.",
                 security: [{ bearerAuth: [] }],
                 requestBody: { required: true, content: { "application/json": { schema: {
                     type: "object", required: ["records"], additionalProperties: false,
@@ -2672,7 +2672,7 @@ export const openApiSpec = {
                     source_system: { type: "string" }, source_record_id: { type: "string", nullable: true },
                     cluster_id: { type: "integer", nullable: true }, iti_id: { type: "integer", nullable: true },
                     employer_name: { type: "string", nullable: true }, participant_ref: { type: "string", nullable: true },
-                    event_date: { type: "string", format: "date-time", nullable: true }, evidence_ref: { type: "string", nullable: true }, payload: { type: "object" },
+                    event_date: { type: "string", format: "date-time", nullable: true }, evidence_ref: { type: "string", nullable: true }, payload: { type: "object", description: "Optional JSON object; maximum serialized size 16 KB and nesting depth 8." },
                 }}}}},
                 responses: { "201": { description: "Created as PENDING review" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" }, "409": { description: "Duplicate source_system + source_record_id" }, "422": { description: "Invalid attribution or payload" } },
             },
