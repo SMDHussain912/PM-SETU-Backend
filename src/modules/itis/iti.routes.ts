@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { validate } from "../../middleware/validate.middleware";
+import { requireAuth } from "../../middleware/auth.middleware";
+import { requireRoles } from "../../middleware/rbac.middleware";
+import { requireResourceScope } from "../../middleware/scope.middleware";
+import { ROLE_CODES } from "../roles/role.constants";
 import * as itiController from "./iti.controller";
-import { clusterIdParamsSchema, itiIdParamsSchema, itiListQuerySchema } from "./iti.schema";
+import { clusterIdParamsSchema, createItiSchema, itiIdParamsSchema, itiListQuerySchema, updateItiSchema } from "./iti.schema";
 
 const itiRouter = Router();
 
@@ -28,4 +32,29 @@ itiClusterRouter.get(
     "/:clusterId/itis",
     validate({ params: clusterIdParamsSchema }),
     itiController.listClusterItis,
+);
+
+
+/** ITI master-data administration. Operational profile submissions remain separate. */
+export const itiAdminRouter = Router();
+itiAdminRouter.use(requireAuth);
+itiAdminRouter.post(
+    "/",
+    requireRoles(ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
+    validate({ body: createItiSchema }),
+    itiController.createIti,
+);
+itiAdminRouter.patch(
+    "/:id",
+    requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
+    validate({ params: itiIdParamsSchema, body: updateItiSchema }),
+    requireResourceScope("ITI"),
+    itiController.updateIti,
+);
+itiAdminRouter.delete(
+    "/:id",
+    requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
+    validate({ params: itiIdParamsSchema }),
+    requireResourceScope("ITI"),
+    itiController.deleteIti,
 );
