@@ -51,7 +51,12 @@ ALTER TABLE "finance_import_batches"
     ADD CONSTRAINT "finance_import_batches_attempted_rows_check"
         CHECK ("attempted_rows" = "created_rows" + "duplicate_rows" + "rejected_rows");
 
+-- The tracking migration already creates this constraint inline as
+-- CHECK (row_number > 0), which PostgreSQL names
+-- finance_import_batch_rows_row_number_check. Replace it explicitly with the
+-- stricter CSV-header-aware rule (data rows begin at row 2).
 ALTER TABLE "finance_import_batch_rows"
+    DROP CONSTRAINT "finance_import_batch_rows_row_number_check",
     ADD CONSTRAINT "finance_import_batch_rows_row_number_check"
         CHECK ("row_number" >= 2),
     ADD CONSTRAINT "finance_import_batch_rows_outcome_check"
