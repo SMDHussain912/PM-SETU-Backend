@@ -125,7 +125,9 @@ export interface TrainingCapacityScope {
     };
 }
 
-export interface TrainingCapacityByCluster extends TrainingCapacityScope {
+export interface TrainingCapacityByCluster {
+    student_capacity: number | null;
+    coverage: TrainingCapacityCoverage;
     cluster_id: number;
     cluster_name: string;
 }
