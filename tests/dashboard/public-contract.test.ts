@@ -85,3 +85,21 @@ test("dashboard OpenAPI schemas mark every emitted top-level field as required",
         assert.deepEqual(schemas[name]?.required, fields, `${name} required fields must match its emitted response`);
     }
 });
+
+
+test("new training reporting endpoints remain public and read-only", () => {
+    for (const path of ["/dashboard/training/reporting", "/dashboard/training/itis/{id}"]) {
+        const pathItem = paths[path];
+        assert.ok(pathItem, `missing OpenAPI path: ${path}`);
+        assert.deepEqual(Object.keys(pathItem), ["get"]);
+        const operation = pathItem.get;
+        assert.deepEqual(operation?.security, []);
+        assert.ok(operation?.responses?.["200"]);
+        assert.ok(operation?.responses?.["429"]);
+        assert.ok(operation?.responses?.["500"]);
+    }
+
+    const itiOperation = paths["/dashboard/training/itis/{id}"]?.get;
+    assert.ok(itiOperation?.responses?.["404"]);
+    assert.ok(itiOperation?.responses?.["422"]);
+});
