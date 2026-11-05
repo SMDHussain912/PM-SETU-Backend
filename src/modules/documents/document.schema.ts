@@ -70,7 +70,12 @@ function validateFileMetadata(
     if (supplied.length === 0) return;
 
     if (value.file_path === null) {
-        if (supplied.length !== 1) {
+        const hasOtherMetadata = [
+            value.file_size,
+            value.mime_type,
+            value.original_name,
+        ].some((field) => field !== undefined && field !== null);
+        if (hasOtherMetadata) {
             context.addIssue({
                 code: "custom",
                 path: ["file_path"],
