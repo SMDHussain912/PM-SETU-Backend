@@ -2,15 +2,15 @@ import { prisma } from "../../config/database";
 import type { Prisma } from "../../generated/prisma/client";
 import type { AcademicListQuery, AcademicRecordInput } from "./academic.schema";
 
-export async function create(input: AcademicRecordInput, actor: number) {
-    const cluster = input.cluster_id ? await prisma.cluster.findUnique({ where: { id: input.cluster_id }, select: { id: true } }) : null;
+export async function create(input: AcademicRecordInput, actor: number, db: Prisma.TransactionClient = prisma) {
+    const cluster = input.cluster_id ? await db.cluster.findUnique({ where: { id: input.cluster_id }, select: { id: true } }) : null;
     if (input.cluster_id && !cluster) return { missing: "CLUSTER" as const };
     if (input.iti_id) {
-        const iti = await prisma.iti.findUnique({ where: { id: input.iti_id }, select: { id: true, clusterId: true } });
+        const iti = await db.iti.findUnique({ where: { id: input.iti_id }, select: { id: true, clusterId: true } });
         if (!iti) return { missing: "ITI" as const };
         if (iti.clusterId !== input.cluster_id) return { mismatch: true as const };
     }
-    const item = await prisma.academicSourceRecord.create({ data: {
+    const item = await db.academicSourceRecord.create({ data: {
         kpiCode: input.kpi_code, sourceSystem: input.source_system, sourceRecordId: input.source_record_id,
         sourceVersion: input.source_version ?? null, clusterId: input.cluster_id ?? null, itiId: input.iti_id ?? null,
         eventDate: input.event_date ? new Date(input.event_date + "T00:00:00.000Z") : null,
@@ -34,8 +34,8 @@ export async function list(query: AcademicListQuery, scope?: Prisma.AcademicSour
     ]);
     return { items, total };
 }
-export function get(id: number, scope?: Prisma.AcademicSourceRecordWhereInput) {
-    return prisma.academicSourceRecord.findFirst({ where: { AND: [{ id }, ...(scope ? [scope] : [])] } });
+export function get(id: number, scope?: Prisma.AcademicSourceRecordWhereInput, db: Prisma.TransactionClient | typeof prisma = prisma) {
+    return db.academicSourceRecord.findFirst({ where: { AND: [{ id }, ...(scope ? [scope] : [])] } });
 }
 export async function summary(scope?: Prisma.AcademicSourceRecordWhereInput) {
     const grouped = await prisma.academicSourceRecord.groupBy({ by: ["kpiCode", "reviewStatus"], where: scope, _count: { _all: true } });
@@ -49,9 +49,9 @@ export async function summary(scope?: Prisma.AcademicSourceRecordWhereInput) {
     }
     return { record_counts_only: true, note: "These are intake workflow counts, not official academic KPI totals.", by_kpi: result };
 }
-export async function review(id: number, status: "ACCEPTED" | "REJECTED", note: string | null, actor: number, scope?: Prisma.AcademicSourceRecordWhereInput) {
+export async function review(id: number, status: "ACCEPTED" | "REJECTED", note: string | null, actor: number, scope?: Prisma.AcademicSourceRecordWhereInput, db: Prisma.TransactionClient = prisma) {
     const where = { AND: [{ id, reviewStatus: "PENDING" }, ...(scope ? [scope] : [])] };
-    const changed = await prisma.academicSourceRecord.updateMany({ where, data: { reviewStatus: status, reviewNote: note, reviewedBy: actor, reviewedAt: new Date() } });
+    const changed = await db.academicSourceRecord.updateMany({ where, data: { reviewStatus: status, reviewNote: note, reviewedBy: actor, reviewedAt: new Date() } });
     if (!changed.count) return null;
-    return get(id, scope);
+    return get(id, scope, db);
 }
