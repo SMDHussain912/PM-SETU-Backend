@@ -13,7 +13,7 @@ type Db = Prisma.TransactionClient;
 export async function ingestApprovedOutlay(
     input: ApprovedOutlayInput,
     tx: Db = prisma,
-): Promise<FinanceIngestionResult<Awaited<ReturnType<typeof tx.financeApprovedOutlay.findUniqueOrThrow>>> | FinanceValidationFailure> {
+): Promise<FinanceIngestionResult<Prisma.FinanceApprovedOutlayGetPayload<{}>> | FinanceValidationFailure> {
     const existing = await tx.financeApprovedOutlay.findUnique({
         where: { sourceSystem_sourceRecordId: { sourceSystem: input.source_system, sourceRecordId: input.source_record_id } },
     });
@@ -51,7 +51,7 @@ export async function ingestApprovedOutlay(
 export async function ingestFundRelease(
     input: FundReleaseInput,
     tx: Db = prisma,
-): Promise<FinanceIngestionResult<Awaited<ReturnType<typeof tx.financeFundRelease.findUniqueOrThrow>>> | FinanceValidationFailure> {
+): Promise<FinanceIngestionResult<Prisma.FinanceFundReleaseGetPayload<{}>> | FinanceValidationFailure> {
     const existing = await tx.financeFundRelease.findUnique({
         where: { sourceSystem_sourceRecordId: { sourceSystem: input.source_system, sourceRecordId: input.source_record_id } },
     });
@@ -80,7 +80,7 @@ export async function ingestFundRelease(
 export async function ingestExpenditure(
     input: ExpenditureInput,
     tx: Db = prisma,
-): Promise<FinanceIngestionResult<Awaited<ReturnType<typeof tx.financeExpenditure.findUniqueOrThrow>>> | FinanceValidationFailure> {
+): Promise<FinanceIngestionResult<Prisma.FinanceExpenditureGetPayload<{}>> | FinanceValidationFailure> {
     const existing = await tx.financeExpenditure.findUnique({
         where: { sourceSystem_sourceRecordId: { sourceSystem: input.source_system, sourceRecordId: input.source_record_id } },
     });
