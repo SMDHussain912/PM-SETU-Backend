@@ -159,3 +159,35 @@ test("rejects inconsistent preview row counters and unexpected terminal outcomes
         assert.ok(result.differences.includes("ROW_2_UNEXPECTED"));
     }
 });
+
+test("rejects inconsistent execution summary counters and invalid row positions", () => {
+    const result = reconcileFinanceImportBatch({
+        ...execution,
+        attempted_rows: 1,
+        results: [
+            ...execution.results,
+            { row_number: 1, outcome: "REJECTED" },
+        ],
+    }, persisted);
+    assert.equal(result.status, "MISMATCHED");
+    if (result.status === "MISMATCHED") {
+        assert.ok(result.differences.includes("EXECUTION_SUMMARY_INCONSISTENT"));
+        assert.ok(result.differences.includes("INVALID_EXECUTION_ROW_NUMBER"));
+    }
+});
+
+test("checks persisted row outcome totals against valid and invalid preview counters", () => {
+    const result = reconcileFinanceImportBatch(execution, {
+        ...persisted,
+        validRows: 1,
+        invalidRows: 1,
+        rows: [
+            { rowNumber: 2, outcome: "CREATED", targetRecordId: 101 },
+            { rowNumber: 3, outcome: "DUPLICATE", targetRecordId: 102 },
+        ],
+    });
+    assert.equal(result.status, "MISMATCHED");
+    if (result.status === "MISMATCHED") {
+        assert.ok(result.differences.includes("PERSISTED_OUTCOME_COUNTS_MISMATCH"));
+    }
+});
