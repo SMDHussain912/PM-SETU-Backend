@@ -2667,6 +2667,19 @@ export const openApiSpec = {
                 },
             },
         },
+        "/dashboard/training/reporting": {
+            get: {
+                tags: ["Dashboard"],
+                summary: "Training capacity reporting and coverage",
+                description: "State and cluster aggregation of ITI student capacity. Returns null when no source capacity values exist and includes ITI coverage counts. This is capacity, not trainees trained or enrolled. Reporting period and source freshness remain untracked.",
+                security: [],
+                responses: {
+                    "200": { description: "State capacity metric, coverage, and cluster breakdown", content: { "application/json": { schema: { type: "object" } } } },
+                    "429": { description: "Rate limit exceeded" },
+                    "500": { description: "PM SETU database schema not created yet" },
+                },
+            },
+        },
         "/dashboard/placements": {
             get: {
                 tags: ["Dashboard"],
