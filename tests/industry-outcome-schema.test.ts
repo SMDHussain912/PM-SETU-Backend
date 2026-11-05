@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
     createOutcomeSchema,
+    importOutcomeBatchSchema,
     outcomeListQuerySchema,
     reviewOutcomeSchema,
 } from "../src/modules/industry-outcomes/industry-outcome.schema";
@@ -37,4 +38,12 @@ test("industry outcome review only accepts explicit verified or rejected decisio
     assert.equal(reviewOutcomeSchema.safeParse({ review_status: "VERIFIED", review_note: "Evidence checked" }).success, true);
     assert.equal(reviewOutcomeSchema.safeParse({ review_status: "PENDING" }).success, false);
     assert.equal(reviewOutcomeSchema.safeParse({ review_status: "VERIFIED", is_public: true }).success, false);
+});
+
+
+test("industry outcome batch import accepts between one and 200 raw records", () => {
+    assert.equal(importOutcomeBatchSchema.safeParse({ records: [validRecord] }).success, true);
+    assert.equal(importOutcomeBatchSchema.safeParse({ records: [] }).success, false);
+    assert.equal(importOutcomeBatchSchema.safeParse({ records: Array.from({ length: 201 }, () => validRecord) }).success, false);
+    assert.equal(importOutcomeBatchSchema.safeParse({ records: [validRecord], dry_run: true }).success, false);
 });
