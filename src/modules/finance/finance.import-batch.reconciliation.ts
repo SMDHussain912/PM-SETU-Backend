@@ -89,11 +89,31 @@ export function reconcileFinanceImportBatch(
     if (expectedRows.size !== execution.results.length || actualRows.size !== persisted.rows.length) {
         differences.push("DUPLICATE_ROW_NUMBER");
     }
-    if (persisted.rows.some((row) => !Number.isSafeInteger(row.rowNumber) || row.rowNumber < 2)) {
-        differences.push("INVALID_PERSISTED_ROW_NUMBER");
+    const persistedRowNumbers = new Set<number>();
+    for (const row of persisted.rows) {
+        if (!Number.isSafeInteger(row.rowNumber) || row.rowNumber < 2) {
+            differences.push("INVALID_PERSISTED_ROW_NUMBER");
+            if (Number.isSafeInteger(row.rowNumber) && row.rowNumber > 0) {
+                differences.push(`ROW_${row.rowNumber}_INVALID_POSITION`);
+            }
+        }
+        if (persistedRowNumbers.has(row.rowNumber) && Number.isSafeInteger(row.rowNumber) && row.rowNumber > 0) {
+            differences.push(`ROW_${row.rowNumber}_DUPLICATE`);
+        }
+        persistedRowNumbers.add(row.rowNumber);
     }
-    if (execution.results.some((row) => !Number.isSafeInteger(row.row_number) || row.row_number < 2)) {
-        differences.push("INVALID_EXECUTION_ROW_NUMBER");
+    const executionRowNumbers = new Set<number>();
+    for (const row of execution.results) {
+        if (!Number.isSafeInteger(row.row_number) || row.row_number < 2) {
+            differences.push("INVALID_EXECUTION_ROW_NUMBER");
+            if (Number.isSafeInteger(row.row_number) && row.row_number > 0) {
+                differences.push(`ROW_${row.row_number}_INVALID_POSITION`);
+            }
+        }
+        if (executionRowNumbers.has(row.row_number) && Number.isSafeInteger(row.row_number) && row.row_number > 0) {
+            differences.push(`ROW_${row.row_number}_DUPLICATE`);
+        }
+        executionRowNumbers.add(row.row_number);
     }
 
     const persistedInvalidCount = persisted.rows.filter((row) => row.outcome === "INVALID").length;
