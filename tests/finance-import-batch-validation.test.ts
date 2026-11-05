@@ -22,10 +22,10 @@ test("accepts a preview batch with complete valid row outcomes", () => {
     assert.doesNotThrow(() => validateFinanceImportBatchInput(base));
 });
 
-test("accepts an executed batch with a selective retry remainder", () => {
+test("accepts a partially executed batch with a selective retry remainder", () => {
     assert.doesNotThrow(() => validateFinanceImportBatchInput({
         ...base,
-        lifecycle: "EXECUTED",
+        lifecycle: "PARTIALLY_EXECUTED",
         attempted_rows: 1,
         created_rows: 1,
         rows: [
@@ -56,7 +56,7 @@ test("rejects mismatched attempt counters and row outcomes", () => {
     }), /ROW_COUNTERS_INCONSISTENT/);
 });
 
-test("rejects lifecycle labels that contradict the recorded outcomes", () => {
+test("rejects lifecycle labels that contradict the recorded outcomes", () => {\n    assert.throws(() => validateFinanceImportBatchInput({\n        ...base,\n        lifecycle: "EXECUTED",\n        attempted_rows: 1,\n        created_rows: 1,\n        rows: [{ row_number: 2, outcome: "CREATED", target_record_id: 1 }, { row_number: 3, outcome: "VALID" }],\n    }), /LIFECYCLE_COUNTERS_INCONSISTENT/);
     assert.throws(() => validateFinanceImportBatchInput({
         ...base,
         lifecycle: "EXECUTED",
