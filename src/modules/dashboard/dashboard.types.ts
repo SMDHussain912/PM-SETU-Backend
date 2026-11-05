@@ -109,6 +109,41 @@ export interface FinanceMetrics {
     by_cluster: FinanceByCluster[];
 }
 
+export interface TrainingCapacityCoverage {
+    total_itis: number;
+    itis_with_capacity: number;
+    itis_without_capacity: number;
+    unassigned_itis?: number;
+}
+
+export interface TrainingCapacityScope {
+    student_capacity: number | null;
+    coverage: TrainingCapacityCoverage;
+}
+
+export interface TrainingCapacityByCluster extends TrainingCapacityScope {
+    cluster_id: number;
+    cluster_name: string;
+}
+
+export interface TrainingCapacityReporting {
+    scope: "STATE";
+    metric: {
+        metric_id: "academic.student_capacity";
+        classification: "CAPACITY";
+        unit: "COUNT";
+        availability: "AVAILABLE" | "NOT_AVAILABLE";
+        value: number | null;
+    };
+    coverage: TrainingCapacityCoverage;
+    by_cluster: TrainingCapacityByCluster[];
+    reporting_context: {
+        data_as_of: null;
+        reporting_period: null;
+        source_freshness: "NOT_TRACKED";
+    };
+}
+
 export interface TrainingByIti {
     iti_id: number;
     iti_code: string;
