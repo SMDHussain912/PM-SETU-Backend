@@ -71,14 +71,14 @@ function mapGalleryItemRow(row: GalleryItemRow): GalleryItem {
 
 export async function listGalleryItems(filters: GalleryListFilters): Promise<GalleryItem[]> {
     const rows = await prisma.$queryRaw<GalleryItemRow[]>(
-        Prisma.sql`${GALLERY_SELECT} ORDER BY gallery_items.display_order ASC NULLS LAST, gallery_items.published_date DESC NULLS LAST, gallery_items.id DESC LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}`,
+        Prisma.sql`${GALLERY_SELECT} WHERE gallery_items.is_published = TRUE ORDER BY gallery_items.display_order ASC NULLS LAST, gallery_items.published_date DESC NULLS LAST, gallery_items.id DESC LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}`,
     );
     return rows.map(mapGalleryItemRow);
 }
 
 export async function countGalleryItems(): Promise<number> {
     const rows = await prisma.$queryRaw<{ count: bigint }[]>(
-        Prisma.sql`SELECT COUNT(*)::bigint AS count FROM gallery_items`,
+        Prisma.sql`SELECT COUNT(*)::bigint AS count FROM gallery_items WHERE is_published = TRUE`,
     );
     return Number(rows[0]?.count ?? 0);
 }
@@ -90,30 +90,37 @@ export async function getGalleryItemById(id: number): Promise<GalleryItem | null
     return rows[0] ? mapGalleryItemRow(rows[0]) : null;
 }
 
+export async function getPublishedGalleryItemById(id: number): Promise<GalleryItem | null> {
+    const rows = await prisma.$queryRaw<GalleryItemRow[]>(
+        Prisma.sql`${GALLERY_SELECT} WHERE gallery_items.id = ${id} AND gallery_items.is_published = TRUE`,
+    );
+    return rows[0] ? mapGalleryItemRow(rows[0]) : null;
+}
+
 export async function listGalleryPhotos(filters: GalleryListFilters): Promise<GalleryItem[]> {
     const rows = await prisma.$queryRaw<GalleryItemRow[]>(
-        Prisma.sql`${GALLERY_SELECT} WHERE gallery_items.type = 'PHOTO' ORDER BY gallery_items.display_order ASC NULLS LAST, gallery_items.published_date DESC NULLS LAST, gallery_items.id DESC LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}`,
+        Prisma.sql`${GALLERY_SELECT} WHERE gallery_items.type = 'PHOTO' AND gallery_items.is_published = TRUE ORDER BY gallery_items.display_order ASC NULLS LAST, gallery_items.published_date DESC NULLS LAST, gallery_items.id DESC LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}`,
     );
     return rows.map(mapGalleryItemRow);
 }
 
 export async function countGalleryPhotos(): Promise<number> {
     const rows = await prisma.$queryRaw<{ count: bigint }[]>(
-        Prisma.sql`SELECT COUNT(*)::bigint AS count FROM gallery_items WHERE type = 'PHOTO'`,
+        Prisma.sql`SELECT COUNT(*)::bigint AS count FROM gallery_items WHERE type = 'PHOTO' AND is_published = TRUE`,
     );
     return Number(rows[0]?.count ?? 0);
 }
 
 export async function listGalleryVideos(filters: GalleryListFilters): Promise<GalleryItem[]> {
     const rows = await prisma.$queryRaw<GalleryItemRow[]>(
-        Prisma.sql`${GALLERY_SELECT} WHERE gallery_items.type = 'VIDEO' ORDER BY gallery_items.display_order ASC NULLS LAST, gallery_items.published_date DESC NULLS LAST, gallery_items.id DESC LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}`,
+        Prisma.sql`${GALLERY_SELECT} WHERE gallery_items.type = 'VIDEO' AND gallery_items.is_published = TRUE ORDER BY gallery_items.display_order ASC NULLS LAST, gallery_items.published_date DESC NULLS LAST, gallery_items.id DESC LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}`,
     );
     return rows.map(mapGalleryItemRow);
 }
 
 export async function countGalleryVideos(): Promise<number> {
     const rows = await prisma.$queryRaw<{ count: bigint }[]>(
-        Prisma.sql`SELECT COUNT(*)::bigint AS count FROM gallery_items WHERE type = 'VIDEO'`,
+        Prisma.sql`SELECT COUNT(*)::bigint AS count FROM gallery_items WHERE type = 'VIDEO' AND is_published = TRUE`,
     );
     return Number(rows[0]?.count ?? 0);
 }
