@@ -357,3 +357,14 @@ Completed a repository evidence audit and documented the result in `docs/phase-7
 - No dedicated civil works, equipment lifecycle, lab inventory, or smart-classroom source models were found.
 - PHY-01..PHY-04 remain unavailable; no dashboard values or proxy calculations were added.
 - Next: obtain the approved physical source/domain contract. In parallel, continue source-readiness inspection of industry/employment records, preserving the distinction between verified outcomes and intake workflow records.
+
+
+### Phase 7 continuation — academic and industry outcome readiness
+
+Completed the source-readiness audit in `docs/phase-7/ACADEMIC_INDUSTRY_OUTCOME_READINESS.md`.
+
+- Academic and industry intake/review models exist, but their summaries are workflow counts rather than official ACD/IND KPI facts.
+- `ACCEPTED` / `VERIFIED` intake status does not by itself establish KPI qualification.
+- ACD-01..ACD-05 and IND-01..IND-06 remain blocked on approved definitions, source identity, periods, evidence, deduplication, scope, and visibility. IND-05 additionally requires an approved numerator/denominator and eligible-completer cohort.
+- No official academic or industry dashboard aggregation was added.
+- Next: consolidate Phase 7 source gaps and approval dependencies into an implementation/acceptance backlog; keep finance gated by Phase 6 decisions.
