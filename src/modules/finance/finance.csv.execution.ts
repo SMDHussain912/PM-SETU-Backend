@@ -2,6 +2,7 @@ import { Prisma } from "../../generated/prisma/client";
 import type { ApprovedOutlayInput, ExpenditureInput, FundReleaseInput } from "./finance.types";
 import type { FinanceCsvRecordKind } from "./finance.csv.mapping";
 import type { FinanceCsvPreview } from "./finance.csv.preview";
+import type { FinanceCsvRetryPlan } from "./finance.import-batch.retry";
 
 export type FinanceCsvImportOutcome = "CREATED" | "DUPLICATE" | "REJECTED";
 
@@ -111,9 +112,10 @@ function toExpenditure(values: Record<string, string>): ExpenditureInput {
  * if a later row fails. Do not expose this coordinator through HTTP until Finance
  * authorization and audit policies are approved.
  */
-export async function executeFinanceCsvImport(
+async function executeFinanceCsvRows(
     preview: FinanceCsvPreview,
     handlers: FinanceCsvImportHandlers,
+    selectedRowNumbers?: ReadonlySet<number>,
 ): Promise<FinanceCsvImportSummary> {
     if (preview.file_error || !preview.mapping) throw new Error("FINANCE_CSV_PREVIEW_REQUIRED");
     if (preview.mapping.errors.some((error) => error.row_number === 1)) {
@@ -125,7 +127,11 @@ export async function executeFinanceCsvImport(
     let duplicates = 0;
     let rejected = 0;
 
-    for (const row of preview.mapping.valid_rows) {
+    const rows = selectedRowNumbers
+        ? preview.mapping.valid_rows.filter((row) => selectedRowNumbers.has(row.row_number))
+        : preview.mapping.valid_rows;
+
+    for (const row of rows) {
         try {
             const values = row.values;
             const result = preview.record_kind === "OUTLAY"
@@ -154,4 +160,37 @@ export async function executeFinanceCsvImport(
         results,
         partial_commit_possible: true,
     };
+}
+
+
+/** Executes every structurally valid row in a preview. */
+export async function executeFinanceCsvImport(
+    preview: FinanceCsvPreview,
+    handlers: FinanceCsvImportHandlers,
+): Promise<FinanceCsvImportSummary> {
+    return executeFinanceCsvRows(preview, handlers);
+}
+
+/**
+ * Executes only the row numbers selected by the safe retry planner. The plan
+ * is revalidated against the current preview so malformed or stale plans
+ * cannot dispatch rows that are not structurally valid in the re-upload.
+ */
+export async function executeFinanceCsvRetry(
+    preview: FinanceCsvPreview,
+    retryPlan: FinanceCsvRetryPlan,
+    handlers: FinanceCsvImportHandlers,
+): Promise<FinanceCsvImportSummary> {
+    if (!Array.isArray(retryPlan.retry_row_numbers)) throw new Error("INVALID_FINANCE_RETRY_PLAN");
+    const validRowNumbers = new Set(preview.mapping?.valid_rows.map((row) => row.row_number) ?? []);
+    const selected = new Set<number>();
+
+    for (const rowNumber of retryPlan.retry_row_numbers) {
+        if (!Number.isSafeInteger(rowNumber) || rowNumber < 1 || selected.has(rowNumber) || !validRowNumbers.has(rowNumber)) {
+            throw new Error("INVALID_FINANCE_RETRY_PLAN");
+        }
+        selected.add(rowNumber);
+    }
+
+    return executeFinanceCsvRows(preview, handlers, selected);
 }
