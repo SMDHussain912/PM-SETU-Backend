@@ -56,9 +56,9 @@ export async function createOutcome(input: CreateOutcomeBody, createdBy: number,
     return { item };
 }
 
-export function reviewOutcome(id: number, input: ReviewOutcomeBody, reviewedBy: number, tx: Prisma.TransactionClient) {
-    return tx.industryOutcomeRecord.update({
-        where: { id },
+export async function reviewOutcome(id: number, input: ReviewOutcomeBody, reviewedBy: number, tx: Prisma.TransactionClient) {
+    const changed = await tx.industryOutcomeRecord.updateMany({
+        where: { id, reviewStatus: "PENDING" },
         data: {
             reviewStatus: input.review_status,
             reviewNote: input.review_note ?? null,
@@ -66,4 +66,6 @@ export function reviewOutcome(id: number, input: ReviewOutcomeBody, reviewedBy: 
             reviewedAt: new Date(),
         },
     });
+    if (changed.count === 0) return null;
+    return tx.industryOutcomeRecord.findUnique({ where: { id } });
 }
