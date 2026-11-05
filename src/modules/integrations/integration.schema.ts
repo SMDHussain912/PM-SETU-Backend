@@ -1,26 +1,32 @@
 import { z } from "zod";
 import { INTEGRATION_SYSTEMS } from "./integration.types";
-export const integrationSourceSchema = z.object({
-  code: z.string().trim().min(2).max(60).regex(/^[A-Z][A-Z0-9_]*$/),
-  name: z.string().trim().min(2).max(120),
-  system: z.enum(INTEGRATION_SYSTEMS),
-  transport: z.enum(["REST", "SFTP", "CSV_UPLOAD", "WEBHOOK"]),
-  enabled: z.boolean().default(false),
-  credential_ref: z.string().trim().min(2).max(120).regex(/^[A-Z][A-Z0-9_]*$/).nullable().optional(),
-}).strict();
-export const integrationIdSchema = z.object({ id: z.coerce.number().int().positive() });
-export const integrationListSchema = z.object({ enabled: z.enum(["true", "false"]).optional(), system: z.enum(INTEGRATION_SYSTEMS).optional() });
-export const integrationRunSchema = z.object({
-  status: z.enum(["SUCCEEDED", "PARTIAL", "FAILED"]),
-  records_read: z.number().int().min(0).max(1000000),
-  records_created: z.number().int().min(0).max(1000000),
-  records_updated: z.number().int().min(0).max(1000000),
-  records_rejected: z.number().int().min(0).max(1000000),
-  cursor: z.string().max(2000).nullable().optional(),
-  error_code: z.string().max(100).nullable().optional(),
-  error_summary: z.string().max(1000).nullable().optional(),
-}).strict().superRefine((v, ctx) => {
-  if (v.status === "FAILED" && !v.error_code) ctx.addIssue({ code: "custom", path: ["error_code"], message: "error_code is required for failed runs" });
-  if (v.records_created + v.records_updated + v.records_rejected > v.records_read) ctx.addIssue({ code: "custom", message: "processed record counts cannot exceed records_read" });
+const payload = z.record(z.string(), z.unknown()).superRefine((v,ctx)=>{
+ const safe=(x:unknown,d=0):boolean=>d<=8&&(x===null||typeof x==="string"||typeof x==="boolean"||(typeof x==="number"&&Number.isFinite(x))||(Array.isArray(x)&&x.every(y=>safe(y,d+1)))||(typeof x==="object"&&Object.entries(x as Record<string,unknown>).every(([k,y])=>!/(password|token|secret|api_?key|authorization|student_?name|trainer_?name|phone|mobile|email|aadhaar|aadhar|^dob$)/i.test(k)&&safe(y,d+1))));
+ if(!safe(v))ctx.addIssue({code:"custom",message:"payload must be bounded JSON and must not contain secrets or direct personal identifiers"});
+ else if(new TextEncoder().encode(JSON.stringify(v)).byteLength>16*1024)ctx.addIssue({code:"custom",message:"payload must not exceed 16 KB"});
 });
-export type IntegrationSourceInput = z.infer<typeof integrationSourceSchema>;
+export const integrationSourceSchema = z.object({
+ code:z.string().trim().min(2).max(60).regex(/^[A-Z][A-Z0-9_]*$/),
+ name:z.string().trim().min(2).max(120),system:z.enum(INTEGRATION_SYSTEMS),
+ transport:z.enum(["REST","SFTP","CSV_UPLOAD","WEBHOOK"]),enabled:z.boolean().default(false),
+ credential_ref:z.string().trim().min(2).max(120).regex(/^[A-Z][A-Z0-9_]*$/).nullable().optional(),
+}).strict();
+export const integrationIdSchema=z.object({id:z.coerce.number().int().positive()});
+export const integrationListSchema=z.object({enabled:z.enum(["true","false"]).optional(),system:z.enum(INTEGRATION_SYSTEMS).optional()});
+export const integrationRunSchema=z.object({
+ status:z.enum(["SUCCEEDED","PARTIAL","FAILED"]),records_read:z.number().int().min(0).max(1000000),
+ records_created:z.number().int().min(0).max(1000000),records_updated:z.number().int().min(0).max(1000000),
+ records_rejected:z.number().int().min(0).max(1000000),cursor:z.string().max(2000).nullable().optional(),
+ error_code:z.string().max(100).nullable().optional(),error_summary:z.string().max(1000).nullable().optional(),
+}).strict().superRefine((v,ctx)=>{
+ if(v.status==="FAILED"&&!v.error_code)ctx.addIssue({code:"custom",path:["error_code"],message:"error_code is required for failed runs"});
+ if(v.records_created+v.records_updated+v.records_rejected>v.records_read)ctx.addIssue({code:"custom",message:"processed record counts cannot exceed records_read"});
+});
+export const integrationIngestSchema=z.object({records:z.array(z.object({
+ source_record_id:z.string().trim().min(1).max(200),
+ source_version:z.string().trim().max(100).nullable().optional(),
+ occurred_at:z.string().datetime({offset:true}).nullable().optional(),
+ payload,
+}).strict()).min(1).max(500)}).strict();
+export type IntegrationSourceInput=z.infer<typeof integrationSourceSchema>;
+export type IntegrationIngestInput=z.infer<typeof integrationIngestSchema>;
