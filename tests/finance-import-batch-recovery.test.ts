@@ -52,3 +52,22 @@ test("recovery planning is deterministic and does not mutate reconciliation", ()
     assert.deepEqual(buildFinanceImportRecoveryCase(reconciliation), buildFinanceImportRecoveryCase(reconciliation));
     assert.deepEqual(reconciliation, before);
 });
+
+
+test("recovery identifies rows implicated by duplicate and invalid-position findings", () => {
+    const result = buildFinanceImportRecoveryCase({
+        status: "MISMATCHED",
+        batch_id: 44,
+        differences: [
+            "DUPLICATE_ROW_NUMBER",
+            "ROW_2_DUPLICATE",
+            "INVALID_EXECUTION_ROW_NUMBER",
+            "ROW_1_INVALID_POSITION",
+        ],
+        automatic_retry_allowed: false,
+    });
+    assert.equal(result.status, "REQUIRES_REVIEW");
+    if (result.status !== "REQUIRES_REVIEW") return;
+    assert.deepEqual(result.affected_row_numbers, [1, 2]);
+    assert.equal(result.automatic_retry_allowed, false);
+});
