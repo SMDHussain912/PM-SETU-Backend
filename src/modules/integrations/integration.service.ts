@@ -60,3 +60,35 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
   if (!parsed.data.records.length) return repo.createRun({ sourceId: source.id, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: page.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
   return repo.ingestBatch(source.id, parsed.data.records, { cursor: page.nextCursor ?? null, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", startedAt });
 }
+
+
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+async function enabledSource(id: number) {
+  const source = await repo.get(id);
+  if (!source) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
+  if (!source.enabled) throw new ApiError({ statusCode: 409, code: "INTEGRATION_DISABLED", message: "Integration source is disabled" });
+  return source;
+}
+
+export async function ingestCsv(id: number, records: import("./integration.schema").IntegrationIngestInput["records"]) {
+  const source = await enabledSource(id);
+  if (source.transport !== "CSV_UPLOAD") throw new ApiError({ statusCode: 409, code: "INTEGRATION_TRANSPORT_MISMATCH", message: "This source is not configured for CSV uploads" });
+  return repo.ingestBatch(id, records);
+}
+
+export async function ingestWebhook(id: number, rawBody: Buffer, signature: string | undefined, records: import("./integration.schema").IntegrationIngestInput["records"]) {
+  const source = await enabledSource(id);
+  if (source.transport !== "WEBHOOK") throw new ApiError({ statusCode: 409, code: "INTEGRATION_TRANSPORT_MISMATCH", message: "This source is not configured for webhooks" });
+  if (!source.credentialRef) throw new ApiError({ statusCode: 503, code: "WEBHOOK_SECRET_NOT_CONFIGURED", message: "Webhook secret reference is not configured" });
+  const secret = process.env[source.credentialRef];
+  if (!secret || Buffer.byteLength(secret) < 32) throw new ApiError({ statusCode: 503, code: "WEBHOOK_SECRET_UNAVAILABLE", message: "Webhook deployment secret is unavailable or too short" });
+  const supplied = signature?.match(/^sha256=([a-f0-9]{64})$/i)?.[1];
+  if (!supplied) throw new ApiError({ statusCode: 401, code: "WEBHOOK_SIGNATURE_INVALID", message: "A valid X-PMSETU-Signature header is required" });
+  const expected = createHmac("sha256", secret).update(rawBody).digest();
+  const received = Buffer.from(supplied, "hex");
+  if (received.length !== expected.length || !timingSafeEqual(received, expected)) {
+    throw new ApiError({ statusCode: 401, code: "WEBHOOK_SIGNATURE_INVALID", message: "Webhook signature verification failed" });
+  }
+  return repo.ingestBatch(id, records);
+}
