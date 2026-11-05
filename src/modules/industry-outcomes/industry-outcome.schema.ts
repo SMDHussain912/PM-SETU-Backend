@@ -24,8 +24,11 @@ export const outcomeListQuerySchema = paginationQuerySchema.extend({
 }).superRefine((query, ctx) => {
     for (const field of ["event_date_from", "event_date_to"] as const) {
         const value = query[field];
-        if (value && Number.isNaN(Date.parse(value + "T00:00:00.000Z"))) {
-            ctx.addIssue({ code: "custom", path: [field], message: field + " must be a valid calendar date" });
+        if (value) {
+            const parsed = new Date(value + "T00:00:00.000Z");
+            if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+                ctx.addIssue({ code: "custom", path: [field], message: field + " must be a valid calendar date" });
+            }
         }
     }
     if (query.event_date_from && query.event_date_to && query.event_date_from > query.event_date_to) {
