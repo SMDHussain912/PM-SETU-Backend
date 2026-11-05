@@ -4,6 +4,7 @@ import { buildPaginationMeta } from "../../utils/pagination";
 import * as repo from "./academic.repository";
 import { academicRecordSchema, type AcademicListQuery, type AcademicRecordInput } from "./academic.schema";
 import { buildAcademicScopeWhere } from "./academic.access";
+import { recordAuditEntry } from "../audit/audit.service.js";
 
 function actorId(id: number) {
     if (!Number.isSafeInteger(id) || id <= 0) throw new ApiError({ statusCode: 401, code: "UNAUTHENTICATED", message: "Authentication required" });
@@ -30,11 +31,13 @@ async function writeAudit(actor: number, action: string, item: Parameters<typeof
 export async function create(input: AcademicRecordInput, actor: number, context: { ipAddress?: string; userAgent?: string; path?: string }) {
     const user = actorId(actor);
     try {
-        const result = await repo.create(input, user);
-        if ("missing" in result) throw new ApiError({ statusCode: 422, code: result.missing + "_NOT_FOUND", message: result.missing + " does not exist" });
-        if ("mismatch" in result) throw new ApiError({ statusCode: 422, code: "ITI_CLUSTER_MISMATCH", message: "The ITI does not belong to the supplied cluster" });
-        await writeAudit(user, "CREATE", auditSnapshot(result.item), null, auditSnapshot(result.item), context);
-        return result.item;
+        return await prisma.$transaction(async (tx) => {
+            const result = await repo.create(input, user, tx);
+            if ("missing" in result) throw new ApiError({ statusCode: 422, code: result.missing + "_NOT_FOUND", message: result.missing + " does not exist" });
+            if ("mismatch" in result) throw new ApiError({ statusCode: 422, code: "ITI_CLUSTER_MISMATCH", message: "The ITI does not belong to the supplied cluster" });
+            await recordAuditEntry({ userId: String(user), action: "CREATE", entity: "ACADEMIC_SOURCE_RECORD", entityId: result.item.id, oldValue: null, newValue: auditSnapshot(result.item), approvalStatus: result.item.reviewStatus, context: { userId: String(user), ...context } }, tx);
+            return result.item;
+        });
     } catch (error) {
         if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") throw new ApiError({ statusCode: 409, code: "DUPLICATE_SOURCE_RECORD", message: "This source_system and source_record_id already exists" });
         throw error;
@@ -55,13 +58,15 @@ export async function summary(actor: number, roles: string[]) {
 }
 export async function review(id: number, status: "ACCEPTED" | "REJECTED", note: string | null, actor: number, roles: string[], context: { ipAddress?: string; userAgent?: string; path?: string }) {
     const user = actorId(actor); const scopeWhere = await scope(user, roles);
-    const previous = await repo.get(id, scopeWhere);
-    if (!previous) throw new ApiError({ statusCode: 404, code: "RECORD_NOT_FOUND", message: "Academic source record not found" });
-    if (previous.reviewStatus !== "PENDING") throw new ApiError({ statusCode: 409, code: "RECORD_ALREADY_REVIEWED", message: "Only pending records can be reviewed" });
-    const updated = await repo.review(id, status, note, user, scopeWhere);
-    if (!updated) throw new ApiError({ statusCode: 409, code: "RECORD_ALREADY_REVIEWED", message: "The record was changed by another request" });
-    await writeAudit(user, "REVIEW", auditSnapshot(updated), auditSnapshot(previous), auditSnapshot(updated), context);
-    return updated;
+    return prisma.$transaction(async (tx) => {
+        const previous = await repo.get(id, scopeWhere, tx);
+        if (!previous) throw new ApiError({ statusCode: 404, code: "RECORD_NOT_FOUND", message: "Academic source record not found" });
+        if (previous.reviewStatus !== "PENDING") throw new ApiError({ statusCode: 409, code: "RECORD_ALREADY_REVIEWED", message: "Only pending records can be reviewed" });
+        const updated = await repo.review(id, status, note, user, scopeWhere, tx);
+        if (!updated) throw new ApiError({ statusCode: 409, code: "RECORD_ALREADY_REVIEWED", message: "The record was changed by another request" });
+        await recordAuditEntry({ userId: String(user), action: "REVIEW", entity: "ACADEMIC_SOURCE_RECORD", entityId: updated.id, oldValue: auditSnapshot(previous), newValue: auditSnapshot(updated), approvalStatus: updated.reviewStatus, context: { userId: String(user), ...context } }, tx);
+        return updated;
+    });
 }
 export async function importBatch(records: unknown[], actor: number, context: { ipAddress?: string; userAgent?: string; path?: string }) {
     const created: Array<{ index: number; id: number }> = []; const duplicates: number[] = []; const errors: Array<{ index: number; code: string; message: string }> = [];
