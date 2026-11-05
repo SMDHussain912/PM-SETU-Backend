@@ -1,5 +1,8 @@
 import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/database";
+import type { Prisma as PrismaTypes } from "../../generated/prisma/client";
+
+type DbClient = PrismaTypes.TransactionClient;
 import type { Document, DocumentListFilters, DocumentVersion } from "./document.types";
 
 /**
@@ -163,8 +166,8 @@ export async function countDocuments(filters: DocumentListFilters): Promise<numb
     return Number(rows[0]?.count ?? 0);
 }
 
-export async function getDocumentById(id: number): Promise<Document | null> {
-    const rows = await prisma.$queryRaw<DocumentRow[]>(
+export async function getDocumentById(id: number, db: DbClient = prisma): Promise<Document | null> {
+    const rows = await db.$queryRaw<DocumentRow[]>(
         Prisma.sql`${DOCUMENT_SELECT} WHERE documents.id = ${id}`,
     );
     return rows[0] ? mapDocumentRow(rows[0]) : null;
@@ -222,8 +225,8 @@ export interface UpdateDocumentInput {
 }
 
 /** POST /admin/documents — new rows start DRAFT + version 1 (sql/documents #5). */
-export async function createDocument(input: CreateDocumentInput): Promise<number> {
-    const rows = await prisma.$queryRaw<{ id: number }[]>(Prisma.sql`
+export async function createDocument(input: CreateDocumentInput, db: DbClient = prisma): Promise<number> {
+    const rows = await db.$queryRaw<{ id: number }[]>(Prisma.sql`
         INSERT INTO documents (title, document_number, type, department, issue_date, financial_year, cluster_id, keywords, publish_status, version, language)
         VALUES (${input.title}, ${input.document_number}, ${input.type}, ${input.department}, ${input.issue_date}, ${input.financial_year}, ${input.cluster_id}, ${input.keywords}, 'DRAFT', 1, ${input.language})
         RETURNING id`);
@@ -231,7 +234,7 @@ export async function createDocument(input: CreateDocumentInput): Promise<number
 }
 
 /** PATCH /admin/documents/:id — only supplied columns (sql/documents #6). */
-export async function updateDocument(id: number, input: UpdateDocumentInput): Promise<void> {
+export async function updateDocument(id: number, input: UpdateDocumentInput, db: DbClient = prisma): Promise<void> {
     const updates: Prisma.Sql[] = [];
     if (input.title !== undefined) {
         updates.push(Prisma.sql`title = ${input.title}`);
@@ -263,28 +266,28 @@ export async function updateDocument(id: number, input: UpdateDocumentInput): Pr
     if (updates.length === 0) {
         return;
     }
-    await prisma.$executeRaw(Prisma.sql`
+    await db.$executeRaw(Prisma.sql`
         UPDATE documents
         SET ${Prisma.join(updates, ", ")}, updated_at = now()
         WHERE id = ${id}`);
 }
 
 /** DELETE /admin/documents/:id (sql/documents #7). */
-export async function deleteDocument(id: number): Promise<void> {
-    await prisma.$executeRaw(Prisma.sql`DELETE FROM documents WHERE id = ${id}`);
+export async function deleteDocument(id: number, db: DbClient = prisma): Promise<void> {
+    await db.$executeRaw(Prisma.sql`DELETE FROM documents WHERE id = ${id}`);
 }
 
 /** POST /admin/documents/:id/publish (sql/documents #8). */
-export async function publishDocument(id: number): Promise<void> {
-    await prisma.$executeRaw(Prisma.sql`
+export async function publishDocument(id: number, db: DbClient = prisma): Promise<void> {
+    await db.$executeRaw(Prisma.sql`
         UPDATE documents
         SET publish_status = 'PUBLISHED', updated_at = now()
         WHERE id = ${id}`);
 }
 
 /** POST /admin/documents/:id/archive (sql/documents #9). */
-export async function archiveDocument(id: number): Promise<void> {
-    await prisma.$executeRaw(Prisma.sql`
+export async function archiveDocument(id: number, db: DbClient = prisma): Promise<void> {
+    await db.$executeRaw(Prisma.sql`
         UPDATE documents
         SET publish_status = 'ARCHIVED', updated_at = now()
         WHERE id = ${id}`);
@@ -343,8 +346,9 @@ export async function createDocumentVersion(id: number, createdBy: string | null
 export async function updateDocumentFile(
     id: number,
     input: { file_path: string; file_size: number; mime_type: string; original_name: string },
+    db: DbClient = prisma,
 ): Promise<void> {
-    await prisma.$executeRaw(Prisma.sql`
+    await db.$executeRaw(Prisma.sql`
         UPDATE documents
         SET file_path = ${input.file_path}, file_size = ${input.file_size},
             mime_type = ${input.mime_type}, original_name = ${input.original_name},
