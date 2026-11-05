@@ -14,7 +14,7 @@ import {
 /**
  * Dashboard module — intentionally public read-only routes (RoadMap.md §16).
  *
- * Access decision: project direction selects the public model for all six
+ * Access decision: project direction selects the public model for all seven
  * dashboard GET endpoints. Do not add requireAuth/RBAC/resource-scope guards
  * here unless the dashboard audience policy is formally changed. Keep write
  * operations out of this router; public responses must remain read-only.
