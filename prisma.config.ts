@@ -1,8 +1,22 @@
 import "dotenv/config";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
-// Prisma CLI configuration (Prisma 7). Used by commands such as
-// `prisma migrate dev` / `prisma db push` / `prisma db seed`.
+// Prisma CLI configuration (Prisma 7). Keep CLI migrations pointed at the
+// dedicated test database whenever tests are being run. Never fall back to the
+// development DATABASE_URL in test mode.
+const isTest = process.env.NODE_ENV === "test";
+const databaseUrl = isTest
+    ? process.env.TEST_DATABASE_URL
+    : process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+    throw new Error(
+        isTest
+            ? "TEST_DATABASE_URL is required when NODE_ENV=test; refusing to use DATABASE_URL."
+            : "DATABASE_URL is required for Prisma CLI commands.",
+    );
+}
+
 export default defineConfig({
     schema: "prisma/schema.prisma",
     migrations: {
@@ -13,6 +27,6 @@ export default defineConfig({
         seed: "tsx prisma/seed.ts",
     },
     datasource: {
-        url: env("DATABASE_URL"),
+        url: databaseUrl,
     },
 });
