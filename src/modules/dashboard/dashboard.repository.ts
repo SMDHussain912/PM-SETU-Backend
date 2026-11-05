@@ -8,6 +8,7 @@ import type {
     FinanceMetrics,
     StateMetrics,
     TrainingByCluster,
+    TrainingByIti,
 } from "./dashboard.types";
 
 /**
@@ -229,6 +230,22 @@ export async function getTrainingMetrics(): Promise<TrainingRow> {
                 (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis WHERE is_sample = FALSE AND type = 'SPOKE') AS spoke_capacity`,
     );
     return rows[0];
+}
+
+export async function getTrainingByIti(id: number): Promise<TrainingByIti | null> {
+    const rows = await prisma.$queryRaw<TrainingByIti[]>(
+        Prisma.sql`
+            SELECT
+                i.id AS iti_id, i.iti_code, i.iti_name, i.type, i.district,
+                i.cluster_id,
+                c.name AS cluster_name,
+                i.student_strength AS student_capacity
+            FROM itis i
+            LEFT JOIN clusters c ON c.id = i.cluster_id AND c.is_sample = FALSE
+            WHERE i.id = ${id} AND i.is_sample = FALSE
+            LIMIT 1`,
+    );
+    return rows[0] ?? null;
 }
 
 export async function getTrainingByCluster(): Promise<TrainingByCluster[]> {
