@@ -21,13 +21,26 @@ export function validateFinanceImportRecoveryReport(value: unknown): value is Fi
     if (!isObject(value.safeguards) || value.safeguards.automatic_retry_allowed !== false ||
         value.safeguards.financial_records_modified !== false ||
         value.safeguards.accounting_approval_granted !== false) return false;
+    if (new Set(value.affected_row_numbers).size !== value.affected_row_numbers.length) return false;
+    if (!value.discrepancy_codes.every((code) => code.trim().length > 0) ||
+        !value.investigation_steps.every((step) => step.trim().length > 0)) return false;
+    if (!value.evidence_checklist.every((item) =>
+        (item as Record<string, unknown>).evidence_key.toString().trim().length > 0 &&
+        (item as Record<string, unknown>).description.toString().trim().length > 0)) return false;
+    const evidenceKeys = value.evidence_checklist.map((item) => (item as Record<string, unknown>).evidence_key);
+    if (new Set(evidenceKeys).size !== evidenceKeys.length) return false;
     if (value.status === "NO_RECOVERY_REQUIRED") {
         return value.case_type === "NONE" && value.batch_id !== null &&
             value.discrepancy_codes.length === 0 && value.affected_row_numbers.length === 0 &&
             value.investigation_steps.length === 0 && value.evidence_checklist.length === 0;
     }
-    return value.case_type !== "NONE" && value.discrepancy_codes.length > 0 &&
-        value.investigation_steps.length > 0 && value.evidence_checklist.length > 0;
+    if (value.case_type === "MISSING_METADATA") {
+        return value.batch_id === null && value.discrepancy_codes.length > 0 &&
+            value.investigation_steps.length > 0 && value.evidence_checklist.length > 0;
+    }
+    return value.case_type === "METADATA_MISMATCH" && value.batch_id !== null &&
+        value.discrepancy_codes.length > 0 && value.investigation_steps.length > 0 &&
+        value.evidence_checklist.length > 0;
 }
 
 /** Stable JSON text with fixed key order, two-space indentation, and trailing newline. */
