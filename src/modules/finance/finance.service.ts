@@ -2,6 +2,7 @@ import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/database";
 import { ApiError } from "../../utils/response";
 import * as repository from "./finance.repository";
+import { isValidFinanceAmount } from "./finance.amount.validation";
 import type { ApprovedOutlayInput, ExpenditureInput, FundReleaseInput } from "./finance.types";
 
 function validateSource(input: { source_system: string; source_record_id: string }) {
@@ -11,8 +12,8 @@ function validateSource(input: { source_system: string; source_record_id: string
 }
 
 function validateAmount(amount: Prisma.Decimal, field: string) {
-    if (!amount.isFinite() || amount.isNegative()) {
-        throw new ApiError({ statusCode: 422, code: "INVALID_FINANCIAL_AMOUNT", message: `${field} must be a finite, non-negative decimal amount` });
+    if (!isValidFinanceAmount(amount)) {
+        throw new ApiError({ statusCode: 422, code: "INVALID_FINANCIAL_AMOUNT", message: `${field} must be non-negative, fit DECIMAL(18,2), and have at most two fractional digits` });
     }
 }
 
