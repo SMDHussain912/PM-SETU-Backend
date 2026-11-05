@@ -9,6 +9,24 @@ import type {
     UpdateDocumentBody,
 } from "./document.schema";
 import * as documentService from "./document.service";
+import type { DocumentAuditContext } from "./document.service";
+
+function getDocumentAuditContext(req: Request): DocumentAuditContext {
+    const userId = req.user?.id;
+    if (!userId) {
+        throw new ApiError({
+            statusCode: 401,
+            code: "UNAUTHORIZED",
+            message: "Authentication is required",
+        });
+    }
+    return {
+        userId,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent") ?? undefined,
+        path: req.originalUrl,
+    };
+}
 
 /**
  * Document Management module — controller layer.
@@ -42,33 +60,33 @@ export async function getDocumentVersions(_req: Request, res: Response): Promise
     return sendSuccess(res, versions);
 }
 
-export async function createDocument(_req: Request, res: Response): Promise<Response> {
+export async function createDocument(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<CreateDocumentBody>(res);
-    const document = await documentService.createDocument(body);
+    const document = await documentService.createDocument(body, getDocumentAuditContext(req));
     return sendCreated(res, document);
 }
 
 export async function updateDocument(_req: Request, res: Response): Promise<Response> {
     const { params, body } = getValidated<UpdateDocumentBody, unknown, DocumentIdParams>(res);
-    const document = await documentService.updateDocument(params.id, body);
+    const document = await documentService.updateDocument(params.id, body, getDocumentAuditContext(_req));
     return sendSuccess(res, document);
 }
 
-export async function deleteDocument(_req: Request, res: Response): Promise<Response> {
+export async function deleteDocument(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, DocumentIdParams>(res);
-    await documentService.deleteDocument(params.id);
+    await documentService.deleteDocument(params.id, getDocumentAuditContext(req));
     return sendSuccess(res, { id: params.id });
 }
 
-export async function publishDocument(_req: Request, res: Response): Promise<Response> {
+export async function publishDocument(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, DocumentIdParams>(res);
-    const document = await documentService.publishDocument(params.id);
+    const document = await documentService.publishDocument(params.id, getDocumentAuditContext(req));
     return sendSuccess(res, document);
 }
 
-export async function archiveDocument(_req: Request, res: Response): Promise<Response> {
+export async function archiveDocument(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, DocumentIdParams>(res);
-    const document = await documentService.archiveDocument(params.id);
+    const document = await documentService.archiveDocument(params.id, getDocumentAuditContext(req));
     return sendSuccess(res, document);
 }
 
