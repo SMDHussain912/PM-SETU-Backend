@@ -24,8 +24,6 @@ test("PostgreSQL concurrent source-identity ingestion is idempotent for all fina
     const outlaySourceId = `OUT-${suffix}`;
     const releaseSourceId = `REL-${suffix}`;
     const expenditureSourceId = `EXP-${suffix}`;
-    let outlayId: number | undefined;
-    let releaseId: number | undefined;
 
     try {
         await client.$connect();
@@ -50,7 +48,7 @@ test("PostgreSQL concurrent source-identity ingestion is idempotent for all fina
         });
         assert.deepEqual(outlaySuccesses.map(result => result.outcome).sort(), ["CREATED", "DUPLICATE"]);
         assert.equal(outlaySuccesses[0].item.id, outlaySuccesses[1].item.id);
-        outlayId = outlaySuccesses[0].item.id;
+        const outlayId = outlaySuccesses[0].item.id;
 
         const releaseInput = {
             source_system: sourceSystem,
@@ -73,7 +71,7 @@ test("PostgreSQL concurrent source-identity ingestion is idempotent for all fina
         });
         assert.deepEqual(releaseSuccesses.map(result => result.outcome).sort(), ["CREATED", "DUPLICATE"]);
         assert.equal(releaseSuccesses[0].item.id, releaseSuccesses[1].item.id);
-        releaseId = releaseSuccesses[0].item.id;
+        const releaseId = releaseSuccesses[0].item.id;
 
         const expenditureInput = {
             source_system: sourceSystem,
