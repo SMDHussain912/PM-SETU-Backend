@@ -103,19 +103,20 @@
 --     news.updated_at
 -- FROM news
 -- LEFT JOIN clusters ON clusters.id = news.cluster_id
+-- WHERE news.is_published = TRUE
 -- ORDER BY news.published_date DESC, news.id DESC
 -- LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize};
 --
 -- 2. COUNT
 --
--- SELECT COUNT(*)::int AS count FROM news;
+-- SELECT COUNT(*)::int AS count FROM news WHERE is_published = TRUE;
 --
 -- 3. DETAIL BY ID
 --
 -- SELECT <same columns>
 -- FROM news
 -- LEFT JOIN clusters ON clusters.id = news.cluster_id
--- WHERE news.id = ${id};
+-- WHERE news.id = ${id} AND news.is_published = TRUE;
 --
 -- 4. LATEST (limited list)
 --
