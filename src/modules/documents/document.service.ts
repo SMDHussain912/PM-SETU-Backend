@@ -233,10 +233,18 @@ export async function archiveDocument(id: number, context: DocumentAuditContext)
     });
 }
 
-export async function createDocumentVersion(id: number, createdBy: string | null): Promise<Document> {
-    await requireDocument(id);
-    await documentRepository.createDocumentVersion(id, createdBy);
-    return requireDocument(id);
+export async function createDocumentVersion(
+    id: number,
+    createdBy: string | null,
+    context: DocumentAuditContext,
+): Promise<Document> {
+    return prisma.$transaction(async (tx) => {
+        const previous = await requireDocument(id, tx);
+        await documentRepository.createDocumentVersion(id, createdBy, tx);
+        const updated = await requireDocument(id, tx);
+        await recordDocumentAudit(tx, updated, "VERSION", previous, context);
+        return updated;
+    });
 }
 
 export async function attachDocumentFile(
