@@ -173,3 +173,37 @@
 -- LEFT JOIN clusters c ON c.id = i.cluster_id AND c.is_sample = FALSE
 -- WHERE i.id = ${id} AND i.is_sample = FALSE
 -- LIMIT 1;
+
+--
+-- 13. TRAINING CAPACITY REPORTING — STATE COVERAGE
+--
+-- SUM(student_strength) intentionally remains NULL when no ITI has a
+-- non-null capacity value. COUNT(student_strength) measures populated source
+-- values; COUNT(*) measures non-sample ITI records. These are different facts.
+--
+-- SELECT
+--     SUM(student_strength)::int AS student_capacity,
+--     COUNT(*)::int AS total_itis,
+--     COUNT(student_strength)::int AS itis_with_capacity,
+--     COUNT(*) FILTER (WHERE student_strength IS NULL)::int AS itis_without_capacity,
+--     COUNT(*) FILTER (WHERE cluster_id IS NULL)::int AS unassigned_itis
+-- FROM itis
+-- WHERE is_sample = FALSE;
+--
+-- 14. TRAINING CAPACITY REPORTING — CLUSTER COVERAGE
+--
+-- LEFT JOIN retains non-sample clusters with no ITI records. SUM remains NULL
+-- when the cluster has no populated student_strength values.
+--
+-- SELECT
+--     c.id AS cluster_id,
+--     c.name AS cluster_name,
+--     SUM(i.student_strength)::int AS student_capacity,
+--     COUNT(i.id)::int AS total_itis,
+--     COUNT(i.student_strength)::int AS itis_with_capacity,
+--     COUNT(i.id) FILTER (WHERE i.student_strength IS NULL)::int AS itis_without_capacity
+-- FROM clusters c
+-- LEFT JOIN itis i ON i.cluster_id = c.id AND i.is_sample = FALSE
+-- WHERE c.is_sample = FALSE
+-- GROUP BY c.id, c.name
+-- ORDER BY c.name;
