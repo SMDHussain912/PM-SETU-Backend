@@ -79,3 +79,25 @@ test("accepts invalid preview rows without marking them as attempted", () => {
         ],
     }));
 });
+
+
+test("rejects total row counters that do not match valid and invalid rows", () => {
+    assert.throws(() => validateFinanceImportBatchInput({ ...base, total_rows: 3 }), /TOTAL_ROW_COUNTERS_INCONSISTENT/);
+});
+
+test("rejects duplicate or invalid CSV row positions", () => {
+    assert.throws(() => validateFinanceImportBatchInput({
+        ...base,
+        rows: [
+            { row_number: 2, outcome: "VALID" },
+            { row_number: 2, outcome: "VALID" },
+        ],
+    }), /ROW_NUMBER_DUPLICATE/);
+    assert.throws(() => validateFinanceImportBatchInput({
+        ...base,
+        rows: [
+            { row_number: 1, outcome: "VALID" },
+            { row_number: 3, outcome: "VALID" },
+        ],
+    }), /ROW_NUMBER_INVALID/);
+});
