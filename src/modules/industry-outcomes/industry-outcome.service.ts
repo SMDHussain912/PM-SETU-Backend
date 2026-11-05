@@ -4,7 +4,7 @@ import * as auditService from "../audit/audit.service";
 import { buildPaginationMeta } from "../../utils/pagination";
 import { ApiError } from "../../utils/response";
 import * as repository from "./industry-outcome.repository";
-import type { CreateOutcomeBody, OutcomeListQuery, ReviewOutcomeBody } from "./industry-outcome.schema";
+import { createOutcomeSchema, type CreateOutcomeBody, type OutcomeListQuery, type ReviewOutcomeBody } from "./industry-outcome.schema";
 
 function actorId(value: number): number {
     if (!Number.isSafeInteger(value) || value <= 0) {
@@ -81,7 +81,7 @@ export async function importOutcomeBatch(body: { records: unknown[] }, actor: nu
     const seen = new Set<string>();
 
     for (let index = 0; index < body.records.length; index += 1) {
-        const parsed = (await import("./industry-outcome.schema")).createOutcomeSchema.safeParse(body.records[index]);
+        const parsed = createOutcomeSchema.safeParse(body.records[index]);
         if (!parsed.success) {
             errors.push({ index, code: "INVALID_RECORD", message: "Record validation failed", details: parsed.error.issues });
             continue;
