@@ -79,17 +79,18 @@ export async function deleteClusterIfUnreferenced(
     id: number,
     tx: Prisma.TransactionClient,
 ): Promise<boolean> {
-    const references = await tx.$queryRaw<{ referenced: boolean }[]>(Prisma.sql`
-        SELECT (
-            EXISTS (SELECT 1 FROM itis WHERE cluster_id = ${id}) OR
-            EXISTS (SELECT 1 FROM aips WHERE cluster_id = ${id}) OR
-            EXISTS (SELECT 1 FROM spvs WHERE cluster_id = ${id}) OR
-            EXISTS (SELECT 1 FROM sips WHERE cluster_id = ${id}) OR
-            EXISTS (SELECT 1 FROM documents WHERE cluster_id = ${id}) OR
-            EXISTS (SELECT 1 FROM news WHERE cluster_id = ${id})
-        ) AS referenced`);
-    if (references[0]?.referenced) return false;
+    // Keep the reference checks in the DELETE statement itself. A separate
+    // SELECT followed by DELETE could race with a concurrent child insert;
+    // the FK then uses ON DELETE SET NULL and silently detaches that record.
     const deleted = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
-        DELETE FROM clusters WHERE id = ${id} RETURNING id`);
+        DELETE FROM clusters
+        WHERE id = ${id}
+          AND NOT EXISTS (SELECT 1 FROM itis WHERE cluster_id = ${id})
+          AND NOT EXISTS (SELECT 1 FROM aips WHERE cluster_id = ${id})
+          AND NOT EXISTS (SELECT 1 FROM spvs WHERE cluster_id = ${id})
+          AND NOT EXISTS (SELECT 1 FROM sips WHERE cluster_id = ${id})
+          AND NOT EXISTS (SELECT 1 FROM documents WHERE cluster_id = ${id})
+          AND NOT EXISTS (SELECT 1 FROM news WHERE cluster_id = ${id})
+        RETURNING id`);
     return deleted.length > 0;
 }
