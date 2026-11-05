@@ -114,8 +114,8 @@ function mapVersionRow(row: DocumentVersionRow): DocumentVersion {
     };
 }
 
-function buildFilters(filters: DocumentListFilters): Prisma.Sql {
-    const conditions: Prisma.Sql[] = [];
+function buildFilters(filters: DocumentListFilters, publishedOnly = true): Prisma.Sql {
+    const conditions: Prisma.Sql[] = publishedOnly ? [Prisma.sql`documents.publish_status = 'PUBLISHED'`] : [];
 
     if (filters.type !== undefined) {
         conditions.push(Prisma.sql`documents.type = ${filters.type}`);
@@ -166,6 +166,13 @@ export async function countDocuments(filters: DocumentListFilters): Promise<numb
 export async function getDocumentById(id: number): Promise<Document | null> {
     const rows = await prisma.$queryRaw<DocumentRow[]>(
         Prisma.sql`${DOCUMENT_SELECT} WHERE documents.id = ${id}`,
+    );
+    return rows[0] ? mapDocumentRow(rows[0]) : null;
+}
+
+export async function getPublishedDocumentById(id: number): Promise<Document | null> {
+    const rows = await prisma.$queryRaw<DocumentRow[]>(
+        Prisma.sql`${DOCUMENT_SELECT} WHERE documents.id = ${id} AND documents.publish_status = 'PUBLISHED'`,
     );
     return rows[0] ? mapDocumentRow(rows[0]) : null;
 }
