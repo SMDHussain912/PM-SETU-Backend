@@ -195,7 +195,7 @@ Documentation: `docs/phase-6/FINANCE_CSV_PREVIEW_PERSISTENCE.md`.
 
 The user reports that the latest test suite passed after adding the opt-in PostgreSQL concurrency coverage. Confirm whether both PostgreSQL tests were actually run with `PM_SETU_TEST_DATABASE_URL` pointing to a dedicated migrated test database; if not, retain live database concurrency as an explicit evidence gap.
 
-The engineering close-out review is documented in `docs/phase-6/FINANCE_PHASE_6_CLOSEOUT_REVIEW.md`. Next, complete the final source-level review of reconciliation scope/as-of filtering, import reconciliation edge cases, exact decimal boundaries, and migration/test evidence. Do not mount finance write/recovery routes or activate official derived KPIs while source ownership, Finance permissions, audit semantics, correction/reversal policy, and formula approvals remain unresolved. Preserve the policy that a deliberate import re-run uses a new idempotency key.
+The engineering close-out review is documented in `docs/phase-6/FINANCE_PHASE_6_CLOSEOUT_REVIEW.md`. The review found and fixed a reconciliation query-selection gap: release/expenditure rows linked to the requested financial year are now included even when their own year differs. Pure predicate coverage was added in `tests/finance-reconciliation-query.test.ts`. The user must run typecheck, tests, and build against these latest commits. Next, review import reconciliation edge cases, exact decimal boundaries, and migration/test evidence. Do not mount finance write/recovery routes or activate official derived KPIs while source ownership, Finance permissions, audit semantics, correction/reversal policy, and formula approvals remain unresolved. Preserve the policy that a deliberate import re-run uses a new idempotency key.
 
 #### Finance data and policy guardrails
 
@@ -314,6 +314,7 @@ Completion evidence should include:
 | 2026-11-06 | 6 | Added opt-in PostgreSQL concurrent same-key import-batch test and dedicated test-database instructions | Commits `65e3600` and `3340144`. Test uses only `PM_SETU_TEST_DATABASE_URL`, unique UUIDs, and exact-key cleanup; user reports tests completed. |
 | 2026-11-06 | 6 | Added opt-in PostgreSQL concurrent source-identity tests for outlay, release, and expenditure ledgers | Commits `1042a9e`, `ec49f40`, and `ba82b36`. User reports latest tests passed; confirm whether opt-in DB tests were executed with the dedicated test URL. |
 | 2026-11-06 | 6 | Completed engineering close-out review of finance integrity, reconciliation, import recovery, and policy gates | Commit `fe84e28`; review records implemented controls, limitations, and acceptance evidence required before operational sign-off. |
+| 2026-11-06 | 6 | Fixed cross-financial-year reconciliation selection and added predicate regression tests | Commits `abe06d3`, `f14c485`, `01b60ac`, and `f518b4f`. Latest changes require user verification. |
 | 2026-11-06 | 6 | Added an injectable transaction boundary and repository tests for same-key replay, immutable row diagnostics on replay, and key reuse conflicts | Commits `dc80e56` and `3c6d96a`. New tests still require local typecheck/test/build verification; they simulate transaction behaviour and are not a live PostgreSQL race test. |
 
 ---
