@@ -6,7 +6,7 @@ import authRouter from "../modules/auth/auth.routes";
 import approvalRouter from "../modules/approvals/approval.routes";
 import auditRouter from "../modules/audit/audit.routes";
 import bannerRouter, { bannerAdminRouter } from "../modules/banners/banner.routes";
-import clusterRouter from "../modules/clusters/cluster.routes";
+import clusterRouter, { clusterAdminRouter } from "../modules/clusters/cluster.routes";
 import clusterWorkflowRouter from "../modules/clusters/cluster-workflow.routes";
 import contactRouter, { contactAdminRouter } from "../modules/contact/contact.routes";
 import dashboardRouter from "../modules/dashboard/dashboard.routes";
