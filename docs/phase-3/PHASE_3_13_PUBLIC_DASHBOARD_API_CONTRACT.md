@@ -1,6 +1,6 @@
 # Phase 3.13 — Public Dashboard API Contract & Regression Tests
 
-**Status:** Implementation committed; local verification pending  
+**Status:** Verified by user — typecheck, tests, and build passed  
 **Branch:** `main`
 
 ## Objective
