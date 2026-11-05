@@ -123,6 +123,9 @@ export async function uploadDocumentFile(req: Request, res: Response): Promise<R
 
     return sendSuccess(res, {
         file_path: file.path,
+        // original_name is the canonical field accepted by document create/update.
+        // file_name remains as a compatibility alias for existing clients.
+        original_name: safeFileName,
         file_name: safeFileName,
         mime_type: file.mimetype,
         file_size: file.size,
