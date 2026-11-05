@@ -107,11 +107,12 @@
 -- SELECT
 --     financial_year,
 --     SUM(released_amount)::numeric(18,2) AS funds_released
--- FROM fund_releases
--- WHERE financial_year = :financialYear
---   AND (:clusterId IS NULL OR cluster_id = :clusterId)
---   AND (:itiId IS NULL OR iti_id = :itiId)
--- GROUP BY financial_year;
+-- FROM fund_releases r
+-- JOIN approved_outlays o ON o.id = r.outlay_id
+-- WHERE r.financial_year = :financialYear
+--   AND (:clusterId IS NULL OR o.cluster_id = :clusterId)
+--   AND (:itiId IS NULL OR o.iti_id = :itiId)
+-- GROUP BY r.financial_year;
 --
 -- FIN-03 — Expenditure by financial year and scope
 --
@@ -121,12 +122,13 @@
 -- SELECT
 --     financial_year,
 --     SUM(amount)::numeric(18,2) AS expenditure
--- FROM expenditures
--- WHERE financial_year = :financialYear
---   AND (:clusterId IS NULL OR cluster_id = :clusterId)
---   AND (:itiId IS NULL OR iti_id = :itiId)
+-- FROM expenditures e
+-- JOIN approved_outlays o ON o.id = e.outlay_id
+-- WHERE e.financial_year = :financialYear
+--   AND (:clusterId IS NULL OR o.cluster_id = :clusterId)
+--   AND (:itiId IS NULL OR o.iti_id = :itiId)
 --   AND <FINANCE_APPROVED_ACCEPTANCE_PREDICATE>
--- GROUP BY financial_year;
+-- GROUP BY e.financial_year;
 --
 -- FIN-04 / FIN-05
 --
