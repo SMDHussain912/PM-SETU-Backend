@@ -136,6 +136,10 @@ export interface TrainingCapacityReporting {
         value: number | null;
     };
     coverage: TrainingCapacityCoverage;
+    without_reportable_cluster: {
+        student_capacity: number | null;
+        coverage: TrainingCapacityCoverage;
+    };
     by_cluster: TrainingCapacityByCluster[];
     reporting_context: {
         data_as_of: null;
