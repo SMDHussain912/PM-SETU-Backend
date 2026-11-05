@@ -34,3 +34,21 @@ export async function ingestBatch(sourceId: number, records: Array<{ source_reco
     return { run, records_read: records.length, records_created: created, records_updated: updated, records_rejected: 0 };
   });
 }
+
+
+/** Atomically claims due schedules; competing application instances cannot claim the same row. */
+export async function claimDueSources() {
+  const claimed = await prisma.$queryRaw<Array<{ id: number }>>`
+    UPDATE "integration_sources"
+    SET "next_sync_at" = NOW() + ("sync_interval_seconds" * INTERVAL '1 second')
+    WHERE "enabled" = TRUE
+      AND "sync_interval_seconds" IS NOT NULL
+      AND ("next_sync_at" IS NULL OR "next_sync_at" <= NOW())
+    RETURNING "id"
+  `;
+  if (!claimed.length) return [];
+  return prisma.integrationSource.findMany({
+    where: { id: { in: claimed.map((row) => row.id) }, enabled: true },
+    orderBy: { id: "asc" },
+  });
+}
