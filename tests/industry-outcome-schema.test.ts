@@ -87,3 +87,13 @@ test("industry outcome audit snapshots omit participant references, evidence ref
     assert.equal("evidenceRef" in snapshot, false);
     assert.equal("payload" in snapshot, false);
 });
+
+
+test("industry outcome list accepts valid event date ranges", () => {
+    assert.equal(outcomeListQuerySchema.safeParse({ event_date_from: "2026-01-01", event_date_to: "2026-12-31" }).success, true);
+    assert.equal(outcomeListQuerySchema.safeParse({ event_date_from: "2026-02-30" }).success, false);
+});
+
+test("industry outcome list rejects reversed event date ranges", () => {
+    assert.equal(outcomeListQuerySchema.safeParse({ event_date_from: "2026-12-31", event_date_to: "2026-01-01" }).success, false);
+});
