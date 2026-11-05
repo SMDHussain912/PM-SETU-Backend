@@ -218,6 +218,10 @@ export interface CreateDocumentInput {
     cluster_id: number | null;
     keywords: string | null;
     language: string | null;
+    file_path: string | null;
+    file_size: number | null;
+    mime_type: string | null;
+    original_name: string | null;
 }
 
 export interface UpdateDocumentInput {
@@ -230,13 +234,26 @@ export interface UpdateDocumentInput {
     cluster_id?: number | null;
     keywords?: string | null;
     language?: string | null;
+    file_path?: string | null;
+    file_size?: number | null;
+    mime_type?: string | null;
+    original_name?: string | null;
 }
 
 /** POST /admin/documents — new rows start DRAFT + version 1 (sql/documents #5). */
 export async function createDocument(input: CreateDocumentInput, db: DbClient = prisma): Promise<number> {
     const rows = await db.$queryRaw<{ id: number }[]>(Prisma.sql`
-        INSERT INTO documents (title, document_number, type, department, issue_date, financial_year, cluster_id, keywords, publish_status, version, language)
-        VALUES (${input.title}, ${input.document_number}, ${input.type}, ${input.department}, ${input.issue_date}, ${input.financial_year}, ${input.cluster_id}, ${input.keywords}, 'DRAFT', 1, ${input.language})
+        INSERT INTO documents (
+            title, document_number, type, department, issue_date, financial_year,
+            cluster_id, keywords, publish_status, version, language,
+            file_path, file_size, mime_type, original_name
+        )
+        VALUES (
+            ${input.title}, ${input.document_number}, ${input.type}, ${input.department},
+            ${input.issue_date}, ${input.financial_year}, ${input.cluster_id},
+            ${input.keywords}, 'DRAFT', 1, ${input.language},
+            ${input.file_path}, ${input.file_size}, ${input.mime_type}, ${input.original_name}
+        )
         RETURNING id`);
     return rows[0].id;
 }
@@ -270,6 +287,18 @@ export async function updateDocument(id: number, input: UpdateDocumentInput, db:
     }
     if (input.language !== undefined) {
         updates.push(Prisma.sql`language = ${input.language}`);
+    }
+    if (input.file_path !== undefined) {
+        updates.push(Prisma.sql`file_path = ${input.file_path}`);
+    }
+    if (input.file_size !== undefined) {
+        updates.push(Prisma.sql`file_size = ${input.file_size}`);
+    }
+    if (input.mime_type !== undefined) {
+        updates.push(Prisma.sql`mime_type = ${input.mime_type}`);
+    }
+    if (input.original_name !== undefined) {
+        updates.push(Prisma.sql`original_name = ${input.original_name}`);
     }
     if (updates.length === 0) {
         return;
