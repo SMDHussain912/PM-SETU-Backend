@@ -1114,6 +1114,84 @@ export const openApiSpec = {
                 },
             },
         },
+        "/admin/sips": {
+            post: {
+                tags: ["SIP"],
+                summary: "Create a SIP registry record",
+                description: "Creates a SIP in DRAFT status. Only STATE_PMU_ADMIN and SUPER_ADMIN may create registry records. Workflow status is controlled by the separate SIP workflow endpoints.",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: false,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    cluster_id: { type: "integer", minimum: 1, nullable: true },
+                                    aip_id: { type: "integer", minimum: 1, nullable: true },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "201": { description: "Created SIP in DRAFT status" },
+                    "401": { description: "Missing/invalid token" },
+                    "403": { description: "Insufficient role" },
+                    "422": { description: "Validation failed" },
+                    "500": { description: "PM SETU database schema not created yet" },
+                },
+            },
+        },
+        "/admin/sips/{id}": {
+            patch: {
+                tags: ["SIP"],
+                summary: "Update SIP registry relationships",
+                description: "Updates Cluster/AIP relationships only. Workflow status cannot be changed through generic registry PATCH. Cluster admins must have scope and cannot reassign either relationship.",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                additionalProperties: false,
+                                minProperties: 1,
+                                properties: {
+                                    cluster_id: { type: "integer", minimum: 1, nullable: true },
+                                    aip_id: { type: "integer", minimum: 1, nullable: true },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "200": { description: "Updated SIP registry record" },
+                    "401": { description: "Missing/invalid token" },
+                    "403": { description: "Insufficient role or resource scope" },
+                    "404": { description: "SIP not found" },
+                    "422": { description: "Validation failed" },
+                    "500": { description: "PM SETU database schema not created yet" },
+                },
+            },
+            delete: {
+                tags: ["SIP"],
+                summary: "Delete a draft SIP",
+                description: "Deletes only SIP records whose workflow status is DRAFT. Submitted and later-stage records are protected from registry deletion.",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                responses: {
+                    "200": { description: "Deleted draft SIP" },
+                    "401": { description: "Missing/invalid token" },
+                    "403": { description: "Insufficient role or resource scope" },
+                    "404": { description: "SIP not found" },
+                    "409": { description: "SIP is not in DRAFT status" },
+                    "500": { description: "PM SETU database schema not created yet" },
+                },
+            },
+        },
         "/admin/aips": {
             post: {
                 tags: ["AIP"],
