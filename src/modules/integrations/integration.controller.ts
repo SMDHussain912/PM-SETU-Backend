@@ -10,3 +10,25 @@ export async function enable(req: Request, res: Response) { actor(req); const { 
 export async function runs(req: Request, res: Response) { actor(req); const { params } = getValidated<unknown, unknown, { id: number }>(res); return sendSuccess(res, await service.runs(params.id)); }
 
 export async function ingest(req: Request, res: Response) { actor(req); const { params, body } = getValidated<import("./integration.schema").IntegrationIngestInput, unknown, { id: number }>(res); return sendSuccess(res, await service.ingest(params.id, body.records)); }
+
+
+import { parseIntegrationCsv } from "./integration.csv";
+import { integrationIngestSchema } from "./integration.schema";
+
+export async function ingestCsv(req: Request, res: Response) {
+  actor(req);
+  const { params } = getValidated<unknown, unknown, { id: number }>(res);
+  if (typeof req.body !== "string") throw new ApiError({ statusCode: 415, code: "CSV_CONTENT_TYPE_REQUIRED", message: "Send CSV with Content-Type: text/csv" });
+  const records = parseIntegrationCsv(req.body);
+  const parsed = integrationIngestSchema.safeParse({ records });
+  if (!parsed.success) throw new ApiError({ statusCode: 422, code: "CSV_RECORDS_INVALID", message: "CSV records failed ingestion validation", details: parsed.error.flatten() });
+  return sendSuccess(res, await service.ingestCsv(params.id, parsed.data.records));
+}
+
+export async function webhook(req: Request, res: Response) {
+  const { params } = getValidated<unknown, unknown, { id: number }>(res);
+  if (!req.rawBody) throw new ApiError({ statusCode: 400, code: "WEBHOOK_RAW_BODY_MISSING", message: "Raw webhook body is unavailable for signature verification" });
+  const parsed = integrationIngestSchema.safeParse(req.body);
+  if (!parsed.success) throw new ApiError({ statusCode: 422, code: "VALIDATION_ERROR", message: "Webhook payload failed validation", details: parsed.error.flatten() });
+  return sendSuccess(res, await service.ingestWebhook(params.id, req.rawBody, req.get("X-PMSETU-Signature"), parsed.data.records));
+}
