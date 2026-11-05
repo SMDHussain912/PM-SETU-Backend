@@ -38,7 +38,7 @@ test.after(async () => {
     await pool.query("DROP TRIGGER IF EXISTS ci_reject_selected_audit_insert ON audit_logs");
     await pool.query("DROP FUNCTION IF EXISTS ci_reject_selected_audit_insert()");
     await pool.query("DELETE FROM audit_logs WHERE entity = 'APPROVAL' AND entity_id = ANY($1::int[])", [[successfulApprovalId, failingApprovalId, staleApprovalId].filter(Boolean)]);
-    await pool.query("DELETE FROM approvals WHERE id = ANY($1::int[])", [[successfulApprovalId, failingApprovalId].filter(Boolean)]);
+    await pool.query("DELETE FROM approvals WHERE id = ANY($1::int[])", [[successfulApprovalId, failingApprovalId, staleApprovalId].filter(Boolean)]);
     await disconnectPrisma();
     await pool.end();
 });
@@ -84,6 +84,9 @@ test("audit insert failure rolls back the approval status transition", async () 
 });
 
 test("optimistic status guard prevents a stale transition from creating an audit row", async () => {
+    // Simulate another transaction changing the row after the caller read PENDING.
+    await pool.query("UPDATE approvals SET status = 'SUBMITTED', updated_at = NOW() WHERE id = $1", [staleApprovalId]);
+
     const result = await transitionApprovalWithAudit({
         id: staleApprovalId,
         expectedStatus: "PENDING",
@@ -97,5 +100,5 @@ test("optimistic status guard prevents a stale transition from creating an audit
         "SELECT COUNT(*)::text AS count FROM audit_logs WHERE entity = 'APPROVAL' AND entity_id = $1",
         [staleApprovalId],
     );
-    assert.equal(audit.rows[0].count, "1");
+    assert.equal(audit.rows[0].count, "0");
 });
