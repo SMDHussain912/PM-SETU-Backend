@@ -132,7 +132,7 @@
 --     FROM sips WHERE is_sample = FALSE GROUP BY cluster_id
 -- ) s ON s.cluster_id = c.id
 -- WHERE c.is_sample = FALSE
-ORDER BY c.name;
+-- ORDER BY c.name;
 --
 -- 9. TRAINING METRICS
 --
