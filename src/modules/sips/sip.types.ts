@@ -36,8 +36,8 @@ export interface SipAipSummary {
  * ⚠ Database contract: the backing table does not exist yet (no Prisma
  * models/migrations). Required columns, the canonical workflow vocabulary
  * and every "TO CONFIRM" item are documented in sql/sips/sip_queries.sql.
- * Admin CRUD, the 7 workflow transitions and the SPV↔SIP link are
- * intentionally deferred.
+ * Basic registry CRUD is implemented for the established status/relationship
+ * contract. The 7 workflow transitions and SPV↔SIP link remain deferred.
  */
 export interface Sip {
     id: number;
@@ -75,8 +75,7 @@ export interface Sip {
 
 /**
  * Accepted list filters. §10 documents NO list filters, so pagination only —
- * no invented parameters. (A status filter, if ever wanted, would be backed
- * by the canonical §10 workflow values.)
+ * no invented parameters.
  */
 export interface SipListFilters {
     page: number;
