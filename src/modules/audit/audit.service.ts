@@ -3,6 +3,7 @@ import { buildPaginationMeta } from "../../utils/pagination";
 import * as auditRepository from "./audit.repository";
 import type { AuditEntry, AuditListFilters } from "./audit.types";
 import type { AuditLogListQuery } from "./audit.schema";
+import type { Prisma } from "../../generated/prisma/client";
 
 /**
  * Audit module — service layer (RoadMap.md §22 "AUDIT APIs").
@@ -86,7 +87,7 @@ export async function recordAuditEntry(input: {
         userAgent?: string | undefined;
         path?: string | undefined;
     };
-}): Promise<number> {
-    return auditRepository.createAuditEntry(input);
+}, db?: Prisma.TransactionClient): Promise<number> {
+    return auditRepository.createAuditEntry(input, db);
 }
 
