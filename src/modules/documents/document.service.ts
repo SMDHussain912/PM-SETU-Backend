@@ -320,7 +320,7 @@ export async function updateDocument(id: number, body: UpdateDocumentBody, conte
 
 export async function deleteDocument(id: number, context: DocumentAuditContext): Promise<void> {
     await prisma.$transaction(async (tx) => {
-        const previous = await requireDocument(id, tx);
+        const previous = await getLockedDocument(id, tx);
         await documentRepository.deleteDocument(id, tx);
         await recordAuditEntry({
             userId: context.userId,
@@ -342,7 +342,7 @@ export async function deleteDocument(id: number, context: DocumentAuditContext):
 
 export async function publishDocument(id: number, context: DocumentAuditContext): Promise<Document> {
     return prisma.$transaction(async (tx) => {
-        const previous = await requireDocument(id, tx);
+        const previous = await getLockedDocument(id, tx);
         if (previous.publish_status === "ARCHIVED") {
             throw new ApiError({
                 statusCode: 422,
@@ -359,7 +359,7 @@ export async function publishDocument(id: number, context: DocumentAuditContext)
 
 export async function archiveDocument(id: number, context: DocumentAuditContext): Promise<Document> {
     return prisma.$transaction(async (tx) => {
-        const previous = await requireDocument(id, tx);
+        const previous = await getLockedDocument(id, tx);
         await documentRepository.archiveDocument(id, tx);
         const updated = await requireDocument(id, tx);
         await recordDocumentAudit(tx, updated, "ARCHIVE", previous, context);
@@ -373,7 +373,7 @@ export async function createDocumentVersion(
     context: DocumentAuditContext,
 ): Promise<Document> {
     return prisma.$transaction(async (tx) => {
-        const previous = await requireDocument(id, tx);
+        const previous = await getLockedDocument(id, tx);
         await documentRepository.createDocumentVersion(id, createdBy, tx);
         const updated = await requireDocument(id, tx);
         await recordDocumentAudit(tx, updated, "VERSION", previous, context);
