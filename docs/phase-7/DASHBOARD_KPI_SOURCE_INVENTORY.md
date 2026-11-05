@@ -130,14 +130,14 @@ The endpoint aggregates only the existing `itis.student_strength` capacity field
 - `total_itis`: number of non-sample ITI registry rows in scope.
 - `itis_with_capacity`: number of rows with a non-null `student_strength`.
 - `itis_without_capacity`: number of rows with a null `student_strength`.
-- State-level `unassigned_itis`: non-sample ITI rows with no cluster assignment.
+- State-level `itis_without_reportable_cluster`: non-sample ITI rows with no cluster assignment or assigned only to a sample cluster.
 
 Aggregation semantics:
 - `SUM(student_strength)` is intentionally nullable. If no source rows have a capacity value, the aggregate is null and availability is `NOT_AVAILABLE`.
 - A genuine numeric zero remains zero and is distinguishable through coverage counts.
 - Cluster aggregation uses a left join so a non-sample cluster with no ITI records remains represented with zero coverage counts and a null capacity value.
 - Sample ITIs and sample clusters are excluded.
-- ITIs without a cluster are included in the state aggregate and surfaced in `unassigned_itis`; they cannot be assigned to a cluster total without a source relationship.
+- ITIs without a cluster are included in the state aggregate and surfaced in `itis_without_reportable_cluster`; they cannot be assigned to a cluster total without a source relationship.
 - Reporting period, data-as-of timestamp, and source freshness remain explicitly untracked.
 
 This endpoint is additive; existing `/training` and `/training/itis/:id` payloads are unchanged. It does not calculate trainees trained, enrolled students, or official academic outcomes.
