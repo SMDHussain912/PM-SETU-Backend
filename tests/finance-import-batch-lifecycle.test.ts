@@ -59,7 +59,7 @@ test("preserves valid but unattempted rows during selective retry projection", (
         rejected: 0,
         results: [{ row_number: 3, outcome: "CREATED", record_id: 22 }],
     }));
-    assert.equal(result.lifecycle, "EXECUTED");
+    assert.equal(result.lifecycle, "PARTIALLY_EXECUTED");
     assert.deepEqual(result.rows.map((row) => row.outcome), ["VALID", "CREATED"]);
 });
 
