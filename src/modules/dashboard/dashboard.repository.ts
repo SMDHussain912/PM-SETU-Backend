@@ -265,7 +265,14 @@ export async function getTrainingCapacityState(): Promise<TrainingCapacityScope>
 }
 
 export async function getTrainingCapacityByCluster(): Promise<TrainingCapacityByCluster[]> {
-    return prisma.$queryRaw<TrainingCapacityByCluster[]>(
+    const rows = await prisma.$queryRaw<Array<{
+        cluster_id: number;
+        cluster_name: string;
+        student_capacity: number | null;
+        total_itis: number;
+        itis_with_capacity: number;
+        itis_without_capacity: number;
+    }>>(
         Prisma.sql`
             SELECT
                 c.id AS cluster_id,
@@ -280,6 +287,17 @@ export async function getTrainingCapacityByCluster(): Promise<TrainingCapacityBy
             GROUP BY c.id, c.name
             ORDER BY c.name`,
     );
+
+    return rows.map((row) => ({
+        cluster_id: row.cluster_id,
+        cluster_name: row.cluster_name,
+        student_capacity: row.student_capacity,
+        coverage: {
+            total_itis: row.total_itis,
+            itis_with_capacity: row.itis_with_capacity,
+            itis_without_capacity: row.itis_without_capacity,
+        },
+    }));
 }
 
 export async function getTrainingByIti(id: number): Promise<TrainingByIti | null> {
