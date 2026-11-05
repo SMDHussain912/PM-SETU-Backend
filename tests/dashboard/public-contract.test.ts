@@ -32,7 +32,7 @@ const dashboardContracts = [
     ["/dashboard/placements", "PlacementMetrics"],
 ] as const;
 
-test("public dashboard OpenAPI contract covers all six read-only endpoints", () => {
+test("public dashboard OpenAPI contract covers all seven read-only endpoints", () => {
     for (const [path, responseSchema] of dashboardContracts) {
         const pathItem = paths[path];
         assert.ok(pathItem, `missing OpenAPI path: ${path}`);
