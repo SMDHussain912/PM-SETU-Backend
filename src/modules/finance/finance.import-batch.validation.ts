@@ -35,7 +35,7 @@ export function validateFinanceImportBatchInput(input: CreateFinanceImportBatchI
         attempted !== 0) {
         throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
     }
-    if (input.lifecycle === "EXECUTED" && (rejected > 0 || input.invalid_rows > 0)) {
+    if (input.lifecycle === "EXECUTED" && (attempted === 0 || rejected > 0 || input.invalid_rows > 0)) {
         throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
     }
     if (input.lifecycle === "EXECUTED_WITH_REJECTIONS" && rejected === 0 && input.invalid_rows === 0) {
