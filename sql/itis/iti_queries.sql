@@ -99,3 +99,34 @@
 -- LEFT JOIN clusters ON clusters.id = itis.cluster_id
 -- WHERE itis.cluster_id = :clusterId
 -- ORDER BY itis.iti_name;
+
+
+-- ----------------------------------------------------------------------------
+-- 5) ADMIN MASTER-DATA WRITES
+--    Implemented in src/modules/itis/iti.repository.ts. All values are bound
+--    parameters. Each write and its audit_logs INSERT run in one transaction.
+-- ----------------------------------------------------------------------------
+-- INSERT INTO itis (
+--     iti_code, iti_name, type, district, cluster_id, address, principal,
+--     contact, email, existing_trades, proposed_trades, student_strength,
+--     infrastructure, lab_details, latitude, longitude, photos, status
+-- ) VALUES (
+--     :iti_code, :iti_name, :type, :district, :cluster_id, :address, :principal,
+--     :contact, :email, :existing_trades, :proposed_trades, :student_strength,
+--     :infrastructure, :lab_details, :latitude, :longitude, :photos, :status
+-- ) RETURNING id;
+--
+-- UPDATE itis SET <only supplied validated columns>
+-- WHERE id = :id RETURNING id;
+--
+-- DELETE FROM itis
+-- WHERE id = :id
+--   AND NOT EXISTS (SELECT 1 FROM iti_submissions WHERE iti_id = :id)
+--   AND NOT EXISTS (
+--       SELECT 1 FROM user_scope_assignments
+--       WHERE scope_type = 'ITI' AND scope_id = :id
+--   )
+-- RETURNING id;
+--
+-- A delete that returns no row after the service has confirmed the ITI exists
+-- is reported as HTTP 409 (ITI_IN_USE), preserving submissions and assignments.
