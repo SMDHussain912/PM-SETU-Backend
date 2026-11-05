@@ -160,9 +160,10 @@
 --         '/documents/' || documents.id AS url,
 --         jsonb_build_object('type', documents.type, 'issue_date', documents.issue_date) AS metadata
 --     FROM documents
---     WHERE documents.title ILIKE $q
+--     WHERE documents.publish_status = 'PUBLISHED'
+--         AND (documents.title ILIKE $q
 --         OR documents.document_number ILIKE $q
---         OR documents.keywords ILIKE $q
+--         OR documents.keywords ILIKE $q)
 --
 --     UNION ALL
 --
@@ -175,9 +176,10 @@
 --         '/news/' || news.id AS url,
 --         jsonb_build_object('published_date', news.published_date, 'category', news.category) AS metadata
 --     FROM news
---     WHERE news.title ILIKE $q
+--     WHERE news.is_published = TRUE
+--         AND (news.title ILIKE $q
 --         OR news.summary ILIKE $q
---         OR news.content ILIKE $q
+--         OR news.content ILIKE $q)
 -- ) AS search_results
 -- ORDER BY type, id
 -- LIMIT $pageSize OFFSET ($page - 1) * $pageSize;
