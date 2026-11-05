@@ -24,10 +24,6 @@ async function scope(actor: number, roles: string[]) {
 function auditSnapshot(item: { id: number; kpiCode: string; sourceSystem: string; sourceRecordId: string; clusterId: number | null; itiId: number | null; reviewStatus: string }) {
     return { id: item.id, kpiCode: item.kpiCode, sourceSystem: item.sourceSystem, sourceRecordId: item.sourceRecordId, clusterId: item.clusterId, itiId: item.itiId, reviewStatus: item.reviewStatus };
 }
-async function writeAudit(actor: number, action: string, item: Parameters<typeof auditSnapshot>[0], oldValue: unknown, newValue: unknown, context: { ipAddress?: string; userAgent?: string; path?: string }) {
-    const audit = await import("../audit/audit.service.js");
-    await audit.recordAuditEntry({ userId: String(actor), action, entity: "ACADEMIC_SOURCE_RECORD", entityId: item.id, oldValue, newValue, approvalStatus: item.reviewStatus, context: { userId: String(actor), ...context } });
-}
 export async function create(input: AcademicRecordInput, actor: number, context: { ipAddress?: string; userAgent?: string; path?: string }) {
     const user = actorId(actor);
     try {
