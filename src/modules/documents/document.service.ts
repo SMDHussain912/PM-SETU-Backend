@@ -41,7 +41,7 @@ export async function listDocuments(query: DocumentListQuery): Promise<DocumentL
 }
 
 export async function getDocumentById(id: number): Promise<Document> {
-    const document = await documentRepository.getDocumentById(id);
+    const document = await documentRepository.getPublishedDocumentById(id);
     if (!document) {
         throw new ApiError({
             statusCode: 404,
@@ -54,7 +54,7 @@ export async function getDocumentById(id: number): Promise<Document> {
 
 export async function getDocumentVersions(documentId: number): Promise<DocumentVersion[]> {
     // Verify the document exists first
-    const document = await documentRepository.getDocumentById(documentId);
+    const document = await documentRepository.getPublishedDocumentById(documentId);
     if (!document) {
         throw new ApiError({
             statusCode: 404,
@@ -66,7 +66,7 @@ export async function getDocumentVersions(documentId: number): Promise<DocumentV
 }
 
 export async function getDocumentFile(id: number): Promise<{ filePath: string; fileName: string }> {
-    const document = await documentRepository.getDocumentById(id);
+    const document = await documentRepository.getPublishedDocumentById(id);
     if (!document) {
         throw new ApiError({
             statusCode: 404,
