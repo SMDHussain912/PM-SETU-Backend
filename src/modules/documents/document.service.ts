@@ -3,6 +3,9 @@ import path from "node:path";
 import { buildPaginationMeta, type PaginationMeta } from "../../utils/pagination";
 import { ApiError } from "../../utils/response";
 import { ensureUploadDir } from "../../config/storage";
+import { prisma } from "../../config/database";
+import { recordAuditEntry } from "../audit/audit.service";
+import type { Prisma } from "../../generated/prisma/client";
 import type { CreateDocumentBody, DocumentListQuery, UpdateDocumentBody } from "./document.schema";
 import * as documentRepository from "./document.repository";
 import type { Document, DocumentVersion } from "./document.types";
@@ -13,6 +16,37 @@ import type { Document, DocumentVersion } from "./document.types";
  * Owns business rules (pagination composition, not-found handling, file
  * existence checks) and delegates all data access to the repository.
  */
+
+export interface DocumentAuditContext {
+    userId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    path?: string;
+}
+
+async function recordDocumentAudit(
+    tx: Prisma.TransactionClient,
+    document: Document,
+    action: string,
+    oldValue: Document | null,
+    context: DocumentAuditContext,
+): Promise<void> {
+    await recordAuditEntry({
+        userId: context.userId,
+        action,
+        entity: "DOCUMENT",
+        entityId: document.id,
+        oldValue: oldValue ? JSON.stringify(oldValue) : null,
+        newValue: JSON.stringify(document),
+        approvalStatus: document.publish_status,
+        context: {
+            userId: context.userId,
+            ipAddress: context.ipAddress,
+            userAgent: context.userAgent,
+            path: context.path,
+        },
+    }, tx);
+}
 
 export interface DocumentListResult {
     items: Document[];
@@ -111,59 +145,104 @@ function toDateOrNull(value: string | null | undefined): Date | null {
     return new Date(`${value}T00:00:00.000Z`);
 }
 
-export async function createDocument(body: CreateDocumentBody): Promise<Document> {
-    const id = await documentRepository.createDocument({
-        title: body.title ?? null,
-        document_number: body.document_number ?? null,
-        type: body.type ?? null,
-        department: body.department ?? null,
-        issue_date: body.issue_date ? toDateOrNull(body.issue_date) : null,
-        financial_year: body.financial_year ?? null,
-        cluster_id: body.cluster_id ?? null,
-        keywords: body.keywords ?? null,
-        language: body.language ?? null,
+export async function createDocument(body: CreateDocumentBody, context: DocumentAuditContext): Promise<Document> {
+    return prisma.$transaction(async (tx) => {
+        const id = await documentRepository.createDocument({
+            title: body.title ?? null,
+            document_number: body.document_number ?? null,
+            type: body.type ?? null,
+            department: body.department ?? null,
+            issue_date: body.issue_date ? toDateOrNull(body.issue_date) : null,
+            financial_year: body.financial_year ?? null,
+            cluster_id: body.cluster_id ?? null,
+            keywords: body.keywords ?? null,
+            language: body.language ?? null,
+        }, tx);
+        const created = await requireDocument(id, tx);
+        await recordDocumentAudit(tx, created, "CREATE", null, context);
+        return created;
     });
-    return requireDocument(id);
 }
 
-export async function updateDocument(id: number, body: UpdateDocumentBody): Promise<Document> {
-    await requireDocument(id);
-    await documentRepository.updateDocument(id, {
-        title: body.title,
-        document_number: body.document_number,
-        type: body.type,
-        department: body.department,
-        issue_date: body.issue_date !== undefined ? toDateOrNull(body.issue_date ?? undefined) : undefined,
-        financial_year: body.financial_year,
-        cluster_id: body.cluster_id,
-        keywords: body.keywords,
-        language: body.language,
-    });
-    return requireDocument(id);
-}
-
-export async function deleteDocument(id: number): Promise<void> {
-    await requireDocument(id);
-    await documentRepository.deleteDocument(id);
-}
-
-export async function publishDocument(id: number): Promise<Document> {
-    const document = await requireDocument(id);
-    if (document.publish_status === "ARCHIVED") {
+async function requireDocument(id: number, db: Prisma.TransactionClient = prisma): Promise<Document> {
+    const document = await documentRepository.getDocumentById(id, db);
+    if (!document) {
         throw new ApiError({
-            statusCode: 422,
-            code: "INVALID_TRANSITION",
-            message: "Archived documents cannot be published",
+            statusCode: 404,
+            code: "RECORD_NOT_FOUND",
+            message: "Document not found",
         });
     }
-    await documentRepository.publishDocument(id);
-    return requireDocument(id);
+    return document;
 }
 
-export async function archiveDocument(id: number): Promise<Document> {
-    await requireDocument(id);
-    await documentRepository.archiveDocument(id);
-    return requireDocument(id);
+export async function updateDocument(id: number, body: UpdateDocumentBody, context: DocumentAuditContext): Promise<Document> {
+    return prisma.$transaction(async (tx) => {
+        const previous = await requireDocument(id, tx);
+        await documentRepository.updateDocument(id, {
+            title: body.title,
+            document_number: body.document_number,
+            type: body.type,
+            department: body.department,
+            issue_date: body.issue_date !== undefined ? toDateOrNull(body.issue_date ?? undefined) : undefined,
+            financial_year: body.financial_year,
+            cluster_id: body.cluster_id,
+            keywords: body.keywords,
+            language: body.language,
+        }, tx);
+        const updated = await requireDocument(id, tx);
+        await recordDocumentAudit(tx, updated, "UPDATE", previous, context);
+        return updated;
+    });
+}
+
+export async function deleteDocument(id: number, context: DocumentAuditContext): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+        const previous = await requireDocument(id, tx);
+        await documentRepository.deleteDocument(id, tx);
+        await recordAuditEntry({
+            userId: context.userId,
+            action: "DELETE",
+            entity: "DOCUMENT",
+            entityId: id,
+            oldValue: JSON.stringify(previous),
+            newValue: null,
+            approvalStatus: previous.publish_status,
+            context: {
+                userId: context.userId,
+                ipAddress: context.ipAddress,
+                userAgent: context.userAgent,
+                path: context.path,
+            },
+        }, tx);
+    });
+}
+
+export async function publishDocument(id: number, context: DocumentAuditContext): Promise<Document> {
+    return prisma.$transaction(async (tx) => {
+        const previous = await requireDocument(id, tx);
+        if (previous.publish_status === "ARCHIVED") {
+            throw new ApiError({
+                statusCode: 422,
+                code: "INVALID_TRANSITION",
+                message: "Archived documents cannot be published",
+            });
+        }
+        await documentRepository.publishDocument(id, tx);
+        const updated = await requireDocument(id, tx);
+        await recordDocumentAudit(tx, updated, "PUBLISH", previous, context);
+        return updated;
+    });
+}
+
+export async function archiveDocument(id: number, context: DocumentAuditContext): Promise<Document> {
+    return prisma.$transaction(async (tx) => {
+        const previous = await requireDocument(id, tx);
+        await documentRepository.archiveDocument(id, tx);
+        const updated = await requireDocument(id, tx);
+        await recordDocumentAudit(tx, updated, "ARCHIVE", previous, context);
+        return updated;
+    });
 }
 
 export async function createDocumentVersion(id: number, createdBy: string | null): Promise<Document> {
