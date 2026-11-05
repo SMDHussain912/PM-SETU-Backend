@@ -4,7 +4,7 @@ import * as auditService from "../audit/audit.service";
 import { buildPaginationMeta } from "../../utils/pagination";
 import { ApiError } from "../../utils/response";
 import * as repository from "./industry-outcome.repository";
-import { toOutcomeAuditSnapshot } from "./industry-outcome.audit";
+import { toOutcomeAuditHistoryEntry, toOutcomeAuditSnapshot } from "./industry-outcome.audit";
 import { createOutcomeSchema, type CreateOutcomeBody, type OutcomeListQuery, type ReviewOutcomeBody } from "./industry-outcome.schema";
 
 function actorId(value: number): number {
@@ -34,6 +34,20 @@ export async function getOutcome(id: number) {
     const item = await repository.getOutcomeById(id);
     if (!item) throw new ApiError({ statusCode: 404, code: "RECORD_NOT_FOUND", message: "Industry outcome record not found" });
     return item;
+}
+
+export async function getOutcomeHistory(id: number, query: OutcomeHistoryQuery) {
+    await getOutcome(id);
+    const result = await auditService.listAuditLogs({
+        entity: "INDUSTRY_OUTCOME",
+        entity_id: id,
+        page: query.page,
+        pageSize: query.pageSize,
+    });
+    return {
+        items: result.items.map(toOutcomeAuditHistoryEntry),
+        meta: result.meta,
+    };
 }
 
 export async function createOutcome(body: CreateOutcomeBody, actor: number, context: AuditContext) {
