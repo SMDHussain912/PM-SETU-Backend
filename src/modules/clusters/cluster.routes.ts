@@ -1,24 +1,21 @@
 import { Router } from "express";
+import { requireAuth } from "../../middleware/auth.middleware";
+import { requireResourceScope } from "../../middleware/scope.middleware";
+import { requireRoles } from "../../middleware/rbac.middleware";
 import { validate } from "../../middleware/validate.middleware";
+import { ROLE_CODES } from "../roles/role.constants";
 import * as clusterController from "./cluster.controller";
-import { clusterIdParamsSchema, clusterListQuerySchema } from "./cluster.schema";
+import { clusterIdParamsSchema, clusterListQuerySchema, createClusterSchema, updateClusterSchema } from "./cluster.schema";
 
 const clusterRouter = Router();
-
-/**
- * Public cluster endpoints (RoadMap.md §6). Mounted under /api/v1/clusters by
- * src/routes/index.ts, where it coexists with the ITI module's
- * itiClusterRouter (GET /:clusterId/itis). There is no conflict: this router
- * only defines 0- and 1-segment paths ("/" and "/:id"), so the two-segment
- * "/:clusterId/itis" path always falls through to the ITI router.
- *
- * Only GET / and GET /:id are implemented so far (per current scope). The
- * remaining §6 routes (/:id/summary, /map, /:id/aip, /:id/spv, /:id/sip,
- * /:id/documents, /:id/gallery) are deferred to their own modules/endpoints.
- * Request validation is minimal: the list query string and the path param —
- * GET endpoints have no request body.
- */
 clusterRouter.get("/", validate({ query: clusterListQuerySchema }), clusterController.listClusters);
 clusterRouter.get("/:id", validate({ params: clusterIdParamsSchema }), clusterController.getClusterById);
 
+const clusterAdminRouter = Router();
+clusterAdminRouter.use(requireAuth);
+clusterAdminRouter.post("/", requireRoles(ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN), validate({ body: createClusterSchema }), clusterController.createCluster);
+clusterAdminRouter.patch("/:id", requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN), validate({ params: clusterIdParamsSchema, body: updateClusterSchema }), requireResourceScope("CLUSTER"), clusterController.updateCluster);
+clusterAdminRouter.delete("/:id", requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN), validate({ params: clusterIdParamsSchema }), requireResourceScope("CLUSTER"), clusterController.deleteCluster);
+
 export default clusterRouter;
+export { clusterAdminRouter };
