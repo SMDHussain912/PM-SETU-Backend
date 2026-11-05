@@ -169,3 +169,18 @@ Repository inspection confirms the following constraints:
 Added `sql/finance/finance_queries.sql` as a design-only SQL contract. It records the proposed logical entities for approved outlays, fund releases and expenditures; exact-decimal storage; source-key idempotency; scope attribution through the outlay relationship; read-query expectations; and required acceptance tests.
 
 This is intentionally NOT a deployable migration. The SQL is clearly marked proposed / TO CONFIRM because the official Finance/FMS schema, expenditure recognition basis, scope rules, correction policy and authorization matrix remain outstanding. No finance tables or write APIs were created by this milestone.
+
+
+## Prisma ledger foundation milestone (2026-11-05)
+
+Added three Prisma models and a matching PostgreSQL migration:
+
+- `FinanceApprovedOutlay` → `finance_approved_outlays`
+- `FinanceFundRelease` → `finance_fund_releases`
+- `FinanceExpenditure` → `finance_expenditures`
+
+The migration uses `DECIMAL(18,2)`, non-negative amount constraints, stable unique source-system/source-record keys, financial-year indexes, and restrictive foreign keys to preserve referenced financial records. Cluster and ITI scope is attached to the approved outlay; releases and expenditures inherit it through that relationship.
+
+This milestone creates storage only. No finance HTTP routes, permissions, seed data, official KPI calculations, or write operations have been enabled. The schema does not decide whether expenditure is booked, paid, or certified; `recognition_basis` is captured as source metadata and cannot be treated as an accepted-expenditure filter without Finance approval.
+
+Before deployment, run Prisma validation/client generation and the full project verification suite. Before production writes, Finance must approve source ownership, correction/reversal policy, scope rules, and the authorization matrix.
