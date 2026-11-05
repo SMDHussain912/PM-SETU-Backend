@@ -47,7 +47,9 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
   }
   const latest = await repo.listRuns(source.id, 1);
   const previous = latest[0];
-  const cursor = previous?.status === "PARTIAL" ? previous.cursor : null;
+  // Preserve the last committed cursor across failed runs so transient adapter
+  // failures do not restart a large source from its beginning.
+  const cursor = previous?.cursor ?? null;
   let page: Awaited<ReturnType<typeof adapter.fetchPage>> | undefined;
   let lastError: unknown;
   for (let attempt = 1; attempt <= 4; attempt++) {
@@ -55,8 +57,10 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
     catch (error) { lastError = error; if (attempt < 4) await delay(Math.min(1000 * (2 ** (attempt - 1)), 8000)); }
   }
   if (!page) {
-    const message = lastError instanceof Error ? lastError.message : "Unknown adapter error";
-    return repo.createRun({ sourceId: source.id, status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: message.slice(0, 1000), startedAt, completedAt: new Date() });
+    // Do not persist upstream exception text: providers sometimes include URLs,
+    // response fragments, or credentials in error messages.
+    void lastError;
+    return repo.createRun({ sourceId: source.id, status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: "Adapter request failed after four attempts", startedAt, completedAt: new Date() });
   }
   if (!Array.isArray(page.records) || page.records.length > 500 || typeof page.hasMore !== "boolean" || (page.hasMore && !page.nextCursor)) throw new ApiError({ statusCode: 502, code: "ADAPTER_RESPONSE_INVALID", message: "Adapter returned an invalid page or missing continuation cursor" });
   if (page.records.length === 0) return repo.createRun({ sourceId: source.id, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: page.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
