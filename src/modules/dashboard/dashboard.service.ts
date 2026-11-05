@@ -8,6 +8,7 @@ import type {
     PlacementMetrics,
     StateMetrics,
     TrainingMetrics,
+    TrainingCapacityReporting,
 } from "./dashboard.types";
 
 /**
@@ -81,6 +82,31 @@ export async function getFinanceMetrics(): Promise<FinanceMetrics> {
             expenditure: null,
             utilisation_percentage: null,
             balance: null,
+        },
+    };
+}
+
+export async function getTrainingCapacityReporting(): Promise<TrainingCapacityReporting> {
+    const [state, byCluster] = await Promise.all([
+        dashboardRepository.getTrainingCapacityState(),
+        dashboardRepository.getTrainingCapacityByCluster(),
+    ]);
+
+    return {
+        scope: "STATE",
+        metric: {
+            metric_id: "academic.student_capacity",
+            classification: "CAPACITY",
+            unit: "COUNT",
+            availability: state.student_capacity === null ? "NOT_AVAILABLE" : "AVAILABLE",
+            value: state.student_capacity,
+        },
+        coverage: state.coverage,
+        by_cluster: byCluster,
+        reporting_context: {
+            data_as_of: null,
+            reporting_period: null,
+            source_freshness: "NOT_TRACKED",
         },
     };
 }
