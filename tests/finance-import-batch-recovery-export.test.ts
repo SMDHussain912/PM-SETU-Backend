@@ -37,3 +37,35 @@ test("serializer rejects invalid runtime input", () => {
         message: "INVALID_FINANCE_IMPORT_RECOVERY_REPORT",
     });
 });
+
+
+test("validator rejects inconsistent recovery identity and duplicate row/evidence references", () => {
+    const report = reportFixture();
+    assert.equal(validateFinanceImportRecoveryReport({ ...report, batch_id: null }), false);
+    assert.equal(validateFinanceImportRecoveryReport({
+        ...report,
+        affected_row_numbers: [5, 5],
+    }), false);
+    assert.equal(validateFinanceImportRecoveryReport({
+        ...report,
+        evidence_checklist: [...report.evidence_checklist, report.evidence_checklist[0]],
+    }), false);
+    assert.equal(validateFinanceImportRecoveryReport({
+        ...report,
+        evidence_checklist: [{ ...report.evidence_checklist[0], evidence_key: " " }],
+    }), false);
+});
+
+test("validator requires missing-metadata cases to have a null batch identifier", () => {
+    const recovery = buildFinanceImportRecoveryCase({
+        status: "METADATA_MISSING", batch_id: null,
+        differences: ["EXECUTION_METADATA_NOT_PERSISTED"],
+        automatic_retry_allowed: false,
+    });
+    const report = buildFinanceImportRecoveryReport(
+        recovery,
+        buildFinanceImportRecoveryEvidenceChecklist(recovery),
+    );
+    assert.equal(validateFinanceImportRecoveryReport(report), true);
+    assert.equal(validateFinanceImportRecoveryReport({ ...report, batch_id: 42 }), false);
+});
