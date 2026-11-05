@@ -245,3 +245,12 @@ The report remains an internal service and is not exposed through the public das
 Added a bounded, pure CSV parser for preparing finance source imports. It supports quoted fields, commas and escaped quotes, CRLF/LF line endings, UTF-8 BOM removal, required-header checks, duplicate/empty-header rejection, row/column consistency checks, and configurable byte/row limits. It rejects malformed quoting and NUL characters and preserves source row numbers for actionable validation feedback.
 
 This is a parsing utility only. It does not map untrusted CSV strings into Prisma decimals/dates, persist finance records, overwrite existing source identities, or establish an import endpoint. Record-kind-specific mapping, row-level domain validation, import batch persistence, authorization and audit semantics remain separate implementation gates. The parser is covered by focused tests.
+
+
+## Finance CSV mapping and preview milestone (2026-11-05)
+
+Added record-kind-specific CSV mapping for approved outlays, fund releases and expenditure. The mapper checks required columns and values, non-negative fixed-scale decimal strings (up to two fractional digits), real ISO calendar dates, positive safe integer linkage IDs, and duplicate source identities within the same file. Valid rows retain source row numbers and normalized string values; invalid rows receive field-level error codes/messages.
+
+Added a non-persistent preview orchestrator that combines bounded CSV parsing and row mapping. It reports total, valid and invalid row counts, row-level diagnostics, and file-level parse failures. Its `accepted_for_review` flag means only that the file passed structural validation; it is not an accounting approval, authorization to post, or proof of source authority.
+
+No import batch tables, finance write endpoint, automatic persistence, source-system authority, or correction workflow were introduced. Cross-record checks against existing database IDs and final decimal/date conversion remain for a separately authorized import execution stage.
