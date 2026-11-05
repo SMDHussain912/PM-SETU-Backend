@@ -48,9 +48,11 @@ test("capacity aggregation preserves unavailable values and reports source cover
             unassigned_itis: 1,
         });
         assert.equal(clusters[0]?.student_capacity, null);
-        assert.equal(clusters[0]?.total_itis, 2);
-        assert.equal(clusters[0]?.itis_with_capacity, 0);
-        assert.equal(clusters[0]?.itis_without_capacity, 2);
+        assert.deepEqual(clusters[0]?.coverage, {
+            total_itis: 2,
+            itis_with_capacity: 0,
+            itis_without_capacity: 2,
+        });
 
         assert.equal(statements.length, 2);
         for (const statement of statements) {
