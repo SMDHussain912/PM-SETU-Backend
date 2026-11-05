@@ -208,3 +208,19 @@ Added an internal read repository and service for approved outlays, fund release
 The read layer returns source records and pagination metadata only. It does not aggregate financial amounts, classify expenditure as accepted, or calculate utilisation/balance. It is not mounted as an HTTP route and does not introduce finance permissions. Query validation is covered by focused unit tests for required financial year, pagination bounds, scope identifiers, project references and as-of dates.
 
 The read layer remains subject to local typecheck/test/build verification after pulling. Production exposure still requires the approved Finance authorization matrix and source-system policy.
+
+
+## Reconciliation diagnostics milestone (2026-11-05)
+
+Added an internal read-only reconciliation service that scans scoped finance records for review conditions:
+- Release financial year differs from its linked approved outlay.
+- Release date precedes the linked sanction date.
+- Expenditure financial year differs from its linked outlay or release.
+- Expenditure date precedes the linked sanction or linked release date.
+- The ITI's current cluster assignment differs from the cluster attributed to the outlay.
+
+Findings are warnings only. They do not mutate records, block ingestion, or assert that a source record is legally or financially invalid. The ITI check uses the current registry assignment and may not represent historical assignment at sanction time. Financial-year/date discrepancies are surfaced for owner review because official accounting and year-boundary rules remain to be confirmed.
+
+The service reports scan counts and findings, not monetary totals. It does not classify expenditure as accepted and does not calculate FIN-01 through FIN-05. Focused unit tests cover clean records, chronology/year warnings, current ITI-cluster mismatch, and the deliberate absence of financial arithmetic.
+
+No HTTP route or finance permission was added. Run the full local validation/typecheck/test/build suite after pulling before treating this milestone as verified.
