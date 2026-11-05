@@ -254,3 +254,10 @@ Added record-kind-specific CSV mapping for approved outlays, fund releases and e
 Added a non-persistent preview orchestrator that combines bounded CSV parsing and row mapping. It reports total, valid and invalid row counts, row-level diagnostics, and file-level parse failures. Its `accepted_for_review` flag means only that the file passed structural validation; it is not an accounting approval, authorization to post, or proof of source authority.
 
 No import batch tables, finance write endpoint, automatic persistence, source-system authority, or correction workflow were introduced. Cross-record checks against existing database IDs and final decimal/date conversion remain for a separately authorized import execution stage.
+
+
+## Internal CSV execution coordinator (2026-11-05)
+
+Added an internal coordinator that consumes a validated CSV preview, converts row strings into typed finance ingestion inputs, and dispatches rows through explicitly injected persistence handlers. It returns per-row CREATED, DUPLICATE or REJECTED outcomes with source row numbers and record IDs where available. Invalid preview rows are not dispatched.
+
+Execution is sequential and each handler owns its transaction. Earlier successful rows are not rolled back when a later row fails; the result explicitly reports that partial commit is possible. This is not an HTTP endpoint and does not grant permissions or create a batch table. Structural validation is not Finance approval. Operational exposure remains blocked on Finance approval of source ownership, access control and audit policy, including the acceptable batch transaction model.
