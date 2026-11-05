@@ -241,6 +241,9 @@ export async function getTrainingCapacityState(): Promise<TrainingCapacityScope>
         itis_with_capacity: number;
         itis_without_capacity: number;
         itis_without_reportable_cluster: number;
+        student_capacity_without_reportable_cluster: number | null;
+        unassigned_itis_with_capacity: number;
+        unassigned_itis_without_capacity: number;
     }>>(
         Prisma.sql`
             SELECT
@@ -248,7 +251,10 @@ export async function getTrainingCapacityState(): Promise<TrainingCapacityScope>
                 COUNT(*)::int AS total_itis,
                 COUNT(student_strength)::int AS itis_with_capacity,
                 COUNT(*) FILTER (WHERE student_strength IS NULL)::int AS itis_without_capacity,
-                COUNT(*) FILTER (WHERE c.id IS NULL)::int AS itis_without_reportable_cluster
+                COUNT(*) FILTER (WHERE c.id IS NULL)::int AS itis_without_reportable_cluster,
+                SUM(student_strength) FILTER (WHERE c.id IS NULL)::int AS student_capacity_without_reportable_cluster,
+                COUNT(student_strength) FILTER (WHERE c.id IS NULL)::int AS unassigned_itis_with_capacity,
+                COUNT(*) FILTER (WHERE c.id IS NULL AND student_strength IS NULL)::int AS unassigned_itis_without_capacity
             FROM itis i
             LEFT JOIN clusters c ON c.id = i.cluster_id AND c.is_sample = FALSE
             WHERE i.is_sample = FALSE`,
@@ -261,6 +267,15 @@ export async function getTrainingCapacityState(): Promise<TrainingCapacityScope>
             itis_with_capacity: row?.itis_with_capacity ?? 0,
             itis_without_capacity: row?.itis_without_capacity ?? 0,
             itis_without_reportable_cluster: row?.itis_without_reportable_cluster ?? 0,
+        },
+        without_reportable_cluster: {
+            student_capacity: row?.student_capacity_without_reportable_cluster ?? null,
+            coverage: {
+                total_itis: row?.itis_without_reportable_cluster ?? 0,
+                itis_with_capacity: row?.unassigned_itis_with_capacity ?? 0,
+                itis_without_capacity: row?.unassigned_itis_without_capacity ?? 0,
+                itis_without_reportable_cluster: row?.itis_without_reportable_cluster ?? 0,
+            },
         },
     };
 }
