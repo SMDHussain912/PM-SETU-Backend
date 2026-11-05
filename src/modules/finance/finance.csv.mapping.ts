@@ -35,7 +35,7 @@ const schemas: Record<FinanceCsvRecordKind, {
     },
 };
 
-const decimalPattern = /^(?:0|[1-9]\\d{0,15})(?:\\.\\d{1,2})?$/;
+const decimalPattern = /^(?:0|[1-9]\d{0,15})(?:\.\d{1,2})?$/;
 const positiveIntegerPattern = /^[1-9]\d*$/;
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
