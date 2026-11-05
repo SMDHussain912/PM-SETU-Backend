@@ -21,6 +21,31 @@ export const outcomeListQuerySchema = paginationQuerySchema.extend({
     source_system: z.string().trim().min(1).max(100).optional(),
 });
 
+const MAX_OUTCOME_PAYLOAD_BYTES = 16 * 1024;
+const MAX_OUTCOME_PAYLOAD_DEPTH = 8;
+
+function isJsonValue(value: unknown, depth = 0): boolean {
+    if (depth > MAX_OUTCOME_PAYLOAD_DEPTH) return false;
+    if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+    if (typeof value === "number") return Number.isFinite(value);
+    if (Array.isArray(value)) return value.every((item) => isJsonValue(item, depth + 1));
+    if (typeof value === "object") {
+        return Object.values(value as Record<string, unknown>).every((item) => isJsonValue(item, depth + 1));
+    }
+    return false;
+}
+
+export const outcomePayloadSchema = z.record(z.string(), z.unknown()).superRefine((value, ctx) => {
+    if (!isJsonValue(value)) {
+        ctx.addIssue({ code: "custom", message: "payload must contain JSON-compatible values with a maximum nesting depth of 8" });
+        return;
+    }
+    const serialized = JSON.stringify(value);
+    if (new TextEncoder().encode(serialized).byteLength > MAX_OUTCOME_PAYLOAD_BYTES) {
+        ctx.addIssue({ code: "custom", message: "payload must not exceed 16 KB when serialized" });
+    }
+});
+
 export const createOutcomeSchema = z.object({
     outcome_type: z.enum(outcomeTypes),
     source_system: z.string().trim().min(1).max(100),
@@ -31,7 +56,7 @@ export const createOutcomeSchema = z.object({
     participant_ref: z.string().trim().min(1).max(200).nullable().optional(),
     event_date: z.coerce.date().nullable().optional(),
     evidence_ref: z.string().trim().min(1).max(2048).nullable().optional(),
-    payload: z.record(z.string(), z.unknown()).optional(),
+    payload: outcomePayloadSchema.optional(),
 }).strict().refine((v) => !v.iti_id || !!v.cluster_id, {
     message: "cluster_id is required when iti_id is supplied",
     path: ["cluster_id"],
