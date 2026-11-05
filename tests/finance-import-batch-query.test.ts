@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ApiError } from "../src/utils/response";
-import { validateFinanceImportBatchQuery, type FinanceImportBatchQuery } from "../src/modules/finance/finance.import-batch.query";
+import { validateFinanceImportBatchQuery, validateFinanceImportBatchRowsQuery, type FinanceImportBatchQuery } from "../src/modules/finance/finance.import-batch.query";
 
 const valid: FinanceImportBatchQuery = { page: 1, page_size: 25 };
 
@@ -41,4 +41,12 @@ test("rejects invalid and reversed date ranges", () => {
         created_from: new Date("2026-12-01T00:00:00.000Z"),
         created_to: new Date("2026-01-01T00:00:00.000Z"),
     }), "INVALID_BATCH_DATE_RANGE");
+});
+
+
+test("validates bounded pagination for batch row diagnostics", () => {
+    assert.doesNotThrow(() => validateFinanceImportBatchRowsQuery({ batch_id: 5, page: 1, page_size: 50 }));
+    expectError(() => validateFinanceImportBatchRowsQuery({ batch_id: 0, page: 1, page_size: 50 }), "INVALID_BATCH_ID");
+    expectError(() => validateFinanceImportBatchRowsQuery({ batch_id: 5, page: 0, page_size: 50 }), "INVALID_PAGE");
+    expectError(() => validateFinanceImportBatchRowsQuery({ batch_id: 5, page: 1, page_size: 101 }), "INVALID_PAGE_SIZE");
 });
