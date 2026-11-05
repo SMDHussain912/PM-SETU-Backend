@@ -181,7 +181,7 @@ The repository/schema audit is documented in `docs/phase-6/FINANCE_IMPORT_BATCH_
 
 #### Implemented — import-attempt idempotency
 
-The batch repository now requires a caller-generated UUID `idempotency_key`. It uses PostgreSQL conflict-safe insertion and reads the canonical batch by that key. Concurrent/repeated submissions using the same key converge on one batch; only the winning transaction persists row diagnostics. Reusing a key with a different record kind or file hash fails with `FINANCE_IMPORT_IDEMPOTENCY_KEY_CONFLICT`. The file hash remains non-unique so deliberate re-imports are allowed.
+The batch repository now requires a caller-generated UUID `idempotency_key`. It uses PostgreSQL conflict-safe insertion and reads the canonical batch by that key. Concurrent/repeated submissions using the same key converge on one batch; only the winning transaction persists row diagnostics. Reusing a key with any changed immutable request content (record kind, file hash, lifecycle, counters, actor/completion metadata, or row diagnostics) fails with `FINANCE_IMPORT_IDEMPOTENCY_KEY_CONFLICT`. The file hash remains non-unique so deliberate re-imports are allowed.
 
 Schema/migration: `FinanceImportBatch.idempotencyKey` is unique; existing rows receive distinct backfilled UUIDs. The preview projection and persistence contract carry the key. Callers must generate it once per user-initiated attempt, retain it across transport retries, and generate a new one for deliberate re-imports.
 
@@ -308,6 +308,7 @@ Completion evidence should include:
 
 | Date | Phase | Milestone | Evidence / note |
 |---|---|---|---|
+| 2026-11-06 | 6 | Bound finance import idempotency keys to the complete immutable request, not only file hash and record kind | Commits `386e1a12`, `16bc2690`, and `02597409`. Identical retries return the canonical batch; altered metadata or row diagnostics now conflict. User verification required. |
 | 2026-11-06 | 6 | Enforced canonical evidence checklist semantics in recovery report JSON validation | Commits `4c80b7c2`, `1546d398`, and `f9ca6d49`. User verification required. |
 | 2026-11-06 | 6 | Tightened recovery report export validation for status/batch consistency, duplicate references, and required evidence fields | Commits `6dba3d6f`, `f497bb28`, `fa593deb`, and `a22217f2`. User verification required. |
 | 2026-11-06 | 6 | Added row-scoped discrepancy codes for duplicate and invalid row positions, allowing recovery cases to identify affected rows | Commits `ffdde680`, `6a0b7620`, `b35a1d8d`, and `8a65c646`. User verification required. |
