@@ -155,3 +155,21 @@
 -- 11. PLACEMENTS
 --   No source table established. Endpoint returns an informative message.
 --   Future data contract: total_placements, placement_rate, by_cluster (TO CONFIRM).
+
+--
+-- 12. TRAINING CAPACITY BY ITI
+--
+-- The API returns the raw student_strength value. NULL remains NULL and is
+-- represented as NOT_AVAILABLE; do not COALESCE it to zero at this grain.
+-- Sample ITIs are excluded. Reporting period and source freshness are not
+-- available from this registry source.
+--
+-- SELECT
+--     i.id AS iti_id, i.iti_code, i.iti_name, i.type, i.district,
+--     i.cluster_id,
+--     c.name AS cluster_name,
+--     i.student_strength AS student_capacity
+-- FROM itis i
+-- LEFT JOIN clusters c ON c.id = i.cluster_id AND c.is_sample = FALSE
+-- WHERE i.id = ${id} AND i.is_sample = FALSE
+-- LIMIT 1;
