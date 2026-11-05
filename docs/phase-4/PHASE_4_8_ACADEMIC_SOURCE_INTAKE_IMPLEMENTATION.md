@@ -16,6 +16,7 @@
   - `POST /:id/review` — accept or reject a source record.
 - Added source-level idempotency, ITI/cluster relationship validation, audit entries, bounded payload validation and direct-personal-identifier key rejection.
 - Added organisation scope filtering for Cluster Admin and Hub/Spoke ITI users. Statewide administrators retain global read access.
+- Scoped Cluster/ITI readers receive operational metadata only; raw payload, pseudonymous subject token and review notes are restricted to statewide/authorised administrative readers.
 - Added schema/access unit tests and OpenAPI descriptions.
 
 ## Important semantic boundary
