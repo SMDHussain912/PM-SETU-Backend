@@ -224,3 +224,17 @@ Findings are warnings only. They do not mutate records, block ingestion, or asse
 The service reports scan counts and findings, not monetary totals. It does not classify expenditure as accepted and does not calculate FIN-01 through FIN-05. Focused unit tests cover clean records, chronology/year warnings, current ITI-cluster mismatch, and the deliberate absence of financial arithmetic.
 
 No HTTP route or finance permission was added. Run the full local validation/typecheck/test/build suite after pulling before treating this milestone as verified.
+
+
+## Reconciliation reporting milestone (2026-11-05)
+
+Extended the internal read-only reconciliation service with an operational report projection:
+
+- Warning counts grouped by reconciliation code and source record type.
+- Stable finding identifiers derived from warning code, source record type, source record ID and related record ID.
+- Paginated finding drill-down. Summary counts cover the full scoped scan; pagination applies only to the finding list.
+- CSV export for the current page of warning metadata, with CSV quoting and spreadsheet-formula prefix neutralization.
+
+The export intentionally excludes monetary amounts and full ledger payloads. Findings remain warnings, not confirmed accounting errors. No review acknowledgement, approval status, write route, permission grant, or reviewer identity has been introduced. Those workflows remain blocked on Finance/DET approval of ownership, authorization and audit policy.
+
+The report remains an internal service and is not exposed through the public dashboard. It does not calculate financial KPIs or change ingestion behaviour. Run the full local validation, typecheck, test and build suite after pulling this milestone.
