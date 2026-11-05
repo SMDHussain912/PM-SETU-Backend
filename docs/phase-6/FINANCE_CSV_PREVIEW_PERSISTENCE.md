@@ -32,3 +32,14 @@ The internal `persistFinanceCsvPreview` workflow converts a parsed finance CSV p
 - Reusing a key with the same file hash and record kind but changed counters, lifecycle, actor/completion metadata, or row diagnostics is rejected. A file hash identifies file bytes, not the complete import attempt.
 - Existing batches are backfilled with distinct UUIDs by the migration; no historical records are merged.
 - The API/workflow caller must persist the key and the complete request projection across retries. Generating a fresh UUID for every HTTP retry defeats idempotency.
+
+
+## Execution lifecycle semantics
+
+Execution lifecycle labels distinguish completion from row-level rejection:
+- `EXECUTED`: every structurally valid preview row was attempted and none were rejected; the preview contains no structurally invalid rows.
+- `EXECUTED_WITH_REJECTIONS`: every structurally valid row was attempted, but the preview contained invalid rows or execution rejected one or more rows.
+- `PARTIALLY_EXECUTED`: at least one valid row was attempted and at least one valid row remains unattempted, with no invalid preview rows or rejected execution rows.
+- `PARTIALLY_EXECUTED_WITH_REJECTIONS`: at least one valid row remains unattempted and the preview or execution also contains rejection evidence.
+
+A selective retry must not be labelled fully executed while valid rows remain unattempted. Database lifecycle vocabulary is expanded by migration `20261106140000_finance_partial_execution_lifecycle`. These labels describe technical import progress only, not financial approval or posting.
