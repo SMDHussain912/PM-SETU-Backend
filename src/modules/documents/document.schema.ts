@@ -45,10 +45,59 @@ export type DocumentIdParams = z.infer<typeof documentIdParamsSchema>;
 export type DocumentListQuery = z.infer<typeof documentListQuerySchema>;
 
 /**
+ * File metadata is accepted only as one complete tuple. The path is merely a
+ * reference to a file previously stored by this server; the service resolves
+ * and verifies it against the configured documents upload directory.
+ */
+const documentFileMetadataSchema = z.object({
+    file_path: z.string().trim().min(1).max(2000).nullable().optional(),
+    file_size: z.coerce.number().int().positive().nullable().optional(),
+    mime_type: z.string().trim().min(1).max(100).nullable().optional(),
+    original_name: z.string().trim().min(1).max(255).nullable().optional(),
+});
+
+function validateFileMetadata(
+    value: z.infer<typeof documentFileMetadataSchema>,
+    context: z.RefinementCtx,
+): void {
+    const supplied = [
+        value.file_path,
+        value.file_size,
+        value.mime_type,
+        value.original_name,
+    ].filter((field) => field !== undefined && field !== null);
+
+    if (supplied.length === 0) return;
+
+    if (value.file_path === null) {
+        if (supplied.length !== 1) {
+            context.addIssue({
+                code: "custom",
+                path: ["file_path"],
+                message: "Clearing a document file requires file_path: null without other file metadata",
+            });
+        }
+        return;
+    }
+
+    if (
+        !value.file_path ||
+        value.file_size === undefined ||
+        value.file_size === null ||
+        !value.mime_type ||
+        !value.original_name
+    ) {
+        context.addIssue({
+            code: "custom",
+            path: ["file_path"],
+            message: "file_path, file_size, mime_type and original_name must be supplied together",
+        });
+    }
+}
+
+/**
  * Admin write validation (RoadMap §12 admin + §24 upload metadata).
- * All fields are optional-nullable (TO CONFIRM — mirrors the public Document
- * shape where every field except id is nullable). No enum vocabularies are
- * invented for type/department/publish_status.
+ * No enum vocabularies are invented for type/department/publish_status.
  */
 export const createDocumentSchema = z.object({
     title: z.string().trim().min(1).max(500).nullish(),
@@ -60,16 +109,10 @@ export const createDocumentSchema = z.object({
     cluster_id: z.coerce.number().int().positive().nullish(),
     keywords: z.string().trim().max(500).nullish(),
     language: z.string().trim().max(20).nullish(),
-    // File metadata — bound after a row-less POST /admin/documents/upload
-    // returns its stored-file metadata (INFERRED / TO CONFIRM).
-    file_path: z.string().trim().max(2000).nullish(),
-    file_size: z.coerce.number().int().min(0).nullish(),
-    mime_type: z.string().trim().max(100).nullish(),
-    original_name: z.string().trim().max(255).nullish(),
-});
+    ...documentFileMetadataSchema.shape,
+}).superRefine(validateFileMetadata);
 
 export const updateDocumentSchema = createDocumentSchema;
 
 export type CreateDocumentBody = z.infer<typeof createDocumentSchema>;
 export type UpdateDocumentBody = z.infer<typeof updateDocumentSchema>;
-
