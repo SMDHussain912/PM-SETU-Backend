@@ -11,9 +11,9 @@ async function tick(): Promise<void> {
     for (const source of due) {
       try { await runScheduledSource(source); }
       catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown adapter error";
-        logger.error("Scheduled integration sync failed", { sourceCode: source.code, message });
-        await repo.createRun({ sourceId: source.id, status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: null, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: message.slice(0,1000), startedAt: new Date(), completedAt: new Date() });
+        logger.error("Scheduled integration sync failed", { sourceCode: source.code });
+        const latest = await repo.listRuns(source.id, 1);
+        await repo.createRun({ sourceId: source.id, status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: latest[0]?.cursor ?? null, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: "Scheduled adapter execution failed; inspect protected application logs", startedAt: new Date(), completedAt: new Date() });
       }
     }
   } catch (error) { logger.error("Integration scheduler tick failed", error); }
