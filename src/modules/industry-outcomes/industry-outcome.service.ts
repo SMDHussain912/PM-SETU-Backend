@@ -5,6 +5,7 @@ import { buildPaginationMeta } from "../../utils/pagination";
 import { ApiError } from "../../utils/response";
 import * as repository from "./industry-outcome.repository";
 import { toOutcomeAuditHistoryEntry, toOutcomeAuditSnapshot } from "./industry-outcome.audit";
+import { buildOutcomeScopeWhere } from "./industry-outcome.access";
 import { createOutcomeSchema, type CreateOutcomeBody, type OutcomeHistoryQuery, type OutcomeListQuery, type ReviewOutcomeBody } from "./industry-outcome.schema";
 
 function actorId(value: number): number {
@@ -25,19 +26,30 @@ async function audit(tx: Prisma.TransactionClient, userId: number, action: strin
     }, tx);
 }
 
-export async function listOutcomes(query: OutcomeListQuery) {
-    const { items, total } = await repository.listOutcomes(query);
+async function outcomeScope(userId: number, roles: string[]) {
+    if (buildOutcomeScopeWhere(roles, []) === undefined) return undefined;
+    const assignments = await prisma.userScopeAssignment.findMany({
+        where: { userId, scopeType: { in: ["CLUSTER", "ITI"] } },
+        select: { scopeType: true, scopeId: true },
+    });
+    return buildOutcomeScopeWhere(roles, assignments);
+}
+
+export async function listOutcomes(query: OutcomeListQuery, actor: number, roles: string[]) {
+    const scopeWhere = await outcomeScope(actorId(actor), roles);
+    const { items, total } = await repository.listOutcomes(query, scopeWhere);
     return { items, meta: buildPaginationMeta(total, query.page, query.pageSize) };
 }
 
-export async function getOutcome(id: number) {
-    const item = await repository.getOutcomeById(id);
+export async function getOutcome(id: number, actor: number, roles: string[]) {
+    const scopeWhere = await outcomeScope(actorId(actor), roles);
+    const item = await repository.getOutcomeById(id, scopeWhere);
     if (!item) throw new ApiError({ statusCode: 404, code: "RECORD_NOT_FOUND", message: "Industry outcome record not found" });
     return item;
 }
 
-export async function getOutcomeHistory(id: number, query: OutcomeHistoryQuery) {
-    await getOutcome(id);
+export async function getOutcomeHistory(id: number, query: OutcomeHistoryQuery, actor: number, roles: string[]) {
+    await getOutcome(id, actor, roles);
     const result = await auditService.listAuditLogs({
         entity: "INDUSTRY_OUTCOME",
         entity_id: id,
@@ -97,8 +109,9 @@ export async function reviewOutcome(id: number, body: ReviewOutcomeBody, actor: 
     });
 }
 
-export async function getOutcomeSummary() {
-    return repository.getOutcomeSummary();
+export async function getOutcomeSummary(actor: number, roles: string[]) {
+    const scopeWhere = await outcomeScope(actorId(actor), roles);
+    return repository.getOutcomeSummary(scopeWhere);
 }
 
 
