@@ -27,6 +27,7 @@ export interface FinanceImportBatchRowInput {
 export interface CreateFinanceImportBatchInput {
     record_kind: "OUTLAY" | "RELEASE" | "EXPENDITURE";
     file_sha256: string;
+    idempotency_key: string;
     lifecycle: FinanceImportBatchLifecycle;
     total_rows: number;
     valid_rows: number;
@@ -54,6 +55,9 @@ function assertNonNegativeInteger(value: number, field: string): void {
  */
 export async function createFinanceImportBatch(input: CreateFinanceImportBatchInput) {
     if (!/^[a-f0-9]{64}$/i.test(input.file_sha256)) throw new Error("INVALID_FILE_SHA256");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.idempotency_key)) {
+        throw new Error("INVALID_FINANCE_IMPORT_IDEMPOTENCY_KEY");
+    }
     validateFinanceImportBatchInput(input);
     for (const [field, value] of Object.entries({
         total_rows: input.total_rows,
@@ -82,8 +86,9 @@ export async function createFinanceImportBatch(input: CreateFinanceImportBatchIn
     }
 
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const batch = await tx.financeImportBatch.create({
-            data: {
+        const inserted = await tx.financeImportBatch.createMany({
+            data: [{
+                idempotencyKey: input.idempotency_key.toLowerCase(),
                 recordKind: input.record_kind,
                 fileSha256: input.file_sha256.toLowerCase(),
                 lifecycle: input.lifecycle,
@@ -96,8 +101,22 @@ export async function createFinanceImportBatch(input: CreateFinanceImportBatchIn
                 rejectedRows: input.rejected_rows ?? 0,
                 createdBy: input.created_by ?? null,
                 completedAt: input.completed_at ?? null,
-            },
+            }],
+            skipDuplicates: true,
         });
+
+        const batch = await tx.financeImportBatch.findUnique({
+            where: { idempotencyKey: input.idempotency_key.toLowerCase() },
+        });
+        if (!batch) throw new Error("FINANCE_IMPORT_BATCH_INSERT_NOT_CONFIRMED");
+
+        if (inserted.count === 0) {
+            if (batch.recordKind !== input.record_kind ||
+                batch.fileSha256 !== input.file_sha256.toLowerCase()) {
+                throw new Error("FINANCE_IMPORT_IDEMPOTENCY_KEY_CONFLICT");
+            }
+            return batch;
+        }
 
         if (input.rows.length > 0) {
             await tx.financeImportBatchRow.createMany({
@@ -113,5 +132,5 @@ export async function createFinanceImportBatch(input: CreateFinanceImportBatchIn
         }
 
         return batch;
-    });
+    });;
 }
