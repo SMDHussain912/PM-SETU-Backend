@@ -138,6 +138,18 @@ async function requireDocument(id: number, db: Prisma.TransactionClient = prisma
     return document;
 }
 
+async function getLockedDocument(id: number, tx: Prisma.TransactionClient): Promise<Document> {
+    const document = await documentRepository.getDocumentByIdForUpdate(id, tx);
+    if (!document) {
+        throw new ApiError({
+            statusCode: 404,
+            code: "RECORD_NOT_FOUND",
+            message: "Document not found",
+        });
+    }
+    return document;
+}
+
 function toDateOrNull(value: string | null | undefined): Date | null {
     if (value === undefined || value === null) {
         return null;
@@ -166,7 +178,7 @@ export async function createDocument(body: CreateDocumentBody, context: Document
 
 export async function updateDocument(id: number, body: UpdateDocumentBody, context: DocumentAuditContext): Promise<Document> {
     return prisma.$transaction(async (tx) => {
-        const previous = await requireDocument(id, tx);
+        const previous = await getLockedDocument(id, tx);
         await documentRepository.updateDocument(id, {
             title: body.title,
             document_number: body.document_number,
