@@ -128,3 +128,36 @@ export interface TrainingMetrics {
 export interface PlacementMetrics {
     message: string;
 }
+
+
+export type DashboardMetricAvailability =
+    | "AVAILABLE"
+    | "PARTIAL"
+    | "NOT_AVAILABLE"
+    | "SOURCE_NOT_CONNECTED"
+    | "DEFINITION_PENDING";
+
+export interface DashboardMetricContract {
+    metric_id: string;
+    label: string;
+    classification: string;
+    unit: "COUNT" | "CURRENCY_AMOUNT" | "PERCENTAGE";
+    source: string | null;
+    availability: DashboardMetricAvailability;
+    aggregation_levels: Array<"STATE" | "CLUSTER" | "ITI" | "PROJECT">;
+    notes: string;
+    official_kpi_code: "FIN-01" | "FIN-02" | "FIN-03" | "FIN-04" | "FIN-05" | null;
+}
+
+export interface DashboardContractResponse {
+    contract_version: "1.0.0";
+    generated_at: string;
+    reporting_context: {
+        /** Null means source data does not currently publish an as-of timestamp. */
+        data_as_of: string | null;
+        /** Null means a reporting period has not been configured for this catalogue. */
+        reporting_period: null;
+        source_freshness: "NOT_TRACKED";
+    };
+    metrics: DashboardMetricContract[];
+}
