@@ -4,7 +4,7 @@ export function list(filters: { enabled?: boolean; system?: string }) {
   return prisma.integrationSource.findMany({ where: { ...(filters.enabled === undefined ? {} : { enabled: filters.enabled }), ...(filters.system ? { system: filters.system } : {}) }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, createdAt: true, updatedAt: true } });
 }
 export function create(input: IntegrationSourceInput) {
-  return prisma.integrationSource.create({ data: { code: input.code, name: input.name, system: input.system, transport: input.transport, enabled: input.enabled, credentialRef: input.credential_ref ?? null, syncIntervalSeconds: input.sync_interval_seconds ?? null, nextSyncAt: input.enabled && input.sync_interval_seconds ? new Date() : null }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, createdAt: true, updatedAt: true } });
+  return prisma.integrationSource.create({ data: { code: input.code, name: input.name, system: input.system, transport: input.transport, enabled: input.enabled, credentialRef: input.credential_ref ?? null, syncIntervalSeconds: input.sync_interval_seconds ?? null, nextSyncAt: input.enabled && input.sync_interval_seconds ? new Date() : null }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, createdAt: true, updatedAt: true } });
 }
 export function get(id: number) { return prisma.integrationSource.findUnique({ where: { id } }); }
 export function updateEnabled(id: number, enabled: boolean) {
