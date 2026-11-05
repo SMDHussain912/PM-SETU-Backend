@@ -1208,6 +1208,90 @@ export const openApiSpec = {
                 },
             },
         },
+        "/admin/spvs": {
+            post: {
+                tags: ["SPV"],
+                summary: "Create an SPV master record",
+                description: "Creates an SPV using the minimal registry contract (name, status, cluster_id, aip_id). Restricted to STATE_PMU_ADMIN and SUPER_ADMIN. The write and audit entry commit in one transaction.",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                additionalProperties: false,
+                                required: ["name", "status"],
+                                properties: {
+                                    name: { type: "string", minLength: 1, maxLength: 200 },
+                                    status: { type: "string", minLength: 1, maxLength: 100, description: "Lifecycle state; examples in RoadMap §9 are non-exhaustive." },
+                                    cluster_id: { type: "integer", minimum: 1, nullable: true },
+                                    aip_id: { type: "integer", minimum: 1, nullable: true },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "201": { description: "SPV created" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role" },
+                    "422": { description: "Validation failed" },
+                    "500": { description: "Database or audit failure" },
+                },
+            },
+        },
+        "/admin/spvs/{id}": {
+            patch: {
+                tags: ["SPV"],
+                summary: "Update SPV master data",
+                description: "Updates supplied SPV registry fields. Restricted to CLUSTER_ADMIN, STATE_PMU_ADMIN and SUPER_ADMIN. Cluster admins require SPV or parent-cluster scope and cannot change cluster_id or aip_id. The write and audit entry commit in one transaction.",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                minProperties: 1,
+                                additionalProperties: false,
+                                properties: {
+                                    name: { type: "string", minLength: 1, maxLength: 200 },
+                                    status: { type: "string", minLength: 1, maxLength: 100 },
+                                    cluster_id: { type: "integer", minimum: 1, nullable: true },
+                                    aip_id: { type: "integer", minimum: 1, nullable: true },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "200": { description: "SPV updated" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role or SPV scope" },
+                    "404": { description: "SPV not found" },
+                    "422": { description: "Validation failed" },
+                    "500": { description: "Database or audit failure" },
+                },
+            },
+            delete: {
+                tags: ["SPV"],
+                summary: "Delete an SPV",
+                description: "Deletes an SPV only when no activity records, submissions or explicit SPV scope assignments reference it. Restricted to CLUSTER_ADMIN, STATE_PMU_ADMIN and SUPER_ADMIN; cluster admins require matching SPV or parent-cluster scope.",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                responses: {
+                    "200": { description: "SPV deleted" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role or SPV scope" },
+                    "404": { description: "SPV not found" },
+                    "409": { description: "SPV is still referenced by activity, submissions or user scope assignments" },
+                    "422": { description: "Validation failed" },
+                    "500": { description: "Database or audit failure" },
+                },
+            },
+        },
         "/spvs": {
             get: {
                 tags: ["SPV"],
