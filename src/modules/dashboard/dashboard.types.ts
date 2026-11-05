@@ -113,7 +113,7 @@ export interface TrainingCapacityCoverage {
     total_itis: number;
     itis_with_capacity: number;
     itis_without_capacity: number;
-    unassigned_itis?: number;
+    itis_without_reportable_cluster?: number;
 }
 
 export interface TrainingCapacityScope {
