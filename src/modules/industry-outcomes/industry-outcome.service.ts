@@ -15,6 +15,42 @@ function actorId(value: number): number {
 
 type AuditContext = { ipAddress?: string; userAgent?: string; path?: string };
 
+type OutcomeAuditSnapshot = {
+    id: number;
+    outcomeType: string;
+    sourceSystem: string;
+    sourceRecordId: string | null;
+    clusterId: number | null;
+    itiId: number | null;
+    employerName: string | null;
+    eventDate: Date | null;
+    reviewStatus: string;
+};
+
+export function toOutcomeAuditSnapshot(record: {
+    id: number;
+    outcomeType: string;
+    sourceSystem: string;
+    sourceRecordId: string | null;
+    clusterId: number | null;
+    itiId: number | null;
+    employerName: string | null;
+    eventDate: Date | null;
+    reviewStatus: string;
+}): OutcomeAuditSnapshot {
+    return {
+        id: record.id,
+        outcomeType: record.outcomeType,
+        sourceSystem: record.sourceSystem,
+        sourceRecordId: record.sourceRecordId,
+        clusterId: record.clusterId,
+        itiId: record.itiId,
+        employerName: record.employerName,
+        eventDate: record.eventDate,
+        reviewStatus: record.reviewStatus,
+    };
+}
+
 async function audit(tx: Prisma.TransactionClient, userId: number, action: string, id: number, oldValue: unknown, newValue: unknown, context: AuditContext) {
     await auditService.recordAuditEntry({
         userId: String(userId), action, entity: "INDUSTRY_OUTCOME", entityId: id,
@@ -45,7 +81,7 @@ export async function createOutcome(body: CreateOutcomeBody, actor: number, cont
             if ("mismatch" in result) {
                 throw new ApiError({ statusCode: 422, code: "ITI_CLUSTER_MISMATCH", message: "The ITI does not belong to the supplied cluster" });
             }
-            await audit(tx, userId, "CREATE", result.item.id, null, result.item, context);
+            await audit(tx, userId, "CREATE", result.item.id, null, toOutcomeAuditSnapshot(result.item), context);
             return result.item;
         });
     } catch (error) {
@@ -76,7 +112,7 @@ export async function reviewOutcome(id: number, body: ReviewOutcomeBody, actor: 
         if (!updated) {
             throw new ApiError({ statusCode: 409, code: "OUTCOME_ALREADY_REVIEWED", message: "The record was reviewed by another request" });
         }
-        await audit(tx, userId, "REVIEW", id, previous, updated, context);
+        await audit(tx, userId, "REVIEW", id, toOutcomeAuditSnapshot(previous), toOutcomeAuditSnapshot(updated!), context);
         return updated;
     });
 }
@@ -121,7 +157,7 @@ export async function importOutcomeBatch(body: { records: unknown[] }, actor: nu
                 if ("mismatch" in result) {
                     throw new ApiError({ statusCode: 422, code: "ITI_CLUSTER_MISMATCH", message: "The ITI does not belong to the supplied cluster" });
                 }
-                await audit(tx, userId, "IMPORT_CREATE", result.item.id, null, result.item, context);
+                await audit(tx, userId, "IMPORT_CREATE", result.item.id, null, toOutcomeAuditSnapshot(result.item), context);
                 return result.item;
             });
             created.push({ index, id: item.id });
