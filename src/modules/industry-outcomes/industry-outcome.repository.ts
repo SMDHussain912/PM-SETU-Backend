@@ -9,6 +9,12 @@ export async function listOutcomes(query: OutcomeListQuery) {
         ...(query.cluster_id ? { clusterId: query.cluster_id } : {}),
         ...(query.iti_id ? { itiId: query.iti_id } : {}),
         ...(query.source_system ? { sourceSystem: query.source_system } : {}),
+        ...(query.event_date_from || query.event_date_to ? {
+            eventDate: {
+                ...(query.event_date_from ? { gte: new Date(query.event_date_from + "T00:00:00.000Z") } : {}),
+                ...(query.event_date_to ? { lt: new Date(new Date(query.event_date_to + "T00:00:00.000Z").getTime() + 86_400_000) } : {}),
+            },
+        } : {}),
     };
     const [items, total] = await Promise.all([
         prisma.industryOutcomeRecord.findMany({
