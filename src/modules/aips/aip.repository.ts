@@ -1,23 +1,14 @@
 import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/database";
 import type { Aip, AipListFilters } from "./aip.types";
+import type { CreateAipBody, UpdateAipBody } from "./aip.schema";
 
 /**
  * AIP module — database access layer.
  *
- * The statements below mirror `sql/aips/aip_queries.sql`, the DBA-maintained
- * copy of the queries. If a query changes, update BOTH files (the .sql file
- * is the canonical reference for the database developer). All user input is
- * passed through tagged-template interpolation, which Prisma sends as bound
- * parameters — never string-concatenate values into these queries, and never
- * use $queryRawUnsafe.
- *
- * ⚠ STATUS (full details in sql/aips/aip_queries.sql):
- *   The PM SETU tables do not exist yet — prisma/schema.prisma has no models
- *   and there are no migrations. Until the database developer creates the
- *   real schema, these queries fail at runtime and the endpoints return a
- *   500 error envelope. That is intentional: AIP data must come from the
- *   database, never from hard-coded or fake records.
+ * Queries mirror sql/aips/aip_queries.sql. All user-supplied values are bound
+ * through Prisma SQL fragments; identifiers are selected only from this
+ * explicit allow-list.
  */
 
 /**
@@ -34,7 +25,7 @@ interface AipRow {
     sector: string;
     status: string;
     investment_amount: number | null;
-    academic_partner: string | null;
+    academic_partner: boolean;
     contact: string | null;
     website: string | null;
 }
@@ -49,7 +40,7 @@ const AIP_SELECT = Prisma.sql`
         clusters.name            AS cluster_name,
         aips.sector              AS sector,
         aips.status              AS status,
-        aips.investment_amount   AS investment_amount,
+        aips.investment_amount::double precision AS investment_amount,
         aips.academic_partner    AS academic_partner,
         aips.contact             AS contact,
         aips.website             AS website
@@ -68,7 +59,7 @@ function mapAipRow(row: AipRow): Aip {
                 : { id: row.cluster_id, name: row.cluster_name ?? "" },
         sector: row.sector,
         status: row.status,
-        investment_amount: row.investment_amount,
+        investment_amount: row.investment_amount === null ? null : Number(row.investment_amount),
         academic_partner: row.academic_partner,
         contact: row.contact,
         website: row.website,
@@ -121,4 +112,78 @@ export async function getAipById(id: number): Promise<Aip | null> {
         ${AIP_SELECT}
         WHERE aips.id = ${id}`;
     return rows[0] ? mapAipRow(rows[0]) : null;
+}
+
+
+/** Load a single AIP using the same database shape as public reads. */
+export async function getAipByIdForTransaction(
+    id: number,
+    db: Prisma.TransactionClient,
+): Promise<Aip | null> {
+    const rows = await db.$queryRaw<AipRow[]>(Prisma.sql`
+        ${AIP_SELECT}
+        WHERE aips.id = ${id}`);
+    return rows[0] ? mapAipRow(rows[0]) : null;
+}
+
+/** Create an AIP registry record within the caller's transaction. */
+export async function createAip(input: CreateAipBody, tx: Prisma.TransactionClient): Promise<Aip> {
+    const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+        INSERT INTO aips (
+            name, logo_url, cluster_id, sector, status, investment_amount,
+            academic_partner, contact, website
+        ) VALUES (
+            ${input.name}, ${input.logo_url ?? null}, ${input.cluster_id ?? null},
+            ${input.sector}, ${input.status}, ${input.investment_amount ?? null},
+            ${input.academic_partner ?? false}, ${input.contact ?? null}, ${input.website ?? null}
+        )
+        RETURNING id`);
+    const item = await getAipByIdForTransaction(rows[0].id, tx);
+    if (!item) throw new Error("Created AIP could not be reloaded");
+    return item;
+}
+
+/** Update only the supplied, validated AIP master-data fields. */
+export async function updateAip(
+    id: number,
+    input: UpdateAipBody,
+    tx: Prisma.TransactionClient,
+): Promise<Aip | null> {
+    const updates: Prisma.Sql[] = [];
+    if (input.name !== undefined) updates.push(Prisma.sql`name = ${input.name}`);
+    if (input.logo_url !== undefined) updates.push(Prisma.sql`logo_url = ${input.logo_url}`);
+    if (input.cluster_id !== undefined) updates.push(Prisma.sql`cluster_id = ${input.cluster_id}`);
+    if (input.sector !== undefined) updates.push(Prisma.sql`sector = ${input.sector}`);
+    if (input.status !== undefined) updates.push(Prisma.sql`status = ${input.status}`);
+    if (input.investment_amount !== undefined) updates.push(Prisma.sql`investment_amount = ${input.investment_amount}`);
+    if (input.academic_partner !== undefined) updates.push(Prisma.sql`academic_partner = ${input.academic_partner}`);
+    if (input.contact !== undefined) updates.push(Prisma.sql`contact = ${input.contact}`);
+    if (input.website !== undefined) updates.push(Prisma.sql`website = ${input.website}`);
+
+    if (updates.length === 0) return getAipByIdForTransaction(id, tx);
+    const changed = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+        UPDATE aips SET ${Prisma.join(updates, ", ")}
+        WHERE id = ${id}
+        RETURNING id`);
+    return changed[0] ? getAipByIdForTransaction(id, tx) : null;
+}
+
+/**
+ * Delete atomically only when no SPV, SIP, AIP activity, submission or
+ * explicit AIP user-scope assignment depends on this registry record.
+ */
+export async function deleteAipIfUnreferenced(id: number, tx: Prisma.TransactionClient): Promise<boolean> {
+    const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+        DELETE FROM aips
+        WHERE id = ${id}
+          AND NOT EXISTS (SELECT 1 FROM spvs WHERE aip_id = ${id})
+          AND NOT EXISTS (SELECT 1 FROM sips WHERE aip_id = ${id})
+          AND NOT EXISTS (SELECT 1 FROM aip_activity_records WHERE aip_id = ${id})
+          AND NOT EXISTS (SELECT 1 FROM aip_submissions WHERE aip_id = ${id})
+          AND NOT EXISTS (
+              SELECT 1 FROM user_scope_assignments
+              WHERE scope_type = 'AIP' AND scope_id = ${id}
+          )
+        RETURNING id`);
+    return rows.length > 0;
 }
