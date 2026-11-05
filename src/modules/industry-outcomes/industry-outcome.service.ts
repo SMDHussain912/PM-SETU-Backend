@@ -65,3 +65,7 @@ export async function reviewOutcome(id: number, body: ReviewOutcomeBody, actor: 
         return updated;
     });
 }
+
+export async function getOutcomeSummary() {
+    return repository.getOutcomeSummary();
+}
