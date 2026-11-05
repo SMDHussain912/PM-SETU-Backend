@@ -20,6 +20,7 @@ test("reports missing required columns before mapping any row", () => {
     const result = mapFinanceCsvRows(parsed, "OUTLAY");
     assert.equal(result.valid_rows.length, 0);
     assert.ok(result.errors.some((error) => error.code === "REQUIRED_HEADER_MISSING" && error.field === "sanction_date"));
+    assert.ok(result.errors.some((error) => error.row_number === 2 && error.code === "ROW_UNMAPPABLE_REQUIRED_HEADERS"));
 });
 
 test("rejects malformed amounts, impossible dates and unsafe IDs", () => {
