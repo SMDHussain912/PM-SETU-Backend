@@ -85,6 +85,33 @@ export async function getFinanceMetrics(): Promise<FinanceMetrics> {
     };
 }
 
+export async function getTrainingByIti(id: number) {
+    const iti = await dashboardRepository.getTrainingByIti(id);
+    if (!iti) {
+        throw new ApiError({
+            statusCode: 404,
+            code: "RECORD_NOT_FOUND",
+            message: "ITI not found",
+        });
+    }
+    return {
+        scope: "ITI" as const,
+        metric: {
+            metric_id: "academic.student_capacity",
+            classification: "CAPACITY",
+            unit: "COUNT" as const,
+            availability: iti.student_capacity === null ? "NOT_AVAILABLE" as const : "AVAILABLE" as const,
+            value: iti.student_capacity,
+        },
+        reporting_context: {
+            data_as_of: null,
+            reporting_period: null,
+            source_freshness: "NOT_TRACKED" as const,
+        },
+        iti,
+    };
+}
+
 export async function getTrainingMetrics(): Promise<TrainingMetrics> {
     const training = await dashboardRepository.getTrainingMetrics();
     const byCluster = await dashboardRepository.getTrainingByCluster();
