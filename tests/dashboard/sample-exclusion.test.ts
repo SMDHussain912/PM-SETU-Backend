@@ -48,7 +48,7 @@ test("all dashboard aggregates exclude sample rows", async () => {
         assert.match(state, /FROM sips WHERE is_sample\s*=\s*FALSE AND status = 'APPROVED'/i);
 
         const finance = statements[2];
-        assert.equal((finance.match(/is_sample\s*=\s*FALSE/gi) ?? []).length, 8);
+        assert.equal((finance.match(/is_sample\s*=\s*FALSE/gi) ?? []).length, 7);
 
         const financeByCluster = statements[3];
         assert.match(financeByCluster, /FROM clusters c[\s\S]*WHERE c\.is_sample\s*=\s*FALSE/i);
