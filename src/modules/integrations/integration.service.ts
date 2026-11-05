@@ -23,3 +23,10 @@ export async function runs(id: number) {
   if (!await repo.get(id)) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
   return repo.listRuns(id);
 }
+
+export async function ingest(id: number, records: import("./integration.schema").IntegrationIngestInput["records"]) {
+  const source = await repo.get(id);
+  if (!source) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
+  if (!source.enabled) throw new ApiError({ statusCode: 409, code: "INTEGRATION_DISABLED", message: "Integration source is disabled" });
+  return repo.ingestBatch(id, records);
+}
