@@ -13,6 +13,7 @@
 - Adapter fetches receive four total attempts with bounded exponential delays (1s, 2s, 4s). Failures are recorded in the run ledger.
 
 ## Inbound adapters
+- `PATCH /api/v1/admin/integrations/:id/schedule` configures or disables a source schedule (`sync_interval_seconds`, or `null`).
 - `POST /api/v1/admin/integrations/:id/csv` accepts authenticated admin CSV uploads.
 - CSV content type must be `text/csv` or `application/csv`; maximum body size is 1 MB and maximum batch size is 500.
 - CSV headers must be exactly `source_record_id,source_version,occurred_at,payload_json`.
