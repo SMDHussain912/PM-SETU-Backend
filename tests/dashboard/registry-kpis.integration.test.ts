@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Pool } from "pg";
+import { env } from "../../src/config/env";
 import { prisma, disconnectPrisma } from "../../src/config/database";
 import {
     getClusterAips,
@@ -9,7 +10,26 @@ import {
     getClusterSummaries,
 } from "../../src/modules/dashboard/dashboard.repository";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ connectionString: env.databaseUrl });
+let setupComplete = false;
+
+function assertDedicatedTestDatabase(): void {
+    assert.equal(env.nodeEnv, "test", "integration tests must run with NODE_ENV=test");
+    assert.ok(env.databaseUrl, "TEST_DATABASE_URL must be configured for integration tests");
+
+    let databaseName: string;
+    try {
+        databaseName = decodeURIComponent(new URL(env.databaseUrl).pathname.slice(1));
+    } catch {
+        throw new Error("TEST_DATABASE_URL must be a valid PostgreSQL connection URL");
+    }
+
+    assert.match(
+        databaseName,
+        /(?:^|[-_])test$/i,
+        "refusing to run destructive fixtures: database name must end in -test or _test",
+    );
+}
 
 let clusterId: number;
 let sampleClusterId: number;
@@ -81,13 +101,18 @@ test.before(async () => {
 });
 
 test.after(async () => {
-    const ids = (values: Array<number | undefined>) => values.filter((value): value is number => value !== undefined);
-    await pool.query("DELETE FROM spvs WHERE id = ANY($1::int[])", [ids([spvId, sampleSpvId])]);
-    await pool.query("DELETE FROM aips WHERE id = ANY($1::int[])", [ids([aipId, sampleAipId])]);
-    await pool.query("DELETE FROM itis WHERE id = ANY($1::int[])", [ids([itiId, inactiveItiId, sampleItiId])]);
-    await pool.query("DELETE FROM clusters WHERE id = ANY($1::int[])", [ids([clusterId, sampleClusterId])]);
-    await disconnectPrisma();
-    await pool.end();
+    try {
+        if (setupComplete) {
+            const ids = (values: Array<number | undefined>) => values.filter((value): value is number => value !== undefined);
+            await pool.query("DELETE FROM spvs WHERE id = ANY($1::int[])", [ids([spvId, sampleSpvId])]);
+            await pool.query("DELETE FROM aips WHERE id = ANY($1::int[])", [ids([aipId, sampleAipId])]);
+            await pool.query("DELETE FROM itis WHERE id = ANY($1::int[])", [ids([itiId, inactiveItiId, sampleItiId])]);
+            await pool.query("DELETE FROM clusters WHERE id = ANY($1::int[])", [ids([clusterId, sampleClusterId])]);
+        }
+    } finally {
+        await disconnectPrisma();
+        await pool.end();
+    }
 });
 
 test("REG-01 to REG-05 cluster aggregation excludes sample rows and does not invent an active filter", async () => {
