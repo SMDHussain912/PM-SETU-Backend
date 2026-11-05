@@ -8,6 +8,7 @@ export async function list(req: Request, res: Response) { actor(req); const { qu
 export async function create(req: Request, res: Response) { actor(req); const { body } = getValidated<IntegrationSourceInput>(res); return sendCreated(res, await service.create(body)); }
 export async function enable(req: Request, res: Response) { actor(req); const { params, body } = getValidated<{ enabled: boolean }, unknown, { id: number }>(res); return sendSuccess(res, await service.setEnabled(params.id, body.enabled)); }
 export async function runs(req: Request, res: Response) { actor(req); const { params } = getValidated<unknown, unknown, { id: number }>(res); return sendSuccess(res, await service.runs(params.id)); }
+export async function schedule(req: Request, res: Response) { actor(req); const { params, body } = getValidated<{ sync_interval_seconds: number | null }, unknown, { id: number }>(res); return sendSuccess(res, await service.setSchedule(params.id, body.sync_interval_seconds)); }
 
 export async function ingest(req: Request, res: Response) { actor(req); const { params, body } = getValidated<import("./integration.schema").IntegrationIngestInput, unknown, { id: number }>(res); return sendSuccess(res, await service.ingest(params.id, body.records)); }
 
