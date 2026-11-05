@@ -2621,20 +2621,37 @@ export const openApiSpec = {
         "/admin/academic-records/import": {
             post: {
                 tags: ["Academic Source Intake"],
-                summary: "Import source-referenced academic records",
-                description: "Accepts 1–200 source records across ACD-01 to ACD-05. Each record requires a stable source_system + source_record_id. Payloads are capped at 16 KB and reject common direct personal identifiers. Imports are idempotent and rows remain PENDING until reviewed. Acceptance means source-record review only; it does not establish an official KPI definition or verified KPI total.",
+                summary: "Import academic source records",
+                description: "Imports 1–200 source-referenced records for ACD-01 through ACD-05. Records remain pending review. Intake counts are not official KPI totals.",
                 security: [{ bearerAuth: [] }],
-                requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["records"], properties: { records: { type: "array", minItems: 1, maxItems: 200, items: { type: "object" } } } } } },
-                responses: { "200": { description: "Per-row import results" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" } },
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                required: ["records"],
+                                properties: {
+                                    records: { type: "array", minItems: 1, maxItems: 200, items: { type: "object" } },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "200": { description: "Per-row import results" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role" },
+                },
             },
         },
         "/admin/academic-records/summary": {
             get: {
                 tags: ["Academic Source Intake"],
-                summary: "Academic source intake workflow counts",
-                description: "Counts pending, accepted-source and rejected records by documented academic KPI code. These are operational intake counts, not official academic KPI totals.",
+                summary: "Academic source intake counts",
+                description: "Operational pending, accepted-source and rejected counts by KPI code; not official KPI totals.",
                 security: [{ bearerAuth: [] }],
-                responses: { "200": { description: "Intake counts grouped by ACD-01 through ACD-05" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" } },
+                responses: { "200": { description: "Intake workflow counts" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" } },
             },
         },
         "/admin/academic-records": {
@@ -2643,30 +2660,83 @@ export const openApiSpec = {
                 summary: "List academic source records",
                 security: [{ bearerAuth: [] }],
                 parameters: [
-                    { name: "kpi_code", in: "query", schema: { type: "string", enum: ["ACD-01","ACD-02","ACD-03","ACD-04","ACD-05"] } },
-                    { name: "review_status", in: "query", schema: { type: "string", enum: ["PENDING","ACCEPTED","REJECTED"] } },
+                    { name: "kpi_code", in: "query", schema: { type: "string", enum: ["ACD-01", "ACD-02", "ACD-03", "ACD-04", "ACD-05"] } },
+                    { name: "review_status", in: "query", schema: { type: "string", enum: ["PENDING", "ACCEPTED", "REJECTED"] } },
                     { name: "cluster_id", in: "query", schema: { type: "integer", minimum: 1 } },
                     { name: "iti_id", in: "query", schema: { type: "integer", minimum: 1 } },
                     { name: "source_system", in: "query", schema: { type: "string" } },
                     { name: "page", in: "query", schema: { type: "integer", minimum: 1 } },
                     { name: "pageSize", in: "query", schema: { type: "integer", minimum: 1, maximum: 100 } },
                 ],
-                responses: { "200": { description: "Paginated academic source records, restricted by organisation scope" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" } },
+                responses: { "200": { description: "Paginated records restricted by organisation scope" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" } },
             },
             post: {
                 tags: ["Academic Source Intake"],
                 summary: "Create an academic source record",
-                description: "Creates a PENDING source record. Does not calculate or certify an academic KPI.",
+                description: "Creates a pending source record; does not certify an academic KPI.",
                 security: [{ bearerAuth: [] }],
-                requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["kpi_code","source_system","source_record_id"], properties: { kpi_code: { type: "string", enum: ["ACD-01","ACD-02","ACD-03","ACD-04","ACD-05"] }, source_system: { type: "string" }, source_record_id: { type: "string" }, source_version: { type: "string", nullable: true }, cluster_id: { type: "integer", nullable: true }, iti_id: { type: "integer", nullable: true }, event_date: { type: "string", format: "date", nullable: true }, subject_token: { type: "string", nullable: true }, payload: { type: "object", description: "Maximum 16 KB; direct personal identifiers prohibited." } } } } },
-                responses: { "201": { description: "Created as PENDING" }, "409": { description: "Duplicate source record" }, "422": { description: "Invalid source data or organisation reference" } },
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                required: ["kpi_code", "source_system", "source_record_id"],
+                                properties: {
+                                    kpi_code: { type: "string", enum: ["ACD-01", "ACD-02", "ACD-03", "ACD-04", "ACD-05"] },
+                                    source_system: { type: "string" },
+                                    source_record_id: { type: "string" },
+                                    source_version: { type: "string", nullable: true },
+                                    cluster_id: { type: "integer", nullable: true },
+                                    iti_id: { type: "integer", nullable: true },
+                                    event_date: { type: "string", format: "date", nullable: true },
+                                    subject_token: { type: "string", nullable: true },
+                                    payload: { type: "object", description: "Maximum 16 KB; direct personal identifiers prohibited." },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    "201": { description: "Created as pending" },
+                    "409": { description: "Duplicate source record" },
+                    "422": { description: "Invalid source data or organisation reference" },
+                },
             },
         },
         "/admin/academic-records/{id}": {
-            get: { tags: ["Academic Source Intake"], summary: "Get an academic source record", security: [{ bearerAuth: [] }], parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }], responses: { "200": { description: "Academic source record" }, "404": { description: "Record not found in accessible scope" } } },
+            get: {
+                tags: ["Academic Source Intake"],
+                summary: "Get an academic source record",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                responses: { "200": { description: "Academic source record" }, "404": { description: "Record not found in accessible scope" } },
+            },
         },
         "/admin/academic-records/{id}/review": {
-            post: { tags: ["Academic Source Intake"], summary: "Accept or reject an academic source record", description: "Review concerns source-record validity only. ACCEPTED does not mean the record qualifies for an official KPI until the responsible authority's definitions are configured.", security: [{ bearerAuth: [] }], parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }], requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["review_status"], properties: { review_status: { type: "string", enum: ["ACCEPTED","REJECTED"] }, review_note: { type: "string", nullable: true } } } } } }, responses: { "200": { description: "Reviewed source record" }, "404": { description: "Record not found in accessible scope" }, "409": { description: "Record already reviewed" } } },
+            post: {
+                tags: ["Academic Source Intake"],
+                summary: "Accept or reject an academic source record",
+                description: "Acceptance confirms source-record review only, not official KPI qualification.",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                required: ["review_status"],
+                                properties: {
+                                    review_status: { type: "string", enum: ["ACCEPTED", "REJECTED"] },
+                                    review_note: { type: "string", nullable: true },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: { "200": { description: "Reviewed source record" }, "404": { description: "Record not found in accessible scope" }, "409": { description: "Record already reviewed" } },
+            },
         },
         "/admin/industry-outcomes/import": {
             post: {
