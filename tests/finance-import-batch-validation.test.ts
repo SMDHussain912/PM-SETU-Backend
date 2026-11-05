@@ -45,7 +45,7 @@ test("rejects mismatched attempt counters and row outcomes", () => {
     assert.throws(() => validateFinanceImportBatchInput({
         ...base,
         attempted_rows: 1,
-        created_rows: 1,
+        created_rows: 0,
     }), /ATTEMPT_COUNTERS_INCONSISTENT/);
     assert.throws(() => validateFinanceImportBatchInput({
         ...base,
