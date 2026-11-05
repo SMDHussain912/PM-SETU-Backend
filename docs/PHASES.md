@@ -382,3 +382,16 @@ Created `docs/phase-7/KPI_APPROVAL_REGISTER_AND_IMPLEMENTATION_BACKLOG.md` (comm
 - Preserves current safe reporting: registry counts, labelled AIP/SIP planning indicators, and ITI student capacity. Official physical, academic outcome, industry outcome, and finance KPIs remain gated.
 
 **Current active work:** Phase 7 is now in the decision/contract preparation stage. The next actionable task is to obtain or record actual source-owner/DET decisions for one KPI family. Until an approved source contract is available, do not invent metric formulas or add proxy dashboard values. The engineering team can prepare contract templates and acceptance fixtures, but must label them as drafts rather than approvals.
+
+
+### Phase 7 continuation — KPI decision and acceptance templates
+
+Created `docs/phase-7/KPI_DECISION_RECORD_AND_ACCEPTANCE_CRITERIA_TEMPLATE.md` (commit `8713f585af09ec2568fa541214753c6c830a4267`).
+
+- Added a reusable per-KPI decision record covering authority, definition, counting grain, numerator/denominator, source identity, hierarchy, reporting time, evidence, correction/restatement, privacy, visibility and sign-off.
+- Added 17 engineering acceptance criteria covering provenance, qualification, duplicates, corrections, scope, periods, null-vs-zero, sample isolation, reconciliation, evidence, access control, freshness, documentation, verification and operational acceptance.
+- Added domain supplements for physical, academic/training, industry/employment and finance KPIs.
+- Defined a release gate from recorded decision through approved contract, validated source, implementation acceptance, operational acceptance and publication.
+- The template is explicitly a draft. No KPI approval, source decision, API change or database change is implied.
+
+**Current active work:** Use the template to record the first real KPI decision only when the accountable source owner/DET supplies the decision and evidence. Until then, continue with evidence-based source investigation and contract preparation; do not fill unknown fields with assumptions.
