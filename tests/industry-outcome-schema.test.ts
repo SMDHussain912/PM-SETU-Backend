@@ -113,3 +113,33 @@ test("industry outcome audit history projection omits network metadata", () => {
     assert.equal("user_agent" in entry, false);
     assert.equal("path" in entry, false);
 });
+
+
+test("industry outcome history recursively redacts sensitive legacy audit fields", () => {
+    const entry = toOutcomeAuditHistoryEntry({
+        id: 5,
+        user_id: "12",
+        action: "UPDATE",
+        old_value: {
+            reviewStatus: "PENDING",
+            participantRef: "STUDENT-123",
+            evidence_ref: "private/evidence.pdf",
+            payload: { phone: "9999999999" },
+            nested: [{ participant_ref: "STUDENT-456", safe: "kept" }],
+        },
+        new_value: {
+            reviewStatus: "VERIFIED",
+            reviewNote: "contains sensitive context",
+            nested: { evidenceRef: "private/new.pdf", status: "checked" },
+        },
+        timestamp: "2026-11-05T12:00:00.000Z",
+    });
+    assert.deepEqual(entry.old_value, {
+        reviewStatus: "PENDING",
+        nested: [{ safe: "kept" }],
+    });
+    assert.deepEqual(entry.new_value, {
+        reviewStatus: "VERIFIED",
+        nested: { status: "checked" },
+    });
+});
