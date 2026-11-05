@@ -1,36 +1,40 @@
 import type { Request, Response } from "express";
 import { getValidated } from "../../middleware/validate.middleware";
-import { sendSuccess } from "../../utils/response";
-import type { ClusterIdParams, SpvIdParams, SpvListQuery } from "./spv.schema";
+import { ApiError, sendCreated, sendSuccess } from "../../utils/response";
+import type { ClusterIdParams, SpvIdParams, SpvListQuery, CreateSpvBody, UpdateSpvBody } from "./spv.schema";
 import * as spvService from "./spv.service";
 
-/**
- * SPV module — HTTP layer (RoadMap.md §9).
- *
- * Thin adapters only: read the validated request data, call the service and
- * shape the response with the shared success envelope. No SQL and no
- * business logic here. Express 5 forwards rejected async handlers to the
- * central error middleware (src/middleware/error.middleware.ts), so no
- * try/catch is needed.
- */
-
-/** GET /api/v1/spvs — paginated SPV list (no spec'd filters). */
+function getActorId(req: Request): number {
+    const id = Number(req.user?.id);
+    if (!Number.isSafeInteger(id) || id <= 0) throw new ApiError({ statusCode: 401, code: "UNAUTHENTICATED", message: "Authentication required" });
+    return id;
+}
+function getAuditContext(req: Request) {
+    return { ipAddress: req.ip, userAgent: req.get("user-agent") ?? undefined, path: req.originalUrl };
+}
 export async function listSpvs(_req: Request, res: Response): Promise<Response> {
     const { query } = getValidated<unknown, SpvListQuery>(res);
     const { items, meta } = await spvService.listSpvs(query);
     return sendSuccess(res, items, meta);
 }
-
-/** GET /api/v1/spvs/:id — single SPV (404 via service when absent). */
 export async function getSpvById(_req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, SpvIdParams>(res);
-    const spv = await spvService.getSpvById(params.id);
-    return sendSuccess(res, spv);
+    return sendSuccess(res, await spvService.getSpvById(params.id));
 }
-
-/** GET /api/v1/clusters/:clusterId/spv — SPVs of one cluster. */
 export async function listClusterSpvs(_req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, ClusterIdParams>(res);
-    const items = await spvService.listClusterSpvs(params.clusterId);
-    return sendSuccess(res, items);
+    return sendSuccess(res, await spvService.listClusterSpvs(params.clusterId));
+}
+export async function createSpv(req: Request, res: Response): Promise<Response> {
+    const { body } = getValidated<CreateSpvBody>(res);
+    return sendCreated(res, await spvService.createSpv(body, getActorId(req), getAuditContext(req)));
+}
+export async function updateSpv(req: Request, res: Response): Promise<Response> {
+    const { params, body } = getValidated<UpdateSpvBody, unknown, SpvIdParams>(res);
+    return sendSuccess(res, await spvService.updateSpv(params.id, body, getActorId(req), getAuditContext(req)));
+}
+export async function deleteSpv(req: Request, res: Response): Promise<Response> {
+    const { params } = getValidated<unknown, unknown, SpvIdParams>(res);
+    await spvService.deleteSpv(params.id, getActorId(req), getAuditContext(req));
+    return sendSuccess(res, { id: params.id });
 }
