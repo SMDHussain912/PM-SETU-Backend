@@ -71,6 +71,8 @@ Validation now rejects:
 - duplicate row numbers within one batch;
 - row numbers that are not safe integers or are before the first data row (row 2).
 
+The same review exposed a related preview edge case: when required CSV headers were missing, mapping stopped at the header errors and left data rows unclassified. The mapper now emits a row-level unmappable diagnostic for every data row, so preview projection can account for all rows as invalid rather than creating a batch whose total row count disagrees with its outcome counters. Regression coverage is in `tests/finance-csv-mapping.test.ts` and `tests/finance-import-batch-lifecycle.test.ts`.
+
 Regression coverage is in `tests/finance-import-batch-validation.test.ts`. This is import metadata integrity only; it does not change execution or accounting acceptance policy.
 
 ## 6. Review conclusions and limitations
