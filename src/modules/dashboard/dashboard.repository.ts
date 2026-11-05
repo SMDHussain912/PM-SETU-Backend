@@ -9,6 +9,8 @@ import type {
     StateMetrics,
     TrainingByCluster,
     TrainingByIti,
+    TrainingCapacityByCluster,
+    TrainingCapacityScope,
 } from "./dashboard.types";
 
 /**
@@ -230,6 +232,54 @@ export async function getTrainingMetrics(): Promise<TrainingRow> {
                 (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis WHERE is_sample = FALSE AND type = 'SPOKE') AS spoke_capacity`,
     );
     return rows[0];
+}
+
+export async function getTrainingCapacityState(): Promise<TrainingCapacityScope> {
+    const rows = await prisma.$queryRaw<Array<{
+        student_capacity: number | null;
+        total_itis: number;
+        itis_with_capacity: number;
+        itis_without_capacity: number;
+        unassigned_itis: number;
+    }>>(
+        Prisma.sql`
+            SELECT
+                SUM(student_strength)::int AS student_capacity,
+                COUNT(*)::int AS total_itis,
+                COUNT(student_strength)::int AS itis_with_capacity,
+                COUNT(*) FILTER (WHERE student_strength IS NULL)::int AS itis_without_capacity,
+                COUNT(*) FILTER (WHERE cluster_id IS NULL)::int AS unassigned_itis
+            FROM itis
+            WHERE is_sample = FALSE`,
+    );
+    const row = rows[0];
+    return {
+        student_capacity: row?.student_capacity ?? null,
+        coverage: {
+            total_itis: row?.total_itis ?? 0,
+            itis_with_capacity: row?.itis_with_capacity ?? 0,
+            itis_without_capacity: row?.itis_without_capacity ?? 0,
+            unassigned_itis: row?.unassigned_itis ?? 0,
+        },
+    };
+}
+
+export async function getTrainingCapacityByCluster(): Promise<TrainingCapacityByCluster[]> {
+    return prisma.$queryRaw<TrainingCapacityByCluster[]>(
+        Prisma.sql`
+            SELECT
+                c.id AS cluster_id,
+                c.name AS cluster_name,
+                SUM(i.student_strength)::int AS student_capacity,
+                COUNT(i.id)::int AS total_itis,
+                COUNT(i.student_strength)::int AS itis_with_capacity,
+                COUNT(i.id) FILTER (WHERE i.student_strength IS NULL)::int AS itis_without_capacity
+            FROM clusters c
+            LEFT JOIN itis i ON i.cluster_id = c.id AND i.is_sample = FALSE
+            WHERE c.is_sample = FALSE
+            GROUP BY c.id, c.name
+            ORDER BY c.name`,
+    );
 }
 
 export async function getTrainingByIti(id: number): Promise<TrainingByIti | null> {
