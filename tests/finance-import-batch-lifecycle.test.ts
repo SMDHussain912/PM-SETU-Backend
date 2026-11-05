@@ -5,6 +5,7 @@ import { buildFinanceImportBatchInput } from "../src/modules/finance/finance.imp
 import type { FinanceCsvImportSummary } from "../src/modules/finance/finance.csv.execution";
 
 const hash = "a".repeat(64);
+const idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
 const validCsv = "source_system,source_record_id,sanction_reference,sanction_date,financial_year,approved_amount,scope_level\nFMS,A1,SAN-1,2026-04-01,2026-27,100.25,STATE\nFMS,A2,SAN-2,2026-04-02,2026-27,200,STATE";
 
 function summary(overrides: Partial<FinanceCsvImportSummary> = {}): FinanceCsvImportSummary {
@@ -26,7 +27,7 @@ function summary(overrides: Partial<FinanceCsvImportSummary> = {}): FinanceCsvIm
 
 test("projects a preview into batch metadata without persisting financial payloads", () => {
     const preview = previewFinanceCsv(validCsv, "OUTLAY");
-    const result = buildFinanceImportBatchInput(preview, { file_sha256: hash, created_by: "operator-1" });
+    const result = buildFinanceImportBatchInput(preview, { file_sha256: hash, idempotency_key: idempotencyKey, created_by: "operator-1" });
     assert.equal(result.lifecycle, "PREVIEWED");
     assert.equal(result.valid_rows, 2);
     assert.equal(result.invalid_rows, 0);
@@ -38,6 +39,7 @@ test("projects execution outcomes and counters into a consistent completed batch
     const preview = previewFinanceCsv(validCsv, "OUTLAY");
     const result = buildFinanceImportBatchInput(preview, {
         file_sha256: hash,
+        idempotency_key: idempotencyKey,
         completed_at: new Date("2026-11-05T10:00:00.000Z"),
     }, summary());
     assert.equal(result.lifecycle, "EXECUTED_WITH_REJECTIONS");
@@ -81,9 +83,10 @@ test("rejects inconsistent execution counts and rows outside the preview", () =>
 
 test("rejects invalid hashes and invalid completion timestamps", () => {
     const preview = previewFinanceCsv(validCsv, "OUTLAY");
-    assert.throws(() => buildFinanceImportBatchInput(preview, { file_sha256: "bad" }), /INVALID_FILE_SHA256/);
+    assert.throws(() => buildFinanceImportBatchInput(preview, { file_sha256: "bad", idempotency_key: idempotencyKey }), /INVALID_FILE_SHA256/);
     assert.throws(() => buildFinanceImportBatchInput(preview, {
         file_sha256: hash,
+        idempotency_key: idempotencyKey,
         completed_at: new Date("invalid"),
     }, summary()), /INVALID_BATCH_COMPLETED_AT/);
 });
