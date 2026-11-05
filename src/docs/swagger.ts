@@ -216,9 +216,8 @@ export const openApiSpec = {
                         description: "Investment mobilised (INR)",
                     },
                     academic_partner: {
-                        type: "string",
-                        nullable: true,
-                        description: "Academic/technology partner (storage TO CONFIRM)",
+                        type: "boolean",
+                        description: "Whether the AIP has an academic partnership",
                     },
                     contact: { type: "string", nullable: true },
                     website: { type: "string", nullable: true },
