@@ -28,7 +28,7 @@
     "db:seed": "prisma db seed",
     "db:seed:demo": "tsx prisma/seed.ts",
     "db:seed:wipe": "tsx prisma/seed-wipe.ts",
-    "test": "tsx --test --test-concurrency=1 $(find tests -type f -name '*.test.ts' -print)",
+    "test": "NODE_ENV=test tsx --test --test-concurrency=1 $(find tests -type f -name '*.test.ts' -print)",
     "db:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
