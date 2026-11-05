@@ -49,10 +49,10 @@ async function recordDocumentAudit(
 }
 
 type UploadedDocumentMetadata = {
-    file_path: string;
-    file_size: number;
-    mime_type: string;
-    original_name: string;
+    file_path: string | null;
+    file_size: number | null;
+    mime_type: string | null;
+    original_name: string | null;
 };
 
 const DOCUMENT_MIME_BY_EXTENSION: Record<string, string> = {
@@ -117,10 +117,10 @@ async function validateUploadedDocumentMetadata(input: {
     if (input.file_path === undefined) return null;
     if (input.file_path === null) {
         return {
-            file_path: null as unknown as string,
-            file_size: null as unknown as number,
-            mime_type: null as unknown as string,
-            original_name: null as unknown as string,
+            file_path: null,
+            file_size: null,
+            mime_type: null,
+            original_name: null,
         };
     }
 
