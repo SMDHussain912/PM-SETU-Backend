@@ -44,9 +44,13 @@ test("PostgreSQL concurrent source-identity ingestion is idempotent for all fina
             ingestApprovedOutlay(outlayInput, client),
             ingestApprovedOutlay(outlayInput, client),
         ]);
-        assert.deepEqual(outlayResults.map(result => result.outcome).sort(), ["CREATED", "DUPLICATE"]);
-        assert.equal(outlayResults[0].item.id, outlayResults[1].item.id);
-        outlayId = outlayResults[0].item.id;
+        const outlaySuccesses = outlayResults.map(result => {
+            if ("error" in result) throw new Error(result.error);
+            return result;
+        });
+        assert.deepEqual(outlaySuccesses.map(result => result.outcome).sort(), ["CREATED", "DUPLICATE"]);
+        assert.equal(outlaySuccesses[0].item.id, outlaySuccesses[1].item.id);
+        outlayId = outlaySuccesses[0].item.id;
 
         const releaseInput = {
             source_system: sourceSystem,
@@ -63,9 +67,13 @@ test("PostgreSQL concurrent source-identity ingestion is idempotent for all fina
             ingestFundRelease(releaseInput, client),
             ingestFundRelease(releaseInput, client),
         ]);
-        assert.deepEqual(releaseResults.map(result => result.outcome).sort(), ["CREATED", "DUPLICATE"]);
-        assert.equal(releaseResults[0].item.id, releaseResults[1].item.id);
-        releaseId = releaseResults[0].item.id;
+        const releaseSuccesses = releaseResults.map(result => {
+            if ("error" in result) throw new Error(result.error);
+            return result;
+        });
+        assert.deepEqual(releaseSuccesses.map(result => result.outcome).sort(), ["CREATED", "DUPLICATE"]);
+        assert.equal(releaseSuccesses[0].item.id, releaseSuccesses[1].item.id);
+        releaseId = releaseSuccesses[0].item.id;
 
         const expenditureInput = {
             source_system: sourceSystem,
@@ -83,8 +91,12 @@ test("PostgreSQL concurrent source-identity ingestion is idempotent for all fina
             ingestExpenditure(expenditureInput, client),
             ingestExpenditure(expenditureInput, client),
         ]);
-        assert.deepEqual(expenditureResults.map(result => result.outcome).sort(), ["CREATED", "DUPLICATE"]);
-        assert.equal(expenditureResults[0].item.id, expenditureResults[1].item.id);
+        const expenditureSuccesses = expenditureResults.map(result => {
+            if ("error" in result) throw new Error(result.error);
+            return result;
+        });
+        assert.deepEqual(expenditureSuccesses.map(result => result.outcome).sort(), ["CREATED", "DUPLICATE"]);
+        assert.equal(expenditureSuccesses[0].item.id, expenditureSuccesses[1].item.id);
 
         const [outlays, releases, expenditures] = await Promise.all([
             client.financeApprovedOutlay.count({ where: { sourceSystem, sourceRecordId: outlaySourceId } }),
