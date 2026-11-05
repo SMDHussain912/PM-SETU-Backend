@@ -12,22 +12,22 @@ function actor(req: Request): number {
 function context(req: Request) {
     return { ipAddress: req.ip, userAgent: req.get("user-agent") ?? undefined, path: req.originalUrl };
 }
-export async function summary(_req: Request, res: Response): Promise<Response> {
-    return sendSuccess(res, await service.getOutcomeSummary());
+export async function summary(req: Request, res: Response): Promise<Response> {
+    return sendSuccess(res, await service.getOutcomeSummary(actor(req), req.user?.roles ?? []));
 }
 export async function list(req: Request, res: Response): Promise<Response> {
     const { query } = getValidated<unknown, OutcomeListQuery>(res);
-    const result = await service.listOutcomes(query);
+    const result = await service.listOutcomes(query, actor(req), req.user?.roles ?? []);
     return sendSuccess(res, result.items, result.meta);
 }
 export async function get(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, OutcomeIdParams>(res);
-    return sendSuccess(res, await service.getOutcome(params.id));
+    return sendSuccess(res, await service.getOutcome(params.id, actor(req), req.user?.roles ?? []));
 }
 
 export async function history(req: Request, res: Response): Promise<Response> {
     const { params, query } = getValidated<unknown, OutcomeHistoryQuery, OutcomeIdParams>(res);
-    const result = await service.getOutcomeHistory(params.id, query);
+    const result = await service.getOutcomeHistory(params.id, query, actor(req), req.user?.roles ?? []);
     return sendSuccess(res, result.items, result.meta);
 }
 export async function create(req: Request, res: Response): Promise<Response> {
