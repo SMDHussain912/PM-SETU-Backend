@@ -14,6 +14,10 @@ export async function setEnabled(id: number, enabled: boolean) {
   if (!source) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
   return repo.updateEnabled(id, enabled);
 }
+export async function setSchedule(id: number, seconds: number | null) {
+  if (!await repo.get(id)) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
+  return repo.updateSchedule(id, seconds);
+}
 export async function recordRun(id: number, input: { status: "SUCCEEDED" | "PARTIAL" | "FAILED"; records_read: number; records_created: number; records_updated: number; records_rejected: number; cursor?: string | null; error_code?: string | null; error_summary?: string | null }) {
   const source = await repo.get(id);
   if (!source) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
