@@ -59,16 +59,6 @@ export const outcomePayloadSchema = z.record(z.string(), z.unknown()).superRefin
     if (new TextEncoder().encode(serialized).byteLength > MAX_OUTCOME_PAYLOAD_BYTES) {
         ctx.addIssue({ code: "custom", message: "payload must not exceed 16 KB when serialized" });
     }
-}).superRefine((query, ctx) => {
-    for (const field of ["event_date_from", "event_date_to"] as const) {
-        const value = query[field];
-        if (value && Number.isNaN(Date.parse(value + "T00:00:00.000Z"))) {
-            ctx.addIssue({ code: "custom", path: [field], message: field + " must be a valid calendar date" });
-        }
-    }
-    if (query.event_date_from && query.event_date_to && query.event_date_from > query.event_date_to) {
-        ctx.addIssue({ code: "custom", path: ["event_date_to"], message: "event_date_to must be on or after event_date_from" });
-    }
 });
 
 export const createOutcomeSchema = z.object({
