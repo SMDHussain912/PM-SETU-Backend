@@ -107,7 +107,7 @@ export async function listClusterSips(clusterId: number): Promise<Sip[]> {
 export async function createSip(input: CreateSipInput, tx: Prisma.TransactionClient): Promise<Sip> {
     const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
         INSERT INTO sips (status, cluster_id, aip_id)
-        VALUES (${input.status}, ${input.cluster_id ?? null}, ${input.aip_id ?? null})
+        VALUES ('DRAFT', ${input.cluster_id ?? null}, ${input.aip_id ?? null})
         RETURNING id`);
     const item = await getSipByIdForTransaction(rows[0].id, tx);
     if (!item) throw new Error("Created SIP could not be reloaded");
@@ -120,7 +120,6 @@ export async function updateSip(
     tx: Prisma.TransactionClient,
 ): Promise<Sip | null> {
     const updates: Prisma.Sql[] = [];
-    if (input.status !== undefined) updates.push(Prisma.sql`status = ${input.status}`);
     if (input.cluster_id !== undefined) updates.push(Prisma.sql`cluster_id = ${input.cluster_id}`);
     if (input.aip_id !== undefined) updates.push(Prisma.sql`aip_id = ${input.aip_id}`);
     if (updates.length === 0) return getSipByIdForTransaction(id, tx);
