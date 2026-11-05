@@ -175,9 +175,15 @@ Commits:
 - Tests: `56b2e1602907d072df04f0038e7be423db31397b`
 - Documentation: `5efdfe92c5cb7a728ddc3bb1ed26f385d6ecbd46`
 
+#### Completed audit — finance import-batch persistence concurrency
+
+The repository/schema audit is documented in `docs/phase-6/FINANCE_IMPORT_BATCH_CONCURRENCY_AUDIT.md`.
+
+Findings: parent batch + diagnostic rows are persisted in one Prisma transaction; `(batch_id, row_number)` has a database uniqueness constraint; no mutable batch lifecycle update path was found in the inspected repository modules. Duplicate parent creation remains possible after an ambiguous caller timeout because there is no stable attempt idempotency key. `fileSha256` must not be made unique because the same file can be intentionally retried/re-imported. No speculative optimistic locking or state transition code was added.
+
 #### Current active work — next task
 
-Audit finance import-batch lifecycle and persistence concurrency guarantees. Inspect whether batch metadata writes can be duplicated, overwritten, or left stale when retries or concurrent workers act on the same batch. Focus on repository-level update paths, not assumptions. Add safeguards only where the existing schema and contracts support them. Do not invent batch-level atomicity, correction/reversal rules, retention policy, or finance permissions. Document unresolved races and add a real database integration test where practical.
+Define and implement a stable finance import-attempt idempotency contract at the orchestration boundary. First inspect all preview/execution persistence call sites and determine the caller identity/attempt lifecycle. Preserve intentional re-imports by using an explicit attempt key rather than file hash. Once the key's ownership and reuse policy are established, add a unique DB constraint, insert-or-return-existing repository behaviour, and PostgreSQL multi-connection integration coverage. Do not invent key scope or persist user identity/extra payload without contract evidence.
 
 #### Finance data and policy guardrails
 
