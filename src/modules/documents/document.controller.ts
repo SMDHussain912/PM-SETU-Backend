@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { discardDocumentUpload, validateDocumentUpload } from "./document.file-validation";
 import { getValidated } from "../../middleware/validate.middleware";
 import { ApiError, sendCreated, sendSuccess } from "../../utils/response";
 import type {
@@ -92,9 +93,18 @@ export async function uploadDocumentFile(req: Request, res: Response): Promise<R
             message: "A document file is required",
         });
     }
+    let safeFileName: string;
+    try {
+        safeFileName = await validateDocumentUpload(file);
+    } catch (error) {
+        // Multer has already written the file. Do not leave rejected content on disk.
+        await discardDocumentUpload(file.path).catch(() => undefined);
+        throw error;
+    }
+
     return sendSuccess(res, {
         file_path: file.path,
-        file_name: file.originalname,
+        file_name: safeFileName,
         mime_type: file.mimetype,
         file_size: file.size,
     });
