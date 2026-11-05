@@ -142,3 +142,14 @@ Aggregation semantics:
 - Reporting period, data-as-of timestamp, and source freshness remain explicitly untracked.
 
 This endpoint is additive; existing `/training` and `/training/itis/:id` payloads are unchanged. It does not calculate trainees trained, enrolled students, or official academic outcomes.
+
+
+## 9. Phase 7 — physical progress source-readiness audit
+
+The repository audit is recorded in `docs/phase-7/PHYSICAL_PROGRESS_REPORTING_READINESS.md`.
+
+- `iti_submissions` supports generic `INFRASTRUCTURE` and `MONTHLY_PROGRESS` report types with a generic JSON payload and submission workflow. It does not define typed physical KPI facts.
+- `itis.infrastructure` and `itis.lab_details` are free-text profile fields, not structured progress/inventory sources.
+- No dedicated civil works, equipment lifecycle, lab inventory, or smart-classroom reporting models/migrations were found.
+- PHY-01 through PHY-04 therefore remain unavailable for dashboard aggregation. Generic submission counts, profile text, workflow approval state, AIP/SIP planning values, and fabricated zeroes are not acceptable substitutes.
+- Implementation is gated on authoritative source ownership, metric/grain/unit definitions, lifecycle and operational criteria, evidence/review policy, reporting period/freshness, hierarchy, visibility, and acceptance evidence.
