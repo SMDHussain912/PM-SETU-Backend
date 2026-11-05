@@ -67,7 +67,21 @@ export async function getClusterDashboard(id: number): Promise<ClusterDashboardR
 export async function getFinanceMetrics(): Promise<FinanceMetrics> {
     const metrics = await dashboardRepository.getFundingMetrics();
     const byCluster = await dashboardRepository.getFinanceByCluster();
-    return { ...metrics, by_cluster: byCluster };
+    return {
+        ...metrics,
+        by_cluster: byCluster,
+        // SIP proposals and AIP registry investment are not authoritative
+        // outlay/release/expenditure records. Keep official KPIs unavailable
+        // until the approved Finance/FMS source and formulas are connected.
+        official_financial_progress: {
+            status: "SOURCE_NOT_CONNECTED",
+            approved_outlay: null,
+            funds_released: null,
+            expenditure: null,
+            utilisation_percentage: null,
+            balance: null,
+        },
+    };
 }
 
 export async function getTrainingMetrics(): Promise<TrainingMetrics> {
