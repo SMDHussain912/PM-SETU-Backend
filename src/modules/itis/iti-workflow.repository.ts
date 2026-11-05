@@ -27,7 +27,7 @@ export async function createSubmission(itiId:number, userId:number, data:CreateI
   `);
   return rows[0];
 }
-export async function listSubmissions(itiId:number) {
+export async function listSubmissions(itiId:number, db: Prisma.TransactionClient = prisma) {
   return db.$queryRaw<any[]>(Prisma.sql`
     SELECT s.id, s.iti_id, s.created_by, u.full_name AS creator_name, s.report_type, s.title,
       s.payload, s.status, s.submitted_at, s.reviewed_by, reviewer.full_name AS reviewer_name,
