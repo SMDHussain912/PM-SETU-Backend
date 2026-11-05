@@ -19,9 +19,9 @@ export interface ItiClusterSummary {
 /**
  * ITI profile (public shape).
  *
- * ⚠ Database contract: the backing tables do not exist yet (no Prisma
- * models/migrations). The required table/column contract and the storage
- * decisions marked "TO CONFIRM" are documented in sql/itis/iti_queries.sql.
+ * Database contract: columns are defined by the Iti model in
+ * prisma/schema.prisma and its initial migration. The API shape mirrors
+ * those persisted fields.
  */
 export interface Iti {
     id: number;
