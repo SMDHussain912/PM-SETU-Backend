@@ -14,8 +14,22 @@ export function validateFinanceImportBatchInput(input: CreateFinanceImportBatchI
     if (attempted !== created + duplicates + rejected) {
         throw new Error("FINANCE_IMPORT_ATTEMPT_COUNTERS_INCONSISTENT");
     }
+    if (input.total_rows !== input.valid_rows + input.invalid_rows) {
+        throw new Error("FINANCE_IMPORT_TOTAL_ROW_COUNTERS_INCONSISTENT");
+    }
     if (input.rows.length !== input.valid_rows + input.invalid_rows) {
         throw new Error("FINANCE_IMPORT_ROW_OUTCOMES_INCOMPLETE");
+    }
+
+    const rowNumbers = new Set<number>();
+    for (const row of input.rows) {
+        if (!Number.isSafeInteger(row.row_number) || row.row_number < 2) {
+            throw new Error("FINANCE_IMPORT_ROW_NUMBER_INVALID");
+        }
+        if (rowNumbers.has(row.row_number)) {
+            throw new Error("FINANCE_IMPORT_ROW_NUMBER_DUPLICATE");
+        }
+        rowNumbers.add(row.row_number);
     }
 
     const counts = input.rows.reduce((result, row) => {
