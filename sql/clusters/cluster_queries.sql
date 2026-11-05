@@ -12,15 +12,11 @@
 --   src/modules/clusters/cluster.repository.ts via Prisma $queryRaw. If a
 --   query changes here, mirror the change there (and vice versa).
 --
--- STATUS  ⚠ READ FIRST
---   The PM SETU schema does NOT exist yet:
---     - prisma/schema.prisma defines no models
---     - prisma/migrations/ does not exist
---   This file documents the PLANNED queries and the contract of what must
---   be created. NOTHING here creates tables — schema creation is owned by
---   the database developer (Prisma models or raw SQL, their choice). Until
---   the schema exists the queries fail at runtime and the endpoints return
---   a 500 error envelope. That is intentional: no fake cluster records.
+-- STATUS
+--   The Prisma schema and migrations now define the clusters table. This file
+--   documents the SQL contract used by the public read endpoints and the
+--   admin master-data operations. It is documentation only; migrations remain
+--   the source of truth for schema creation.
 --
 -- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
 --
@@ -86,3 +82,17 @@
 -- SELECT id, name, district, sector
 -- FROM clusters
 -- WHERE id = :id;
+
+-- ----------------------------------------------------------------------------
+-- 4) POST /admin/clusters — create a cluster.
+-- ----------------------------------------------------------------------------
+-- INSERT INTO clusters (name, district, sector)
+-- VALUES (:name, :district, :sector)
+-- RETURNING id, name, district, sector;
+--
+-- 5) PATCH /admin/clusters/{id} — update supplied master-data fields only.
+--    The backend builds the SET list from validated fields and binds values.
+--
+-- 6) DELETE /admin/clusters/{id} — delete only when no ITI, AIP, SPV, SIP,
+--    document, or news row references the cluster. The NOT EXISTS checks
+--    are part of the DELETE statement to avoid a check-then-delete race.
