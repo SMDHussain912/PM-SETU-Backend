@@ -66,16 +66,20 @@
 --   clusters id PK, name — embedded cluster summary (established table).
 --   aips     id PK, name — embedded AIP summary (established table).
 --
--- INTENTIONALLY DEFERRED (specified in RoadMap §10/§25 but out of scope —
--- do NOT fabricate these):
---   · Admin CRUD (POST/GET/GET:id/PATCH/DELETE /api/v1/admin/sips...).
---   · The 7 workflow transition endpoints (POST /api/v1/admin/sips/:id/
---     submit|review|request-revision|recommend|approve|reject|implement) —
---     they own the state machine over `status` and belong to a separate
---     admin task (§21 approval/audit metadata applies there).
---   · SPV ↔ SIP link (§25 SPV └── SIP): the direction/column is not
---     established (an spvs-side or sips-side FK — DBA decision). No join in
---     these queries.
+-- ADMIN REGISTRY CONTRACT (implemented in the backend):
+--   POST  /api/v1/admin/sips       — inserts status='DRAFT' and optional
+--                                   cluster_id/aip_id relationships.
+--   PATCH /api/v1/admin/sips/{id} — updates cluster_id and/or aip_id only.
+--                                   Generic PATCH cannot alter workflow status.
+--   DELETE /api/v1/admin/sips/{id} — deletes only when status='DRAFT'.
+--   All values are parameterized. Writes and audit entries share a transaction.
+--
+-- INTENTIONALLY DEFERRED:
+--   · The 7 workflow transition endpoints (submit/review/request-revision/
+--     recommend/approve/reject/implement). They own the status state machine
+--     and must be implemented separately; do not bypass them through CRUD.
+--   · SPV ↔ SIP link (§25): direction/column is not established (an spvs-side
+--     or sips-side FK — DBA decision). No join in these queries.
 --   · No list filters are implemented: §10 documents none. A future status
 --     filter would use the canonical workflow values above.
 --
@@ -131,3 +135,27 @@
 -- LEFT JOIN aips ON aips.id = sips.aip_id
 -- WHERE sips.cluster_id = :clusterId
 -- ORDER BY sips.id;
+
+
+-- ----------------------------------------------------------------------------
+-- 5) POST /admin/sips — create a DRAFT SIP registry record.
+-- ----------------------------------------------------------------------------
+-- INSERT INTO sips (status, cluster_id, aip_id)
+-- VALUES ('DRAFT', :clusterId, :aipId)
+-- RETURNING id;
+
+-- ----------------------------------------------------------------------------
+-- 6) PATCH /admin/sips/{id} — update established relationships only.
+-- ----------------------------------------------------------------------------
+-- UPDATE sips
+-- SET cluster_id = :clusterId, aip_id = :aipId
+-- WHERE id = :id
+-- RETURNING id;
+-- The application builds the SET list from validated supplied fields only.
+
+-- ----------------------------------------------------------------------------
+-- 7) DELETE /admin/sips/{id} — DRAFT records only.
+-- ----------------------------------------------------------------------------
+-- DELETE FROM sips
+-- WHERE id = :id AND status = 'DRAFT'
+-- RETURNING id;
