@@ -122,3 +122,43 @@ Finance write permissions, maker-checker separation, approval authority, visibil
 ## 9. Delivery boundary
 
 This document establishes the Phase 6 engineering contract from the evidence currently available. It does not claim that a Finance-approved ledger schema, accounting policy, FMS interface, permission matrix or production financial dataset has been supplied. Those decisions are explicit gates, not assumptions to hide in code.
+
+
+## Implementation boundary review (2026-11-05)
+
+Repository inspection confirms the following constraints:
+
+- `GET /api/v1/dashboard/finance` is part of the intentionally public, read-only dashboard router. Finance ledger writes MUST NOT be added to this router.
+- The existing dashboard aggregates AIP investment and SIP proposed contribution fields. These remain planning/registry indicators and must not be relabelled as approved outlay, released funds, or expenditure.
+- The audit module exposes an internal `recordAuditEntry` hook and supports a transaction client, but audit-write failure semantics are explicitly unresolved. A finance write service must not claim atomic audit guarantees until this policy is decided and tested.
+- Existing role/permission mappings are documented as inferred / TO CONFIRM. No finance-specific permission matrix is approved in the inspected repository.
+- The current Prisma schema has no authoritative finance ledger models.
+
+### Safe implementation boundary
+
+1. Keep the existing public finance dashboard read-only and preserve its current fields.
+2. Implement future finance write/read operations behind a separate authenticated, permission-guarded finance module.
+3. Store monetary values as fixed-precision decimal values; do not use floating-point storage for ledger amounts.
+4. Preserve source references and record provenance so imported or manually captured financial records can be reconciled.
+5. Do not expose official KPI totals until authoritative records and Finance-approved calculation rules exist.
+6. Do not permit silent destructive edits to financial history. The final correction/reversal model must be approved before write APIs are exposed.
+7. Do not claim audit atomicity until audit failure behavior is formally decided.
+
+### Decisions required before enabling ledger writes
+
+| Decision | Why it blocks production write behavior |
+| --- | --- |
+| Authoritative source system and source ownership | Determines whether records are entered in PM-SETU or imported from an FMS, and how reconciliation works. |
+| Expenditure recognition basis | Finance must define whether expenditure means booked, paid, certified, or another officially accepted basis. |
+| Finance access matrix | Determines who may create, view, correct, reconcile, and approve records. |
+| Correction/reversal policy | Financial history must remain traceable; permitted correction behavior cannot be guessed. |
+| Utilisation and balance formulas | FIN-04 and FIN-05 formulas are not approved; no calculated values may be published before sign-off. |
+| Audit failure semantics | Determines whether a financial write and its audit entry must succeed or fail together. |
+
+### Next engineering sequence
+
+- Add finance-specific schema and migration only after confirming the minimum record contract and correction policy.
+- Add repository/service validation and transactional audit behavior.
+- Add guarded finance routes, using the approved permission matrix.
+- Add integration tests for scope, provenance, decimal precision, audit behavior, duplicate source references, and dashboard non-substitution.
+- Connect the authoritative source and publish KPI calculations only after Finance sign-off.
