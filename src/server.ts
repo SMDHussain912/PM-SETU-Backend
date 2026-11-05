@@ -2,11 +2,13 @@ import app from "./app";
 import { env } from "./config/env";
 import { disconnectPrisma } from "./config/database";
 import { logger } from "./utils/logger";
+import { startIntegrationScheduler, stopIntegrationScheduler } from "./modules/integrations/integration.scheduler";
 
 const server = app.listen(env.port, () => {
     logger.info(
         `PM SETU AP backend listening on port ${env.port} (${env.nodeEnv})`,
     );
+    startIntegrationScheduler();
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {
@@ -24,6 +26,7 @@ const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 function shutdown(signal: string): void {
     logger.info(`${signal} received, shutting down...`);
+    stopIntegrationScheduler();
 
     const forceExitTimer = setTimeout(() => {
         logger.error("Forcing shutdown: connections did not close in time.");
