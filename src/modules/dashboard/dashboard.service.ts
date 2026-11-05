@@ -1,3 +1,4 @@
+import { getDashboardContract } from "./dashboard.contract";
 import { ApiError } from "../../utils/response";
 import * as dashboardRepository from "./dashboard.repository";
 import type {
@@ -102,4 +103,9 @@ export async function getPlacementMetrics(): Promise<PlacementMetrics> {
     return {
         message: "Placement data source not yet established",
     };
+}
+
+
+export function getDashboardReportingContract() {
+    return getDashboardContract();
 }
