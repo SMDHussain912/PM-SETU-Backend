@@ -12,7 +12,10 @@ function actor(req: Request): number {
 function context(req: Request) {
     return { ipAddress: req.ip, userAgent: req.get("user-agent") ?? undefined, path: req.originalUrl };
 }
-export async function summary(_req: Request, res: Response): Promise<Response> {\n    return sendSuccess(res, await service.getOutcomeSummary());\n}\nexport async function list(req: Request, res: Response): Promise<Response> {
+export async function summary(_req: Request, res: Response): Promise<Response> {
+    return sendSuccess(res, await service.getOutcomeSummary());
+}
+export async function list(req: Request, res: Response): Promise<Response> {
     const { query } = getValidated<unknown, OutcomeListQuery>(res);
     const result = await service.listOutcomes(query);
     return sendSuccess(res, result.items, result.meta);
