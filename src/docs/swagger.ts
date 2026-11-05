@@ -682,6 +682,39 @@ export const openApiSpec = {
                     totalPages: { type: "integer", description: "Total number of pages" },
                 },
             },
+            DashboardMetricContract: {
+                type: "object",
+                required: ["metric_id", "label", "classification", "unit", "source", "availability", "aggregation_levels", "notes", "official_kpi_code"],
+                properties: {
+                    metric_id: { type: "string" },
+                    label: { type: "string" },
+                    classification: { type: "string" },
+                    unit: { type: "string", enum: ["COUNT", "CURRENCY_AMOUNT", "PERCENTAGE"] },
+                    source: { type: "string", nullable: true },
+                    availability: { type: "string", enum: ["AVAILABLE", "PARTIAL", "NOT_AVAILABLE", "SOURCE_NOT_CONNECTED", "DEFINITION_PENDING"] },
+                    aggregation_levels: { type: "array", items: { type: "string", enum: ["STATE", "CLUSTER", "ITI", "PROJECT"] } },
+                    notes: { type: "string" },
+                    official_kpi_code: { type: "string", nullable: true },
+                },
+            },
+            DashboardContractResponse: {
+                type: "object",
+                required: ["contract_version", "generated_at", "reporting_context", "metrics"],
+                properties: {
+                    contract_version: { type: "string", example: "1.0.0" },
+                    generated_at: { type: "string", format: "date-time" },
+                    reporting_context: {
+                        type: "object",
+                        required: ["data_as_of", "reporting_period", "source_freshness"],
+                        properties: {
+                            data_as_of: { type: "string", format: "date-time", nullable: true },
+                            reporting_period: { type: "string", nullable: true },
+                            source_freshness: { type: "string", enum: ["NOT_TRACKED"] },
+                        },
+                    },
+                    metrics: { type: "array", items: { $ref: "#/components/schemas/DashboardMetricContract" } },
+                },
+            },
             StateMetrics: {
                 type: "object",
                 description: "State-level dashboard metrics (RoadMap.md §16). Response shape INFERRED from existing data contracts — TO CONFIRM.",
@@ -2516,6 +2549,22 @@ export const openApiSpec = {
                     "422": { description: "Validation failed (invalid query or parameters)" },
                     "429": { description: "Rate limit exceeded" },
                     "500": { description: "PM SETU database schema not created yet" },
+                },
+            },
+        },
+        "/dashboard/contract": {
+            get: {
+                tags: ["Dashboard"],
+                summary: "Dashboard reporting contract",
+                description: "Versioned metric catalogue. Describes source, classification, availability and supported aggregation levels; does not claim data freshness or publish unapproved KPI formulas.",
+                security: [],
+                responses: {
+                    "200": { description: "Dashboard reporting contract", content: { "application/json": { schema: { type: "object", properties: {
+                        success: { type: "boolean", example: true },
+                        data: { $ref: "#/components/schemas/DashboardContractResponse" },
+                    }}}}},
+                    "429": { description: "Rate limit exceeded" },
+                    "500": { description: "Server error" },
                 },
             },
         },
