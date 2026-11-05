@@ -69,3 +69,34 @@ export async function reviewOutcome(id: number, input: ReviewOutcomeBody, review
     if (changed.count === 0) return null;
     return tx.industryOutcomeRecord.findUnique({ where: { id } });
 }
+
+export async function getOutcomeSummary() {
+    const [byTypeAndStatus, total] = await Promise.all([
+        prisma.industryOutcomeRecord.groupBy({
+            by: ["outcomeType", "reviewStatus"],
+            _count: { _all: true },
+            orderBy: [{ outcomeType: "asc" }, { reviewStatus: "asc" }],
+        }),
+        prisma.industryOutcomeRecord.count(),
+    ]);
+    const summary = {
+        total,
+        pending: 0,
+        verified: 0,
+        rejected: 0,
+        by_type: [] as Array<{ outcome_type: string; pending: number; verified: number; rejected: number; total: number }>,
+    };
+    const grouped = new Map<string, { pending: number; verified: number; rejected: number; total: number }>();
+    for (const row of byTypeAndStatus) {
+        const key = row.outcomeType;
+        const current = grouped.get(key) ?? { pending: 0, verified: 0, rejected: 0, total: 0 };
+        const count = row._count._all;
+        current.total += count;
+        if (row.reviewStatus === "PENDING") { current.pending += count; summary.pending += count; }
+        if (row.reviewStatus === "VERIFIED") { current.verified += count; summary.verified += count; }
+        if (row.reviewStatus === "REJECTED") { current.rejected += count; summary.rejected += count; }
+        grouped.set(key, current);
+    }
+    summary.by_type = [...grouped.entries()].map(([outcome_type, counts]) => ({ outcome_type, ...counts }));
+    return summary;
+}
