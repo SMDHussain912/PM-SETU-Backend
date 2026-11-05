@@ -74,8 +74,8 @@ export function mapFinanceCsvRows(
         }
 
         const amount = values[schema.amount_field];
-        if (amount && (!decimalPattern.test(amount) || !Number.isFinite(Number(amount)))) {
-            rowErrors.push({ row_number: row.row_number, field: schema.amount_field, code: "INVALID_DECIMAL", message: "Amount must be a non-negative decimal with at most two fractional digits and no exponent notation" });
+        if (amount && !decimalPattern.test(amount)) {
+            rowErrors.push({ row_number: row.row_number, field: schema.amount_field, code: "INVALID_DECIMAL", message: "Amount must fit DECIMAL(18,2): at most 16 integer digits, two fractional digits, and no exponent notation" });
         }
 
         const date = values[schema.date_field];
