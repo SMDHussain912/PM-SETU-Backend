@@ -100,19 +100,26 @@ function mapAttachmentRow(row: NewsAttachmentRow): NewsAttachment {
 
 export async function listNews(filters: NewsListFilters): Promise<News[]> {
     const rows = await prisma.$queryRaw<NewsRow[]>(
-        Prisma.sql`${NEWS_SELECT} ORDER BY news.published_date DESC, news.id DESC LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}`,
+        Prisma.sql`${NEWS_SELECT} WHERE news.is_published = TRUE ORDER BY news.published_date DESC, news.id DESC LIMIT ${filters.pageSize} OFFSET ${(filters.page - 1) * filters.pageSize}`,
     );
     return rows.map(mapNewsRow);
 }
 
 export async function countNews(): Promise<number> {
     const rows = await prisma.$queryRaw<{ count: bigint }[]>(
-        Prisma.sql`SELECT COUNT(*)::bigint AS count FROM news`,
+        Prisma.sql`SELECT COUNT(*)::bigint AS count FROM news WHERE is_published = TRUE`,
     );
     return Number(rows[0]?.count ?? 0);
 }
 
 export async function getNewsById(id: number): Promise<News | null> {
+    const rows = await prisma.$queryRaw<NewsRow[]>(
+        Prisma.sql`${NEWS_SELECT} WHERE news.id = ${id} AND news.is_published = TRUE`,
+    );
+    return rows[0] ? mapNewsRow(rows[0]) : null;
+}
+
+export async function getNewsByIdForAdmin(id: number): Promise<News | null> {
     const rows = await prisma.$queryRaw<NewsRow[]>(
         Prisma.sql`${NEWS_SELECT} WHERE news.id = ${id}`,
     );
@@ -121,7 +128,7 @@ export async function getNewsById(id: number): Promise<News | null> {
 
 export async function getLatestNews(limit: number = 5): Promise<News[]> {
     const rows = await prisma.$queryRaw<NewsRow[]>(
-        Prisma.sql`${NEWS_SELECT} ORDER BY news.published_date DESC, news.id DESC LIMIT ${limit}`,
+        Prisma.sql`${NEWS_SELECT} WHERE news.is_published = TRUE ORDER BY news.published_date DESC, news.id DESC LIMIT ${limit}`,
     );
     return rows.map(mapNewsRow);
 }
