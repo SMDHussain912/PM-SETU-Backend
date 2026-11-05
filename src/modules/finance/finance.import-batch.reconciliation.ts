@@ -47,14 +47,38 @@ export function reconcileFinanceImportBatch(
     }
 
     const differences: string[] = [];
-    if (persisted.id < 1 || !Number.isSafeInteger(persisted.id)) differences.push("INVALID_BATCH_ID");
+    if (!Number.isSafeInteger(persisted.id) || persisted.id < 1) differences.push("INVALID_BATCH_ID");
     if (persisted.recordKind !== execution.record_kind) differences.push("RECORD_KIND_MISMATCH");
     if (persisted.totalRows !== execution.total_rows) differences.push("TOTAL_ROWS_MISMATCH");
-    if (persisted.validRows < 0 || persisted.invalidRows < 0 ||
+
+    const persistedCounters = [
+        persisted.totalRows, persisted.validRows, persisted.invalidRows, persisted.attemptedRows,
+        persisted.createdRows, persisted.duplicateRows, persisted.rejectedRows,
+    ];
+    if (persistedCounters.some((value) => !Number.isSafeInteger(value) || value < 0) ||
         persisted.validRows + persisted.invalidRows !== persisted.totalRows) {
         differences.push("PREVIEW_ROW_COUNTS_MISMATCH");
     }
     if (persisted.rows.length !== persisted.totalRows) differences.push("PERSISTED_ROW_COUNT_MISMATCH");
+
+    const executionCounters = [
+        execution.total_rows, execution.attempted_rows, execution.created,
+        execution.duplicates, execution.rejected,
+    ];
+    const resultCounts = {
+        created: execution.results.filter((row) => row.outcome === "CREATED").length,
+        duplicates: execution.results.filter((row) => row.outcome === "DUPLICATE").length,
+        rejected: execution.results.filter((row) => row.outcome === "REJECTED").length,
+    };
+    if (executionCounters.some((value) => !Number.isSafeInteger(value) || value < 0) ||
+        execution.attempted_rows !== execution.results.length ||
+        execution.created !== resultCounts.created ||
+        execution.duplicates !== resultCounts.duplicates ||
+        execution.rejected !== resultCounts.rejected ||
+        execution.created + execution.duplicates + execution.rejected !== execution.attempted_rows) {
+        differences.push("EXECUTION_SUMMARY_INCONSISTENT");
+    }
+
     if (persisted.attemptedRows !== execution.attempted_rows) differences.push("ATTEMPTED_ROWS_MISMATCH");
     if (persisted.createdRows !== execution.created) differences.push("CREATED_ROWS_MISMATCH");
     if (persisted.duplicateRows !== execution.duplicates) differences.push("DUPLICATE_ROWS_MISMATCH");
@@ -64,6 +88,18 @@ export function reconcileFinanceImportBatch(
     const actualRows = new Map(persisted.rows.map((row) => [row.rowNumber, row]));
     if (expectedRows.size !== execution.results.length || actualRows.size !== persisted.rows.length) {
         differences.push("DUPLICATE_ROW_NUMBER");
+    }
+    if (persisted.rows.some((row) => !Number.isSafeInteger(row.rowNumber) || row.rowNumber < 2)) {
+        differences.push("INVALID_PERSISTED_ROW_NUMBER");
+    }
+    if (execution.results.some((row) => !Number.isSafeInteger(row.row_number) || row.row_number < 2)) {
+        differences.push("INVALID_EXECUTION_ROW_NUMBER");
+    }
+
+    const persistedInvalidCount = persisted.rows.filter((row) => row.outcome === "INVALID").length;
+    const persistedValidCount = persisted.rows.length - persistedInvalidCount;
+    if (persistedInvalidCount !== persisted.invalidRows || persistedValidCount !== persisted.validRows) {
+        differences.push("PERSISTED_OUTCOME_COUNTS_MISMATCH");
     }
 
     for (const [rowNumber, expected] of expectedRows) {
