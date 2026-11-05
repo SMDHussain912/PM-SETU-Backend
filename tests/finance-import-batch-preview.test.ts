@@ -4,6 +4,7 @@ import { previewFinanceCsv } from "../src/modules/finance/finance.csv.preview";
 import { persistFinanceCsvPreview } from "../src/modules/finance/finance.import-batch.preview";
 
 const hash = "b".repeat(64);
+const idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
 const csv = "source_system,source_record_id,sanction_reference,sanction_date,financial_year,approved_amount,scope_level\nFMS,A1,SAN-1,2026-04-01,2026-27,100.25,STATE";
 
 test("persists preview metadata without invoking financial execution", async () => {
@@ -11,7 +12,7 @@ test("persists preview metadata without invoking financial execution", async () 
     let persisted: unknown;
     const result = await persistFinanceCsvPreview(
         preview,
-        { file_sha256: hash, created_by: "operator-1" },
+        { file_sha256: hash, idempotency_key: idempotencyKey, created_by: "operator-1" },
         async (input) => {
             persisted = input;
             return { id: 41 };
@@ -35,7 +36,7 @@ test("persists invalid preview diagnostics for review", async () => {
     const invalidCsv = "source_system,source_record_id,sanction_reference,sanction_date,financial_year,approved_amount,scope_level\nFMS,A1,SAN-1,not-a-date,2026-27,100.25,STATE";
     const preview = previewFinanceCsv(invalidCsv, "OUTLAY");
     let persistedLifecycle = "";
-    await persistFinanceCsvPreview(preview, { file_sha256: hash }, async (input) => {
+    await persistFinanceCsvPreview(preview, { file_sha256: hash, idempotency_key: idempotencyKey }, async (input) => {
         persistedLifecycle = input.lifecycle;
         return { id: 42 };
     });
@@ -47,7 +48,7 @@ test("does not call persistence when projection options are invalid", async () =
     const preview = previewFinanceCsv(csv, "OUTLAY");
     let called = false;
     await assert.rejects(
-        persistFinanceCsvPreview(preview, { file_sha256: "invalid" }, async () => {
+        persistFinanceCsvPreview(preview, { file_sha256: "invalid", idempotency_key: idempotencyKey }, async () => {
             called = true;
             return {};
         }),
