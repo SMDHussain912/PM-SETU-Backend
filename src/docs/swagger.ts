@@ -2671,7 +2671,7 @@ export const openApiSpec = {
             get: {
                 tags: ["Dashboard"],
                 summary: "Training capacity reporting and coverage",
-                description: "State and cluster aggregation of ITI student capacity. Returns null when no source capacity values exist and includes ITI coverage counts. This is capacity, not trainees trained or enrolled. Reporting period and source freshness remain untracked.",
+                description: "State and cluster aggregation of ITI student capacity. Returns nullable state and cluster capacity values, ITI coverage counts, and the capacity total for ITIs without a reportable non-sample cluster so scope totals can reconcile. This is capacity, not trainees trained or enrolled. Reporting period and source freshness remain untracked.",
                 security: [],
                 responses: {
                     "200": { description: "State capacity metric, coverage, and cluster breakdown", content: { "application/json": { schema: { type: "object" } } } },
