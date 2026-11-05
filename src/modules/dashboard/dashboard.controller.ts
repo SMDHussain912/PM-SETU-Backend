@@ -12,6 +12,11 @@ import * as dashboardService from "./dashboard.service";
  * forwards rejected async handlers to the central error middleware.
  */
 
+export async function getDashboardContract(_req: Request, res: Response): Promise<Response> {
+    const data = dashboardService.getDashboardReportingContract();
+    return sendSuccess(res, data);
+}
+
 export async function getStateDashboard(_req: Request, res: Response): Promise<Response> {
     const data = await dashboardService.getStateMetrics();
     return sendSuccess(res, data);
