@@ -87,6 +87,18 @@ export interface FinanceByCluster {
 }
 
 export interface FinanceMetrics {
+    /**
+     * Official finance-progress measures are unavailable until an approved
+     * Finance/FMS source is connected. Never substitute SIP proposals for them.
+     */
+    official_financial_progress: {
+        status: "SOURCE_NOT_CONNECTED";
+        approved_outlay: null;
+        funds_released: null;
+        expenditure: null;
+        utilisation_percentage: null;
+        balance: null;
+    };
     total_investment: number;
     total_sip_proposed: number;
     total_sip_infrastructure: number;
