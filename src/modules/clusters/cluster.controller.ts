@@ -1,29 +1,56 @@
 import type { Request, Response } from "express";
 import { getValidated } from "../../middleware/validate.middleware";
-import { sendSuccess } from "../../utils/response";
-import type { ClusterIdParams, ClusterListQuery } from "./cluster.schema";
+import { ApiError, sendCreated, sendSuccess } from "../../utils/response";
+import type {
+    ClusterIdParams,
+    ClusterListQuery,
+    CreateClusterBody,
+    UpdateClusterBody,
+} from "./cluster.schema";
 import * as clusterService from "./cluster.service";
 
-/**
- * Cluster module — HTTP layer (RoadMap.md §6).
- *
- * Thin adapters only: read the validated request data, call the service and
- * shape the response with the shared success envelope. No SQL and no
- * business logic here. Express 5 forwards rejected async handlers to the
- * central error middleware (src/middleware/error.middleware.ts), so no
- * try/catch is needed.
- */
+function getActorId(req: Request): number {
+    const id = Number(req.user?.id);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new ApiError({ statusCode: 401, code: "UNAUTHENTICATED", message: "Authentication required" });
+    }
+    return id;
+}
 
-/** GET /api/v1/clusters — filterable, paginated cluster list. */
+function getAuditContext(req: Request) {
+    return {
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent") ?? undefined,
+        path: req.originalUrl,
+    };
+}
+
 export async function listClusters(_req: Request, res: Response): Promise<Response> {
     const { query } = getValidated<unknown, ClusterListQuery>(res);
     const { items, meta } = await clusterService.listClusters(query);
     return sendSuccess(res, items, meta);
 }
 
-/** GET /api/v1/clusters/:id — single cluster (404 via service when absent). */
 export async function getClusterById(_req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, ClusterIdParams>(res);
     const cluster = await clusterService.getClusterById(params.id);
     return sendSuccess(res, cluster);
+}
+
+export async function createCluster(req: Request, res: Response): Promise<Response> {
+    const { body } = getValidated<CreateClusterBody>(res);
+    const cluster = await clusterService.createCluster(body, getActorId(req), getAuditContext(req));
+    return sendCreated(res, cluster);
+}
+
+export async function updateCluster(req: Request, res: Response): Promise<Response> {
+    const { params, body } = getValidated<UpdateClusterBody, unknown, ClusterIdParams>(res);
+    const cluster = await clusterService.updateCluster(params.id, body, getActorId(req), getAuditContext(req));
+    return sendSuccess(res, cluster);
+}
+
+export async function deleteCluster(req: Request, res: Response): Promise<Response> {
+    const { params } = getValidated<unknown, unknown, ClusterIdParams>(res);
+    await clusterService.deleteCluster(params.id, getActorId(req), getAuditContext(req));
+    return sendSuccess(res, { id: params.id });
 }
