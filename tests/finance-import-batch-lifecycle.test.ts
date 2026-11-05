@@ -90,3 +90,14 @@ test("rejects invalid hashes and invalid completion timestamps", () => {
         completed_at: new Date("invalid"),
     }, summary()), /INVALID_BATCH_COMPLETED_AT/);
 });
+
+
+test("accounts for every data row when required CSV headers are missing", () => {
+    const preview = previewFinanceCsv("source_system,source_record_id\\nFMS,A1\\nFMS,A2", "OUTLAY");
+    const result = buildFinanceImportBatchInput(preview, { file_sha256: hash, idempotency_key: idempotencyKey });
+    assert.equal(result.total_rows, 2);
+    assert.equal(result.valid_rows, 0);
+    assert.equal(result.invalid_rows, 2);
+    assert.deepEqual(result.rows.map((row) => row.row_number), [2, 3]);
+    assert.deepEqual(result.rows.map((row) => row.outcome), ["INVALID", "INVALID"]);
+});
