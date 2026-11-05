@@ -17,10 +17,8 @@ export interface AipClusterSummary {
 /**
  * AIP registry record (public shape).
  *
- * ⚠ Database contract: the backing table does not exist yet (no Prisma
- * models/migrations). Required columns and every "TO CONFIRM" item are
- * documented in sql/aips/aip_queries.sql. SIP/SPV relationships are
- * intentionally deferred (their tables are not established).
+ * Database fields mirror prisma/schema.prisma. SIP/SPV relationships are
+ * represented by their owning modules and are not embedded in this response.
  */
 export interface Aip {
     id: number;
@@ -37,7 +35,7 @@ export interface Aip {
     /** §8 "investment". Column name established by the Home KPI contract. */
     investment_amount: number | null;
     /** Academic/technology partner. Scalar-vs-relational storage TO CONFIRM. */
-    academic_partner: string | null;
+    academic_partner: boolean;
     /** Contact. Format TO CONFIRM (user-required field). */
     contact: string | null;
     /** Website. Format TO CONFIRM (user-required field). */
