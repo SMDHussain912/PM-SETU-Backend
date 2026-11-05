@@ -43,7 +43,7 @@ export async function listNews(query: NewsListQuery): Promise<NewsListResult> {
 }
 
 export async function getNewsById(id: number): Promise<News> {
-    const news = await newsRepository.getNewsById(id);
+    const news = await newsRepository.getNewsByIdForAdmin(id);
     if (!news) {
         throw new ApiError({
             statusCode: 404,
