@@ -16,7 +16,10 @@ export async function loadReconciliationRecords(query: FinanceLedgerQuery) {
         }),
         prisma.financeFundRelease.findMany({
             where: {
-                financialYear: query.financial_year,
+                OR: [
+                    { financialYear: query.financial_year },
+                    { outlay: { financialYear: query.financial_year } },
+                ],
                 outlay: {
                     ...(query.cluster_id === undefined ? {} : { clusterId: query.cluster_id }),
                     ...(query.iti_id === undefined ? {} : { itiId: query.iti_id }),
@@ -29,7 +32,11 @@ export async function loadReconciliationRecords(query: FinanceLedgerQuery) {
         }),
         prisma.financeExpenditure.findMany({
             where: {
-                financialYear: query.financial_year,
+                OR: [
+                    { financialYear: query.financial_year },
+                    { outlay: { financialYear: query.financial_year } },
+                    { release: { financialYear: query.financial_year } },
+                ],
                 outlay: {
                     ...(query.cluster_id === undefined ? {} : { clusterId: query.cluster_id }),
                     ...(query.iti_id === undefined ? {} : { itiId: query.iti_id }),
