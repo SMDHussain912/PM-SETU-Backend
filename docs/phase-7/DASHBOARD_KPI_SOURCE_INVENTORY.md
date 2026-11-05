@@ -153,3 +153,14 @@ The repository audit is recorded in `docs/phase-7/PHYSICAL_PROGRESS_REPORTING_RE
 - No dedicated civil works, equipment lifecycle, lab inventory, or smart-classroom reporting models/migrations were found.
 - PHY-01 through PHY-04 therefore remain unavailable for dashboard aggregation. Generic submission counts, profile text, workflow approval state, AIP/SIP planning values, and fabricated zeroes are not acceptable substitutes.
 - Implementation is gated on authoritative source ownership, metric/grain/unit definitions, lifecycle and operational criteria, evidence/review policy, reporting period/freshness, hierarchy, visibility, and acceptance evidence.
+
+
+## 10. Phase 7 — academic and industry outcome readiness
+
+The repository evidence and implementation gates are recorded in `docs/phase-7/ACADEMIC_INDUSTRY_OUTCOME_READINESS.md`.
+
+- Academic source intake exists for ACD-01..ACD-05. `ACCEPTED` is an intake/review state, not proof that a record qualifies for an official academic KPI.
+- Industry outcome intake exists for apprenticeship, OJT, industry exposure, placement, and employer participation record types. `VERIFIED` is an operational review state, not automatic KPI qualification.
+- The existing academic summary and industry outcome summary are intake workflow counts, not official KPI aggregations.
+- ACD KPI source/definition gaps and IND counting-grain, identity, evidence, period and placement-rate denominator gaps remain unresolved.
+- No academic or industry KPI dashboard aggregation was added. Capacity remains separate from academic outcomes; placement percentage remains blocked on approved numerator/denominator and cohort rules.
