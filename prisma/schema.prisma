@@ -630,6 +630,8 @@ model IntegrationSource {
   transport     String   @db.VarChar(20)
   enabled       Boolean  @default(false)
   credentialRef String?  @map("credential_ref") @db.VarChar(120)
+  syncIntervalSeconds Int? @map("sync_interval_seconds")
+  nextSyncAt    DateTime? @map("next_sync_at")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   runs          IntegrationSyncRun[]
