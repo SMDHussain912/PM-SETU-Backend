@@ -128,4 +128,45 @@ Required tests after policy approval:
 
 ---
 
+
+
+## 9. Access decision — public model selected
+
+**Project decision:** The project has selected option A: all six dashboard GET endpoints are intentionally public and read-only. This supersedes the earlier unresolved audience choice for the current implementation direction. The absence of route-level authentication, permission guards and cluster-scope middleware is therefore an intentional policy choice, not an outstanding route-remediation defect.
+
+### 9.1 Route policy
+
+| Route | Access | Allowed operation |
+|---|---|---|
+| `GET /api/v1/dashboard/state` | Public | Read state aggregate |
+| `GET /api/v1/dashboard/clusters` | Public | Read cluster summaries |
+| `GET /api/v1/dashboard/clusters/:id` | Public | Read cluster detail and organisation-level child lists |
+| `GET /api/v1/dashboard/finance` | Public | Read legacy finance/proposal aggregates with existing semantics |
+| `GET /api/v1/dashboard/training` | Public | Read legacy training/profile aggregates with existing semantics |
+| `GET /api/v1/dashboard/placements` | Public | Read source-unavailable information message |
+
+### 9.2 Security implications and safeguards
+
+- No authentication, RBAC or cluster-scope middleware is to be added to these six GET routes under the selected public model.
+- The dashboard router remains read-only; no mutation endpoint belongs in this public router.
+- Existing input validation, application rate limiting, Helmet and CORS configuration remain in place. These are defence-in-depth controls, not authorization.
+- Public access does not make legacy finance/training proxy fields official KPIs. Existing KPI definition and provenance caveats remain in force.
+- Before production publication, the accountable department/NIC owner must confirm that cluster identities, ITI/AIP child-list fields, finance aggregates and training aggregates are approved for public disclosure. The user's project-direction choice does not replace any required departmental data-classification approval.
+- If the approved public data classification excludes any response field, create an explicit public response DTO/allowlist and response-shape tests before deployment. Do not silently expose new fields when expanding these responses.
+
+### 9.3 Updated exit status
+
+| Deliverable | Status |
+|---|---|
+| Project dashboard audience choice | Public model selected |
+| Six GET route access policy | Public, read-only |
+| Route authentication/RBAC/scope remediation | Not applicable under selected model |
+| Public-field/data-classification sign-off | Still requires accountable department/NIC confirmation |
+| Public response-shape regression tests | Required before production publication |
+| Deployed configuration / penetration test | Not performed |
+
+**Phase 3.10 exit:** Project-level access decision recorded. The routes remain intentionally public. Production data-disclosure approval and deployed-environment security validation remain separate release gates.
+
+---
+
 **End of Phase 3.10 — Dashboard Access-Control & Data-Exposure Audit**
