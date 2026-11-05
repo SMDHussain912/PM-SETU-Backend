@@ -180,6 +180,8 @@
 -- SUM(student_strength) intentionally remains NULL when no ITI has a
 -- non-null capacity value. COUNT(student_strength) measures populated source
 -- values; COUNT(*) measures non-sample ITI records. These are different facts.
+-- ITIs with a null cluster or a sample-cluster parent are counted as lacking
+-- a reportable cluster so state-to-cluster coverage can be reconciled.
 --
 -- SELECT
 --     SUM(student_strength)::int AS student_capacity,
