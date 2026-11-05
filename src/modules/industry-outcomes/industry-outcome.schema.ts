@@ -9,7 +9,9 @@ export const outcomeTypes = [
     "EMPLOYER_PARTICIPATION",
 ] as const;
 
-export const outcomeHistoryQuerySchema = paginationQuerySchema;\n\nexport const outcomeIdParamsSchema = z.object({
+export const outcomeHistoryQuerySchema = paginationQuerySchema;
+
+export const outcomeIdParamsSchema = z.object({
     id: z.coerce.number().int().positive(),
 });
 
@@ -86,7 +88,8 @@ export const reviewOutcomeSchema = z.object({
     review_note: z.string().trim().max(2000).nullable().optional(),
 }).strict();
 
-export type OutcomeIdParams = z.infer<typeof outcomeIdParamsSchema>;\nexport type OutcomeHistoryQuery = z.infer<typeof outcomeHistoryQuerySchema>;
+export type OutcomeIdParams = z.infer<typeof outcomeIdParamsSchema>;
+export type OutcomeHistoryQuery = z.infer<typeof outcomeHistoryQuerySchema>;
 export type OutcomeListQuery = z.infer<typeof outcomeListQuerySchema>;
 export type CreateOutcomeBody = z.infer<typeof createOutcomeSchema>;
 export type ReviewOutcomeBody = z.infer<typeof reviewOutcomeSchema>;
