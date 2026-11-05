@@ -560,3 +560,33 @@ model UserScopeAssignment {
   @@index([scopeType, scopeId], map: "idx_user_scope_assignments_scope")
   @@map("user_scope_assignments")
 }
+
+
+/// Source-neutral industry outcome intake. Records remain operational/review data;
+/// they are NOT automatically treated as verified KPI facts.
+model IndustryOutcomeRecord {
+  id             Int       @id @default(autoincrement())
+  outcomeType    String    @map("outcome_type")
+  sourceSystem   String    @map("source_system")
+  sourceRecordId String?   @map("source_record_id")
+  clusterId      Int?      @map("cluster_id")
+  itiId          Int?      @map("iti_id")
+  employerName   String?   @map("employer_name")
+  participantRef String?   @map("participant_ref")
+  eventDate      DateTime? @map("event_date") @db.Date
+  evidenceRef    String?   @map("evidence_ref")
+  payload        Json      @default("{}")
+  reviewStatus   String    @default("PENDING") @map("review_status")
+  reviewedBy     Int?      @map("reviewed_by")
+  reviewedAt     DateTime? @map("reviewed_at")
+  reviewNote     String?   @map("review_note")
+  createdBy      Int       @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([sourceSystem, sourceRecordId], map: "uq_industry_outcomes_source_record")
+  @@index([outcomeType, reviewStatus], map: "idx_industry_outcomes_type_status")
+  @@index([clusterId, itiId], map: "idx_industry_outcomes_cluster_iti")
+  @@index([eventDate], map: "idx_industry_outcomes_event_date")
+  @@map("industry_outcome_records")
+}
