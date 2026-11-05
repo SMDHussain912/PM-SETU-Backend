@@ -132,5 +132,5 @@ export async function createFinanceImportBatch(input: CreateFinanceImportBatchIn
         }
 
         return batch;
-    });;
+    });
 }
