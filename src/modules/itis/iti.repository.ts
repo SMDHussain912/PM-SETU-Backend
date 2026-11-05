@@ -12,13 +12,9 @@ import type { CreateItiBody, UpdateItiBody } from "./iti.schema";
  * passed through tagged-template interpolation, which Prisma sends as bound
  * parameters — never string-concatenate values into these queries.
  *
- * ⚠ STATUS (full details in sql/itis/iti_queries.sql):
- *   The PM SETU tables (itis, clusters) do not exist yet —
- *   prisma/schema.prisma has no models and there are no migrations. Until
- *   the database developer creates the real schema, these queries fail at
- *   runtime and the endpoints return a 500 error envelope. That is
- *   intentional: ITI data must come from the database, never from hard-coded
- *   or fake records.
+ * The ITI and Cluster tables are defined in prisma/schema.prisma and the
+ * initial migration. Public reads and admin writes use the same persisted
+ * schema; no ITI records are hard-coded.
  */
 
 /**
