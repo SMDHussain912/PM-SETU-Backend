@@ -2,7 +2,7 @@ import { prisma } from "../../config/database";
 import type { Prisma } from "../../generated/prisma/client";
 import type { CreateOutcomeBody, OutcomeListQuery, ReviewOutcomeBody } from "./industry-outcome.schema";
 
-export async function listOutcomes(query: OutcomeListQuery) {
+export async function listOutcomes(query: OutcomeListQuery, scopeWhere?: Prisma.IndustryOutcomeRecordWhereInput) {
     const where: Prisma.IndustryOutcomeRecordWhereInput = {
         ...(query.outcome_type ? { outcomeType: query.outcome_type } : {}),
         ...(query.review_status ? { reviewStatus: query.review_status } : {}),
@@ -16,20 +16,21 @@ export async function listOutcomes(query: OutcomeListQuery) {
             },
         } : {}),
     };
+    const scopedWhere: Prisma.IndustryOutcomeRecordWhereInput = scopeWhere ? { AND: [where, scopeWhere] } : where;
     const [items, total] = await Promise.all([
         prisma.industryOutcomeRecord.findMany({
-            where,
+            where: scopedWhere,
             orderBy: [{ eventDate: "desc" }, { id: "desc" }],
             skip: (query.page - 1) * query.pageSize,
             take: query.pageSize,
         }),
-        prisma.industryOutcomeRecord.count({ where }),
+        prisma.industryOutcomeRecord.count({ where: scopedWhere }),
     ]);
     return { items, total };
 }
 
-export function getOutcomeById(id: number) {
-    return prisma.industryOutcomeRecord.findUnique({ where: { id } });
+export function getOutcomeById(id: number, scopeWhere?: Prisma.IndustryOutcomeRecordWhereInput) {
+    return prisma.industryOutcomeRecord.findFirst({ where: { AND: [{ id }, ...(scopeWhere ? [scopeWhere] : [])] } });
 }
 
 export async function createOutcome(input: CreateOutcomeBody, createdBy: number, tx: Prisma.TransactionClient) {
@@ -76,14 +77,15 @@ export async function reviewOutcome(id: number, input: ReviewOutcomeBody, review
     return tx.industryOutcomeRecord.findUnique({ where: { id } });
 }
 
-export async function getOutcomeSummary() {
+export async function getOutcomeSummary(scopeWhere?: Prisma.IndustryOutcomeRecordWhereInput) {
     const [byTypeAndStatus, total] = await Promise.all([
         prisma.industryOutcomeRecord.groupBy({
             by: ["outcomeType", "reviewStatus"],
+            where: scopeWhere,
             _count: { _all: true },
             orderBy: [{ outcomeType: "asc" }, { reviewStatus: "asc" }],
         }),
-        prisma.industryOutcomeRecord.count(),
+        prisma.industryOutcomeRecord.count({ where: scopeWhere }),
     ]);
     const summary = {
         total,
