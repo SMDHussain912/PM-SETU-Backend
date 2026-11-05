@@ -384,6 +384,15 @@ Created `docs/phase-7/KPI_APPROVAL_REGISTER_AND_IMPLEMENTATION_BACKLOG.md` (comm
 **Current active work:** Phase 7 is now in the decision/contract preparation stage. The next actionable task is to obtain or record actual source-owner/DET decisions for one KPI family. Until an approved source contract is available, do not invent metric formulas or add proxy dashboard values. The engineering team can prepare contract templates and acceptance fixtures, but must label them as drafts rather than approvals.
 
 
+### Test database safety hardening — 2026-11-06
+
+The default `npm test` command now sets `NODE_ENV=test`. In test mode, application database configuration reads only `TEST_DATABASE_URL` and does not fall back to `DATABASE_URL`. The dashboard registry integration fixture additionally requires a valid URL whose database name ends in `_test` or `-test`, before it opens connections or writes fixtures. Cleanup runs only after fixture setup completes and always closes connections.
+
+- `.env.example` documents a separate `pm_setu_test` database.
+- `docs/testing/DATABASE_SAFETY.md` documents setup and migration instructions.
+- Commits: `e396b06`, `1bec16f`, `3518c2f`, `3b5c554`, `070020e`.
+- Local typecheck/test/build has not been run through the GitHub connector. The owner must configure `TEST_DATABASE_URL`, migrate that dedicated database, then run the checks locally. A missing or unsafe test database must fail the destructive integration fixture rather than fall back to development data.
+
 ### Phase 7 continuation — KPI decision and acceptance templates
 
 Created `docs/phase-7/KPI_DECISION_RECORD_AND_ACCEPTANCE_CRITERIA_TEMPLATE.md` (commit `8713f585af09ec2568fa541214753c6c830a4267`).
