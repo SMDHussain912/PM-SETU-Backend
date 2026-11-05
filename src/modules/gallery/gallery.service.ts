@@ -35,7 +35,7 @@ export async function listGalleryItems(query: GalleryListQuery): Promise<Gallery
 }
 
 export async function getGalleryItemById(id: number): Promise<GalleryItem> {
-    const item = await galleryRepository.getGalleryItemById(id);
+    const item = await galleryRepository.getPublishedGalleryItemById(id);
     if (!item) {
         throw new ApiError({
             statusCode: 404,
