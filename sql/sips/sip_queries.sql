@@ -15,14 +15,18 @@
 --   (and vice versa).
 --
 -- STATUS  ⚠ READ FIRST
---   The PM SETU schema does NOT exist yet:
---     - prisma/schema.prisma defines no models
---     - prisma/migrations/ does not exist
---   This file documents the PLANNED queries and the contract of what must
---   be created. NOTHING here creates tables — schema creation is owned by
---   the database developer (Prisma models or raw SQL, their choice). Until
---   the schema exists the queries fail at runtime and the endpoints return
---   a 500 error envelope. That is intentional: no fake SIP records.
+--   The current repository contains a Prisma Sip model and SIP table
+--   migrations. The backend repository also contains SIP registry CRUD.
+--   This SQL file is a DBA-maintained query reference; it does not create
+--   tables or certify that migrations have been applied to a deployed
+--   database. Verify the target environment's migration state before
+--   executing queries or treating production data as reconciled.
+--
+--   Workflow boundary: the seven values below are present in the current
+--   schema and application validation. The operational workflow contract
+--   also describes a REJECTED state, which is not in that seven-value list.
+--   Resolve that discrepancy with NIC / the authorised workflow owner
+--   before changing the canonical vocabulary or implementing REG-06.
 --
 -- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
 --
