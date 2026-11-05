@@ -93,6 +93,10 @@ export const openApiSpec = {
                 "CMS-managed homepage banners: public published/active lists + admin CRUD, publish/archive, image upload (RoadMap.md §15 + §24). All banner fields INFERRED / TO CONFIRM.",
         },
         {
+            name: "Industry Outcomes",
+            description: "Protected source-referenced industry outcome intake and evidence review; not an approved KPI aggregation.",
+        },
+        {
             name: "Contact",
             description:
                 "Public contact form submission + admin message triage (RoadMap.md §23). All message fields INFERRED / TO CONFIRM.",
