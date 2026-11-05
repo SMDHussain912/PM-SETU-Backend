@@ -23,7 +23,7 @@ test("capacity aggregation preserves unavailable values and reports source cover
                 total_itis: 3,
                 itis_with_capacity: 0,
                 itis_without_capacity: 3,
-                unassigned_itis: 1,
+                itis_without_reportable_cluster: 1,
             }];
         }
         return [{
@@ -61,6 +61,8 @@ test("capacity aggregation preserves unavailable values and reports source cover
             assert.doesNotMatch(statement, /COALESCE\(SUM\(.*student_strength/i);
         }
         assert.match(statements[0], /COUNT\(student_strength\)/i);
+        assert.match(statements[0], /LEFT JOIN clusters/i);
+        assert.match(statements[0], /itis_without_reportable_cluster/i);
         assert.match(statements[1], /LEFT JOIN itis/i);
         assert.match(statements[1], /WHERE c\.is_sample\s*=\s*FALSE/i);
     } finally {
@@ -78,7 +80,7 @@ test("capacity aggregation reports a real zero separately from missing capacity"
         total_itis: 2,
         itis_with_capacity: 2,
         itis_without_capacity: 0,
-        unassigned_itis: 0,
+        itis_without_reportable_cluster: 0,
     }];
 
     try {
