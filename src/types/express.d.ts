@@ -8,6 +8,12 @@ export interface AuthUser {
     permissions?: string[];
 }
 
+declare module "http" {
+    interface IncomingMessage {
+        rawBody?: Buffer;
+    }
+}
+
 declare global {
     namespace Express {
         interface Request {
