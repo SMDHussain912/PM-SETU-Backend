@@ -1148,7 +1148,7 @@ export const openApiSpec = {
             patch: {
                 tags: ["SIP"],
                 summary: "Update SIP registry relationships",
-                description: "Updates Cluster/AIP relationships only. Workflow status cannot be changed through generic registry PATCH. Cluster admins must have scope and cannot reassign either relationship.",
+                description: "Updates Cluster/AIP relationships only and is restricted to STATE_PMU_ADMIN and SUPER_ADMIN. Workflow status cannot be changed through generic registry PATCH.",
                 security: [{ bearerAuth: [] }],
                 parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
                 requestBody: {
@@ -1170,7 +1170,7 @@ export const openApiSpec = {
                 responses: {
                     "200": { description: "Updated SIP registry record" },
                     "401": { description: "Missing/invalid token" },
-                    "403": { description: "Insufficient role or resource scope" },
+                    "403": { description: "Insufficient role" },
                     "404": { description: "SIP not found" },
                     "422": { description: "Validation failed" },
                     "500": { description: "PM SETU database schema not created yet" },
