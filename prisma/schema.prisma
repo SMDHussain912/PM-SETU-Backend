@@ -590,3 +590,32 @@ model IndustryOutcomeRecord {
   @@index([eventDate], map: "idx_industry_outcomes_event_date")
   @@map("industry_outcome_records")
 }
+
+
+/// Source-neutral academic intake. Accepted records are source-validated only;
+/// they are not automatically verified academic KPI facts.
+model AcademicSourceRecord {
+  id             Int       @id @default(autoincrement())
+  kpiCode        String    @map("kpi_code")
+  sourceSystem   String    @map("source_system")
+  sourceRecordId String    @map("source_record_id")
+  sourceVersion  String?   @map("source_version")
+  clusterId      Int?      @map("cluster_id")
+  itiId          Int?      @map("iti_id")
+  eventDate      DateTime? @map("event_date") @db.Date
+  subjectToken   String?   @map("subject_token")
+  payload        Json      @default("{}")
+  reviewStatus   String    @default("PENDING") @map("review_status")
+  reviewNote     String?   @map("review_note")
+  reviewedBy     Int?      @map("reviewed_by")
+  reviewedAt     DateTime? @map("reviewed_at")
+  createdBy      Int       @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([sourceSystem, sourceRecordId], map: "uq_academic_source_records_source_record")
+  @@index([kpiCode, reviewStatus], map: "idx_academic_source_records_kpi_status")
+  @@index([clusterId, itiId], map: "idx_academic_source_records_cluster_iti")
+  @@index([eventDate], map: "idx_academic_source_records_event_date")
+  @@map("academic_source_records")
+}
