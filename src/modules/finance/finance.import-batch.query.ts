@@ -70,3 +70,56 @@ export async function getFinanceImportBatch(batchId: number) {
     if (!batch) throw new ApiError({ statusCode: 404, code: "FINANCE_IMPORT_BATCH_NOT_FOUND", message: "Finance import batch not found" });
     return batch;
 }
+
+
+export interface FinanceImportBatchRowsQuery {
+    batch_id: number;
+    page: number;
+    page_size: number;
+}
+
+/** Validates bounded pagination for row-level batch diagnostics. */
+export function validateFinanceImportBatchRowsQuery(query: FinanceImportBatchRowsQuery): void {
+    if (!Number.isSafeInteger(query.batch_id) || query.batch_id < 1) {
+        throw new ApiError({ statusCode: 422, code: "INVALID_BATCH_ID", message: "batch_id must be a positive integer" });
+    }
+    if (!Number.isSafeInteger(query.page) || query.page < 1) {
+        throw new ApiError({ statusCode: 422, code: "INVALID_PAGE", message: "page must be a positive integer" });
+    }
+    if (!Number.isSafeInteger(query.page_size) || query.page_size < 1 || query.page_size > 100) {
+        throw new ApiError({ statusCode: 422, code: "INVALID_PAGE_SIZE", message: "page_size must be between 1 and 100" });
+    }
+}
+
+/**
+ * Returns row diagnostics in bounded pages so large imports do not require
+ * loading every row outcome into memory for a single detail request.
+ */
+export async function listFinanceImportBatchRows(query: FinanceImportBatchRowsQuery) {
+    validateFinanceImportBatchRowsQuery(query);
+    const batch = await prisma.financeImportBatch.findUnique({
+        where: { id: query.batch_id },
+        select: { id: true },
+    });
+    if (!batch) {
+        throw new ApiError({ statusCode: 404, code: "FINANCE_IMPORT_BATCH_NOT_FOUND", message: "Finance import batch not found" });
+    }
+
+    const where = { batchId: query.batch_id };
+    const [items, total] = await Promise.all([
+        prisma.financeImportBatchRow.findMany({
+            where,
+            orderBy: [{ rowNumber: "asc" }, { id: "asc" }],
+            skip: (query.page - 1) * query.page_size,
+            take: query.page_size,
+        }),
+        prisma.financeImportBatchRow.count({ where }),
+    ]);
+    return {
+        items,
+        total,
+        page: query.page,
+        page_size: query.page_size,
+        total_pages: Math.ceil(total / query.page_size),
+    };
+}
