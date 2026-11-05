@@ -90,6 +90,7 @@
 --     gallery_items.created_at,
 --     gallery_items.updated_at
 -- FROM gallery_items
+-- WHERE gallery_items.is_published = TRUE
 -- ORDER BY gallery_items.display_order ASC NULLS LAST,
 --          gallery_items.published_date DESC NULLS LAST,
 --          gallery_items.id DESC
@@ -97,19 +98,19 @@
 --
 -- 2. COUNT ALL
 --
--- SELECT COUNT(*)::int AS count FROM gallery_items;
+-- SELECT COUNT(*)::int AS count FROM gallery_items WHERE is_published = TRUE;
 --
 -- 3. DETAIL BY ID
 --
 -- SELECT <same columns>
 -- FROM gallery_items
--- WHERE gallery_items.id = ${id};
+-- WHERE gallery_items.id = ${id} AND gallery_items.is_published = TRUE;
 --
 -- 4. LIST PHOTOS (paginated)
 --
 -- SELECT <same columns>
 -- FROM gallery_items
--- WHERE gallery_items.type = 'PHOTO'
+-- WHERE gallery_items.type = 'PHOTO' AND gallery_items.is_published = TRUE
 -- ORDER BY gallery_items.display_order ASC NULLS LAST,
 --          gallery_items.published_date DESC NULLS LAST,
 --          gallery_items.id DESC
@@ -117,13 +118,13 @@
 --
 -- 5. COUNT PHOTOS
 --
--- SELECT COUNT(*)::int AS count FROM gallery_items WHERE type = 'PHOTO';
+-- SELECT COUNT(*)::int AS count FROM gallery_items WHERE type = 'PHOTO' AND is_published = TRUE;
 --
 -- 6. LIST VIDEOS (paginated)
 --
 -- SELECT <same columns>
 -- FROM gallery_items
--- WHERE gallery_items.type = 'VIDEO'
+-- WHERE gallery_items.type = 'VIDEO' AND gallery_items.is_published = TRUE
 -- ORDER BY gallery_items.display_order ASC NULLS LAST,
 --          gallery_items.published_date DESC NULLS LAST,
 --          gallery_items.id DESC
@@ -131,7 +132,7 @@
 --
 -- 7. COUNT VIDEOS
 --
--- SELECT COUNT(*)::int AS count FROM gallery_items WHERE type = 'VIDEO';
+-- SELECT COUNT(*)::int AS count FROM gallery_items WHERE type = 'VIDEO' AND is_published = TRUE;
 --
 -- ============================================================================
 -- ADMIN QUERIES (RoadMap §14 + §24; all INFERRED / TO CONFIRM)
