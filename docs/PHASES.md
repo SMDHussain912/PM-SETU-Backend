@@ -48,12 +48,12 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 | 3 | Physical progress monitoring | <strong>Complete</strong> |
 | 4 | Academic & training monitoring | <strong>Implementation complete; acceptance pending</strong> |
 | 5 | Industry & employment | <strong>Implementation complete</strong> |
-| 6 | Finance | <strong>In progress</strong> |
-| 7 | State PMU dashboard & analytics | <strong>Not started</strong> |
+| 6 | Finance | <strong>Engineering implementation complete; operational acceptance pending</strong> |
+| 7 | State PMU dashboard & analytics | <strong>In progress — source inventory and reporting contract baseline</strong> |
 | 8 | Integrations & public portal | <strong>Not started</strong> |
 | 9 | Security, testing & production readiness | <strong>Not started</strong> |
 
-**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete, and Phase 6 is active. Phases 7–9 remain after Phase 6.
+**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 has started with a source inventory and reporting-contract baseline; metric implementation remains dependent on approved sources and definitions. Phases 8–9 remain.
 
 A phase marked implementation-complete is not automatically government-approved, production-accepted, or operationally verified.
 
@@ -132,7 +132,7 @@ Purpose:
 Completion note: Implementation is marked complete in the project tracker. Continue to distinguish recorded programme data from verified external outcomes where source evidence is required.
 
 ### Phase 6 — Finance
-**Status: IN PROGRESS**
+**Status: ENGINEERING IMPLEMENTATION COMPLETE; OPERATIONAL ACCEPTANCE PENDING**
 
 Purpose:
 - Build safe finance data contracts and ingestion foundations.
@@ -197,9 +197,9 @@ Selective retry batches now receive explicit lifecycle labels rather than being 
 
 #### Current active work — next task
 
-The user reports that the latest test suite passed. Whether the opt-in PostgreSQL concurrency tests actually executed with `PM_SETU_TEST_DATABASE_URL` pointing to a dedicated migrated test database is still unconfirmed; retain this as an evidence gap until the command output establishes it. A further reconciliation review found that persisted snapshots include every preview row while selective execution summaries include only attempted rows. Reconciliation now distinguishes unattempted `VALID` and structurally `INVALID` rows from unexpected terminal outcomes, verifies preview row counters and full row coverage, and has regression tests for selective retry and mixed valid/invalid previews. A second pass now also validates execution summary counter consistency, persisted outcome totals versus valid/invalid preview counters, and data-row positions (row 2 onward), with additional regression coverage. Duplicate row positions and invalid positive row positions now emit row-scoped discrepancy codes so recovery plans can list affected row numbers rather than only a batch-level integrity flag. Recovery JSON export validation now also enforces status-to-case/batch identity, unique affected row numbers and evidence keys, non-empty evidence fields, and immutable safety flags. It now requires the canonical five-item evidence checklist and checks that a missing persisted snapshot is explicitly marked NOT_AVAILABLE.
+Phase 6 engineering foundations are implemented, and the user reports that the latest typecheck/test/build checks passed. The migration deployment result is also user-confirmed as successful in the current conversation. The opt-in PostgreSQL concurrency tests still require explicit evidence that they ran with `PM_SETU_TEST_DATABASE_URL` pointing to a dedicated migrated test database; a skipped test is not live concurrency verification. Finance/DET source, accounting, permissions, audit, correction/reversal, and retention approvals remain external acceptance gates. Do not mount finance write/recovery routes or activate official derived KPIs until those gates are resolved.
 
-The engineering close-out review is documented in `docs/phase-6/FINANCE_PHASE_6_CLOSEOUT_REVIEW.md`. Cross-financial-year reconciliation selection now includes linked outlay/release years and has pure predicate regression coverage. Exact financial amount validation now matches PostgreSQL `DECIMAL(18,2)` in both CSV mapping and internal ledger services: 16 integer digits maximum, 2 fractional digits maximum, non-negative finite values, and no floating-point conversion for monetary validation. Tests cover accepted and rejected boundaries. The user must run typecheck, tests, and build against these latest commits. Import-batch validation now also enforces total_rows = valid_rows + invalid_rows, unique row positions, and valid CSV data-row numbering (row 2 onward). CSV files missing required headers now classify each data row as unmappable/invalid so batch counters remain consistent; regression tests cover the preview and lifecycle paths. Remaining work: record dedicated PostgreSQL concurrency-test execution evidence, complete the approved source-extract reconciliation when Finance provides representative records, and obtain the external Finance/DET decisions listed in the close-out review. The latest metadata-integrity migration adds database CHECK constraints for allowed batch/row vocabularies, non-negative counters, counter equations, and data-row positions; it aborts on inconsistent pre-existing rows rather than rewriting them. The repository also rejects row 1 consistently. A follow-up review found the selective retry executor still accepted row 1 at its numeric boundary (although it could not map it to a valid preview row); it now rejects the header row explicitly and has a regression test. The user must pull and verify this latest migration and code before the milestone is considered locally verified. Do not mount finance write/recovery routes or activate official derived KPIs while source ownership, Finance permissions, audit semantics, correction/reversal policy, and formula approvals remain unresolved. Preserve the policy that a deliberate import re-run uses a new idempotency key.
+Phase 7 has begun with `docs/phase-7/DASHBOARD_KPI_SOURCE_INVENTORY.md`. The current dashboard source inventory identifies registry counts, AIP investment planning values, SIP proposal/contribution values, ITI student capacity, and unavailable trainees/industry/placement/official-finance measures. Next task: define a versioned dashboard reporting contract that preserves existing API compatibility and adds explicit metric identity, reporting context, source freshness, availability, and coverage metadata only where supported. Add tests for unavailable versus genuine zero, sample-row exclusion, scope aggregation, and period boundaries. Do not invent KPI formulas, targets, or source completeness.
 
 #### Finance data and policy guardrails
 
@@ -215,7 +215,6 @@ Required drilldown: **State → Cluster → ITI / Project**. Reporting period: f
 Do not misrepresent existing planning fields:
 - AIP `investment_amount` and SIP `proposed_investment` / contribution fields are planning or registry indicators.
 - They are **not** authoritative approved outlay, released funds, or expenditure.
-- SIP proposed contribution is only a partial proxy for FIN-01 until sanction/outlay records are available.
 
 Authoritative records still required or to be confirmed:
 - Approved outlay: sanction/outlay reference, amount, date, and scope.
@@ -237,21 +236,18 @@ Other non-negotiable guardrails:
 
 Related documentation:
 - `docs/phase-6/PHASE_6_FINANCE_DATA_CONTRACT.md`
-- `docs/phase-6/FINANCE_CSV_PREVIEW_PERSISTENCE.md`
-- `docs/phase-6/FINANCE_IMPORT_BATCH_ROW_PAGINATION.md`
-- `docs/phase-6/FINANCE_IMPORT_EXECUTION_RECONCILIATION.md`
-- `docs/phase-6/FINANCE_IMPORT_OPERATIONAL_RECOVERY.md`
-- `docs/phase-6/FINANCE_IMPORT_RECOVERY_EVIDENCE_CHECKLIST.md`
-- `docs/phase-6/FINANCE_IMPORT_RECOVERY_REPORT.md`
-- `docs/phase-6/FINANCE_IMPORT_RECOVERY_REPORT_JSON_EXPORT.md`
-- `docs/phase-6/FINANCE_IMPORT_RECOVERY_REPORT_DELIVERY.md`
-- `docs/phase-6/FINANCE_IMPORT_RECOVERY_HTTP_ROUTE.md`
+- `docs/phase-6/FINANCE_PHASE_6_CLOSEOUT_REVIEW.md`
+- `docs/phase-7/DASHBOARD_KPI_SOURCE_INVENTORY.md`
 
 ### Phase 7 — State PMU dashboard & analytics
-**Status: NOT STARTED**
+**Status: IN PROGRESS — SOURCE INVENTORY AND REPORTING CONTRACT BASELINE**
 
 Purpose:
 - Build state-level PMU dashboard and analytical reporting on top of validated source modules.
+
+Initial deliverable:
+- `docs/phase-7/DASHBOARD_KPI_SOURCE_INVENTORY.md` records the current public dashboard endpoints, actual query sources, planning-versus-official KPI boundaries, unavailable data, and requirements for future metric contracts.
+- This is a source inventory, not approval of KPI definitions or a claim that production data is complete.
 - Provide the approved State → Cluster → ITI / Project drilldown.
 - Consolidate physical, academic/training, industry/employment, and finance reporting where authoritative source definitions exist.
 - Include reporting periods, as-of dates, source freshness, and data-quality/coverage context where required.
@@ -312,6 +308,7 @@ Completion evidence should include:
 
 | Date | Phase | Milestone | Evidence / note |
 |---|---|---|---|
+| 2026-11-06 | 7 | Started dashboard source inventory and reporting-contract baseline | Commit `e8d059f6`; records existing endpoint sources and data gaps without inventing KPI formulas or claiming production completeness. |
 | 2026-11-06 | 6 | Bound finance import idempotency keys to the complete immutable request, not only file hash and record kind | Commits `386e1a12`, `16bc2690`, and `02597409`. Identical retries return the canonical batch; altered metadata or row diagnostics now conflict. User verification required. |
 | 2026-11-06 | 6 | Enforced canonical evidence checklist semantics in recovery report JSON validation | Commits `4c80b7c2`, `1546d398`, and `f9ca6d49`. User verification required. |
 | 2026-11-06 | 6 | Tightened recovery report export validation for status/batch consistency, duplicate references, and required evidence fields | Commits `6dba3d6f`, `f497bb28`, `fa593deb`, and `a22217f2`. User verification required. |
