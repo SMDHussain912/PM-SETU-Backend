@@ -161,10 +161,10 @@ export async function createAuditEntry(input: {
         userAgent?: string | undefined;
         path?: string | undefined;
     };
-}): Promise<number> {
+}, db: Prisma.TransactionClient = prisma): Promise<number> {
     const { userId, action, entity, entityId, oldValue, newValue, approvalStatus, context } = input;
 
-    const rows = await prisma.$queryRaw<{ id: number }[]>(
+    const rows = await db.$queryRaw<{ id: number }[]>(
         Prisma.sql`
             INSERT INTO audit_logs (
                 user_id, action, entity, entity_id,
