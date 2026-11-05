@@ -21,6 +21,20 @@ The current public, read-only dashboard router exposes:
 
 These routes are intentionally public and read-only under the current project decision. Do not add write operations or expose finance ledgers through this router.
 
+## 1A. Versioned reporting contract
+
+The additive public endpoint `GET /api/v1/dashboard/contract` returns contract version `1.0.0` and a catalogue of metric identifiers, labels, classifications, units, source descriptions, availability states, supported aggregation levels, notes, and official finance KPI codes where applicable.
+
+Important interpretation:
+- `generated_at` is the time the catalogue response was generated; it is **not** a data as-of timestamp.
+- `reporting_context.data_as_of` and `reporting_period` are null because source systems do not yet provide a common approved reporting timestamp/period.
+- `source_freshness = NOT_TRACKED` explicitly means freshness is not currently measurable by this contract.
+- `AVAILABLE` means the backend has a defined current source/query for the measure; it does not certify production completeness or accuracy.
+- `NOT_AVAILABLE`, `SOURCE_NOT_CONNECTED`, and `DEFINITION_PENDING` are not zero values.
+- Technical `metric_id` values are stable implementation identifiers, not new official KPI codes. Only FIN-01 through FIN-05 are marked with official KPI codes.
+
+This catalogue is descriptive. It does not calculate metric values or change the existing dashboard response payloads.
+
 ## 2. Current source inventory
 
 | Displayed field / measure | Current source | Interpretation and limitation |
