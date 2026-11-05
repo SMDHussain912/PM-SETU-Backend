@@ -668,6 +668,7 @@ export const openApiSpec = {
             StateMetrics: {
                 type: "object",
                 description: "State-level dashboard metrics (RoadMap.md §16). Response shape INFERRED from existing data contracts — TO CONFIRM.",
+                required: ["clusters", "hub_itis", "spoke_itis", "aips", "spvs", "sips_submitted", "sips_approved", "investment", "trainees", "industries_engaged"],
                 properties: {
                     clusters: { type: "integer" },
                     hub_itis: { type: "integer" },
@@ -684,6 +685,7 @@ export const openApiSpec = {
             ClusterSummary: {
                 type: "object",
                 description: "Cluster summary with aggregate metrics (RoadMap.md §16). Response shape INFERRED — TO CONFIRM.",
+                required: ["id", "name", "district", "sector", "hub_itis", "spoke_itis", "aips", "spvs", "investment"],
                 properties: {
                     id: { type: "integer" },
                     name: { type: "string" },
@@ -699,14 +701,15 @@ export const openApiSpec = {
             ClusterDashboardResponse: {
                 type: "object",
                 description: "Single cluster dashboard (RoadMap.md §16). Response shape INFERRED — TO CONFIRM.",
+                required: ["cluster", "metrics", "itis", "aips"],
                 properties: {
-                    cluster: { type: "object", properties: {
+                    cluster: { type: "object", required: ["id", "name", "district", "sector"], properties: {
                         id: { type: "integer" },
                         name: { type: "string" },
                         district: { type: "string" },
                         sector: { type: "string" },
                     } },
-                    metrics: { type: "object", properties: {
+                    metrics: { type: "object", required: ["hub_itis", "spoke_itis", "total_itis", "aips", "spvs", "sips_submitted", "sips_approved", "investment"], properties: {
                         hub_itis: { type: "integer" },
                         spoke_itis: { type: "integer" },
                         total_itis: { type: "integer" },
@@ -716,14 +719,14 @@ export const openApiSpec = {
                         sips_approved: { type: "integer" },
                         investment: { type: "number" },
                     } },
-                    itis: { type: "array", items: { type: "object", properties: {
+                    itis: { type: "array", items: { type: "object", required: ["id", "iti_code", "iti_name", "type", "district"], properties: {
                         id: { type: "integer" },
                         iti_code: { type: "string" },
                         iti_name: { type: "string" },
                         type: { type: "string" },
                         district: { type: "string" },
                     } } },
-                    aips: { type: "array", items: { type: "object", properties: {
+                    aips: { type: "array", items: { type: "object", required: ["id", "name", "sector", "status", "investment_amount"], properties: {
                         id: { type: "integer" },
                         name: { type: "string" },
                         sector: { type: "string" },
@@ -735,6 +738,7 @@ export const openApiSpec = {
             FinanceMetrics: {
                 type: "object",
                 description: "Finance dashboard (RoadMap.md §16). SIP contribution fields are task-brief fields NOT in RoadMap §10 — TO CONFIRM.",
+                required: ["total_investment", "total_sip_proposed", "total_sip_infrastructure", "total_sip_equipment", "total_sip_training", "total_sip_industry", "total_sip_government", "by_cluster"],
                 properties: {
                     total_investment: { type: "number" },
                     total_sip_proposed: { type: "number" },
@@ -754,6 +758,7 @@ export const openApiSpec = {
             TrainingMetrics: {
                 type: "object",
                 description: "Training dashboard (RoadMap.md §16). Only student capacity available — full training metrics require a future data source.",
+                required: ["total_student_capacity", "by_cluster", "by_iti_type"],
                 properties: {
                     total_student_capacity: { type: "integer" },
                     by_cluster: { type: "array", items: { type: "object", properties: {
@@ -762,7 +767,7 @@ export const openApiSpec = {
                         student_capacity: { type: "integer" },
                         iti_count: { type: "integer" },
                     } } },
-                    by_iti_type: { type: "object", properties: {
+                    by_iti_type: { type: "object", required: ["hub_capacity", "spoke_capacity"], properties: {
                         hub_capacity: { type: "integer" },
                         spoke_capacity: { type: "integer" },
                     } },
@@ -771,6 +776,7 @@ export const openApiSpec = {
             PlacementMetrics: {
                 type: "object",
                 description: "Placements dashboard (RoadMap.md §16). No source table established — returns informative message.",
+                required: ["message"],
                 properties: {
                     message: { type: "string" },
                 },
