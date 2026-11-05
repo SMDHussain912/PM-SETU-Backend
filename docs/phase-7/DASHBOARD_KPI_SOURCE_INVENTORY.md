@@ -103,3 +103,19 @@ Do not turn missing data into zero unless the source contract explicitly establi
 - No invented KPI targets, thresholds, or traffic-light statuses.
 - No new public finance write or recovery endpoints.
 - No claim of production data reconciliation or stakeholder acceptance.
+
+## 7. Phase 7.2 — source-backed ITI reporting scope
+
+Added the read-only endpoint `GET /api/v1/dashboard/training/itis/:id`.
+
+- Scope: one non-sample ITI, identified by a positive integer registry ID.
+- Current supported metric: `academic.student_capacity`, sourced directly from `itis.student_strength`.
+- Parent context: ITI code/name/type/district and its cluster reference.
+- If `student_strength` is null, the metric value remains null and availability is `NOT_AVAILABLE`; it is not coerced to zero.
+- A missing or sample ITI returns the standard 404 response.
+- The response explicitly retains `data_as_of: null`, `reporting_period: null`, and `source_freshness: NOT_TRACKED`.
+- The endpoint does not claim enrolment, trainees trained, assessment, placements, or any time-bounded outcome.
+
+This extends the existing State → Cluster → ITI reporting hierarchy only for the capacity metric whose source exists. It does not imply that every metric in the catalogue is available at ITI scope.
+
+Financial-year filtering is intentionally not implemented: the ITI capacity source has no approved effective-date/reporting-period semantics. Finance KPIs remain gated by the Phase 6 Finance approvals.
