@@ -261,3 +261,16 @@ No import batch tables, finance write endpoint, automatic persistence, source-sy
 Added an internal coordinator that consumes a validated CSV preview, converts row strings into typed finance ingestion inputs, and dispatches rows through explicitly injected persistence handlers. It returns per-row CREATED, DUPLICATE or REJECTED outcomes with source row numbers and record IDs where available. Invalid preview rows are not dispatched.
 
 Execution is sequential and each handler owns its transaction. Earlier successful rows are not rolled back when a later row fails; the result explicitly reports that partial commit is possible. This is not an HTTP endpoint and does not grant permissions or create a batch table. Structural validation is not Finance approval. Operational exposure remains blocked on Finance approval of source ownership, access control and audit policy, including the acceptable batch transaction model.
+
+## Import batch tracking milestone (2026-11-05)
+
+Added finance-specific batch and row-outcome storage for the CSV ingestion workflow:
+
+- A batch records the record kind, SHA-256 file fingerprint, technical lifecycle, row counters, creator reference and timestamps.
+- Per-row records preserve source row number, technical outcome, optional target ledger record ID, and bounded error details.
+- Database constraints enforce positive row numbers and unique row positions within a batch.
+- This is operational tracking only. Lifecycle/outcome values do not represent Finance review, approval, or accounting acceptance.
+
+**Data-retention boundary:** uploaded CSV bytes and normalized financial row payloads are not persisted. This avoids silently introducing a retention policy for sensitive financial source data. Consequently, retrying rejected rows from stored batch data is not supported yet; it requires an approved secure payload-retention policy or re-upload workflow.
+
+No HTTP endpoints, permission grants, audit guarantees, automatic ledger execution, or official KPI calculations are added by this milestone. Validate the Prisma schema/client and full test/build suite locally after pulling.
