@@ -769,3 +769,47 @@ model FinanceExpenditure {
   @@index([transactionReference], map: "idx_finance_expenditures_reference")
   @@map("finance_expenditures")
 }
+
+// ── Finance CSV import batch metadata ───────────────────────────────────────
+//
+// Stores technical preview/execution summaries only. Uploaded CSV contents and
+// normalized financial row payloads are deliberately NOT retained pending an
+// approved data-retention and access policy. This is not a Finance approval flow.
+
+model FinanceImportBatch {
+  id             Int      @id @default(autoincrement())
+  recordKind     String   @map("record_kind") @db.VarChar(20)
+  fileSha256     String   @map("file_sha256") @db.VarChar(64)
+  lifecycle      String   @db.VarChar(30)
+  totalRows      Int      @default(0) @map("total_rows")
+  validRows      Int      @default(0) @map("valid_rows")
+  invalidRows    Int      @default(0) @map("invalid_rows")
+  attemptedRows  Int      @default(0) @map("attempted_rows")
+  createdRows    Int      @default(0) @map("created_rows")
+  duplicateRows  Int      @default(0) @map("duplicate_rows")
+  rejectedRows   Int      @default(0) @map("rejected_rows")
+  createdBy      String?  @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  completedAt    DateTime? @map("completed_at")
+  rows           FinanceImportBatchRow[]
+
+  @@index([createdAt(sort: Desc)], map: "idx_finance_import_batches_created")
+  @@index([lifecycle, createdAt(sort: Desc)], map: "idx_finance_import_batches_lifecycle")
+  @@map("finance_import_batches")
+}
+
+model FinanceImportBatchRow {
+  id             Int      @id @default(autoincrement())
+  batchId        Int      @map("batch_id")
+  rowNumber      Int      @map("row_number")
+  outcome        String   @db.VarChar(20)
+  targetRecordId Int?     @map("target_record_id")
+  errorCode      String?  @map("error_code") @db.VarChar(100)
+  errorMessage   String?  @map("error_message") @db.VarChar(500)
+  createdAt      DateTime @default(now()) @map("created_at")
+  batch          FinanceImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, rowNumber], map: "uq_finance_import_batch_rows_batch_row")
+  @@index([batchId, outcome], map: "idx_finance_import_batch_rows_batch_outcome")
+  @@map("finance_import_batch_rows")
+}
