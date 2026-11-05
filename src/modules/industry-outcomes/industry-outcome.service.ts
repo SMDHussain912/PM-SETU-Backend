@@ -5,7 +5,7 @@ import { buildPaginationMeta } from "../../utils/pagination";
 import { ApiError } from "../../utils/response";
 import * as repository from "./industry-outcome.repository";
 import { toOutcomeAuditHistoryEntry, toOutcomeAuditSnapshot } from "./industry-outcome.audit";
-import { createOutcomeSchema, type CreateOutcomeBody, type OutcomeListQuery, type ReviewOutcomeBody } from "./industry-outcome.schema";
+import { createOutcomeSchema, type CreateOutcomeBody, type OutcomeHistoryQuery, type OutcomeListQuery, type ReviewOutcomeBody } from "./industry-outcome.schema";
 
 function actorId(value: number): number {
     if (!Number.isSafeInteger(value) || value <= 0) {
