@@ -38,7 +38,12 @@ itiClusterRouter.get(
 
 /** Cluster admins may edit scoped ITI data but cannot move an ITI between clusters. */
 function preventClusterAdminReassignment(req: import("express").Request, _res: import("express").Response, next: import("express").NextFunction): void {
-    if (req.user?.roles?.includes(ROLE_CODES.CLUSTER_ADMIN) && req.body?.cluster_id !== undefined) {
+    if (
+        req.user?.roles?.includes(ROLE_CODES.CLUSTER_ADMIN)
+        && !req.user.roles.includes(ROLE_CODES.STATE_PMU_ADMIN)
+        && !req.user.roles.includes(ROLE_CODES.SUPER_ADMIN)
+        && req.body?.cluster_id !== undefined
+    ) {
         next(new ApiError({
             statusCode: 403,
             code: "CLUSTER_REASSIGNMENT_FORBIDDEN",
