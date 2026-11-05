@@ -12,15 +12,10 @@
 --   Prisma $queryRaw. If a query changes here, mirror the change there
 --   (and vice versa).
 --
--- STATUS  ⚠ READ FIRST
---   The PM SETU schema does NOT exist yet:
---     - prisma/schema.prisma defines no models
---     - prisma/migrations/ does not exist
---   This file documents the PLANNED queries and the contract of what must
---   be created. NOTHING here creates tables — schema creation is owned by
---   the database developer (Prisma models or raw SQL, their choice). Until
---   the schema exists the queries fail at runtime and the endpoints return
---   a 500 error envelope. That is intentional: no fake AIP records.
+-- STATUS
+--   The Aip, Cluster, Spv and Sip models are defined in prisma/schema.prisma
+--   and the initial migration. This file documents the public read queries
+--   and admin registry writes. Runtime values are database-backed.
 --
 -- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA)
 --
@@ -38,7 +33,7 @@
 --            investment_amount  nullable NUMERIC, INR — §8 "investment";
 --                               COLUMN NAME ALREADY ESTABLISHED by the Home
 --                               KPI contract (sql/home/home_kpis.sql) — keep it
---            academic_partner   nullable — academic/technology partner (C)
+--            academic_partner   NOT NULL BOOLEAN DEFAULT FALSE — academic partnership flag
 --            contact            nullable (A)
 --            website            nullable (A)
 --
@@ -50,15 +45,13 @@
 --       sentence covers only via "etc.").
 --   (B) exact status vocabulary TO CONFIRM (e.g. partnership lifecycle).
 --       The ?status= filter is an exact free-string match on this column.
---   (C) scalar-vs-relational TO CONFIRM — if partners become a related
---       entity, this column becomes a join and the SELECT must change (the
---       API shape would then be revised with the owning module).
+--   academic_partner is a boolean flag in the Prisma model, not a partner name.
 --
 -- INTENTIONALLY DEFERRED (specified in RoadMap §8/§25 but out of scope —
 -- do NOT fabricate these joins):
 --   · SIP/SPV information: §8 says the registry contains SIP/SPV info, but
---     the sips/spvs tables do not exist yet (§25 relationships: AIP → SPV,
---     AIP → SIP). These belong to the future SIP/SPV modules.
+--     the spvs/sips tables exist and own those relationships. They remain separate
+--     registry modules and are not embedded in this AIP response.
 --   · GET /api/v1/clusters/:clusterId/aips — listed in §8 but not part of
 --     the current task scope.
 --   · Admin CRUD (POST/PATCH/DELETE /api/v1/admin/aips...) and the approval
@@ -104,3 +97,36 @@
 -- FROM aips
 -- LEFT JOIN clusters ON clusters.id = aips.cluster_id
 -- WHERE aips.id = :id;
+
+
+-- ----------------------------------------------------------------------------
+-- 4) ADMIN MASTER-DATA WRITES
+--    Implemented in src/modules/aips/aip.repository.ts. All values are bound
+--    parameters. Each registry write and its audit_logs INSERT share a
+--    transaction.
+-- ----------------------------------------------------------------------------
+-- INSERT INTO aips (
+--     name, logo_url, cluster_id, sector, status, investment_amount,
+--     academic_partner, contact, website
+-- ) VALUES (
+--     :name, :logo_url, :cluster_id, :sector, :status, :investment_amount,
+--     :academic_partner, :contact, :website
+-- ) RETURNING id;
+--
+-- UPDATE aips SET <only supplied validated columns>
+-- WHERE id = :id RETURNING id;
+--
+-- DELETE FROM aips
+-- WHERE id = :id
+--   AND NOT EXISTS (SELECT 1 FROM spvs WHERE aip_id = :id)
+--   AND NOT EXISTS (SELECT 1 FROM sips WHERE aip_id = :id)
+--   AND NOT EXISTS (SELECT 1 FROM aip_activity_records WHERE aip_id = :id)
+--   AND NOT EXISTS (SELECT 1 FROM aip_submissions WHERE aip_id = :id)
+--   AND NOT EXISTS (
+--       SELECT 1 FROM user_scope_assignments
+--       WHERE scope_type = 'AIP' AND scope_id = :id
+--   )
+-- RETURNING id;
+--
+-- If an AIP exists but cannot be deleted due to related records, the API
+-- returns HTTP 409 (AIP_IN_USE); no dependent records are cascaded away.
