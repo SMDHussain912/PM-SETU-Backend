@@ -9,8 +9,10 @@ import { createOutcomeSchema, importOutcomeBatchSchema, outcomeHistoryQuerySchem
 const router = Router();
 const readRoles = [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.DET_CONTENT_ADMIN, ROLE_CODES.APPROVING_AUTHORITY];
 const writeRoles = [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.DET_CONTENT_ADMIN];
+const scopedReadRoles = [ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.HUB_ITI_USER, ROLE_CODES.SPOKE_ITI_USER];
+const outcomeReadRoles = [...readRoles, ...scopedReadRoles];
 router.use(requireAuth);
-router.get("/summary", requireRoles(...readRoles), controller.summary);
+router.get("/summary", requireRoles(...outcomeReadRoles), controller.summary);
 router.get("/", validate({ query: outcomeListQuerySchema }), requireRoles(...readRoles), controller.list);
 router.get("/:id/history", validate({ params: outcomeIdParamsSchema, query: outcomeHistoryQuerySchema }), requireRoles(...readRoles), controller.history);
 router.get("/:id", validate({ params: outcomeIdParamsSchema }), requireRoles(...readRoles), controller.get);
