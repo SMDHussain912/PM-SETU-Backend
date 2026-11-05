@@ -19,7 +19,7 @@ import galleryRouter, {
 } from "../modules/gallery/gallery.routes";
 import governanceRouter from "../modules/governance/governance.routes";
 import homeRouter from "../modules/home/home.routes";
-import itiRouter, { itiClusterRouter } from "../modules/itis/iti.routes";
+import itiRouter, { itiAdminRouter, itiClusterRouter } from "../modules/itis/iti.routes";
 import itiWorkflowRouter from "../modules/itis/iti-workflow.routes";
 import newsRouter, {
     newsAdminRouter,
@@ -122,6 +122,7 @@ router.use("/admin/audit-logs", auditRouter);
 router.use("/admin/contact", contactAdminRouter);
 router.use("/admin/banners", bannerAdminRouter);
 router.use("/admin/clusters", clusterAdminRouter);
+router.use("/admin/itis", itiAdminRouter);
 
 // RoadMap.md §12 + §24 — document admin CRUD + publish/archive/version/file
 // upload. The module router enforces requireAuth + DOCUMENT_WRITE_ROLES itself.
