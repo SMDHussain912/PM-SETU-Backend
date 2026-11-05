@@ -184,3 +184,18 @@ The migration uses `DECIMAL(18,2)`, non-negative amount constraints, stable uniq
 This milestone creates storage only. No finance HTTP routes, permissions, seed data, official KPI calculations, or write operations have been enabled. The schema does not decide whether expenditure is booked, paid, or certified; `recognition_basis` is captured as source metadata and cannot be treated as an accepted-expenditure filter without Finance approval.
 
 Before deployment, run Prisma validation/client generation and the full project verification suite. Before production writes, Finance must approve source ownership, correction/reversal policy, scope rules, and the authorization matrix.
+
+
+## Internal ingestion layer milestone (2026-11-05)
+
+Added an internal finance repository and service layer for the three ledger entities. The service currently provides:
+- Source-key duplicate detection and immutable duplicate handling (existing source records are returned, not overwritten).
+- Exact decimal validation and valid-date checks before persistence.
+- Cluster/ITI existence checks and ITI-to-cluster consistency validation for approved outlays.
+- Required approved-outlay linkage for releases and expenditures.
+- Validation that an expenditure's optional release belongs to the same outlay.
+- Transaction-wrapped persistence for each ingestion operation.
+
+These functions are internal code only. No finance HTTP routes or permission grants were added. Audit writes are intentionally not claimed or performed by this milestone because the finance audit failure policy and authoritative audit-table deployment status still require confirmation. Concurrent unique-key conflicts return a conflict response; callers may retry to retrieve the already-ingested source record.
+
+This milestone is implementation scaffolding, not production Finance approval. It does not calculate FIN-01 through FIN-05, apply a recognition-basis policy, implement corrections/reversals, or establish maker-checker controls. The Prisma migration and generated client still require local validation and the full test/build suite after pulling these commits.
