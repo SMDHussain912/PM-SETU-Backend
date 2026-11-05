@@ -1,0 +1,185 @@
+-- ============================================================================
+-- PM SETU — Finance module · sql/finance/finance_queries.sql
+-- Contract: Phase 6 Finance Management
+-- KPI source: Phase 0 Dashboard KPI Source Mapping (FIN-01 ... FIN-05)
+-- Architecture: PM SETU Functional, Content & Technical Architecture §§20–22
+-- ============================================================================
+--
+-- STATUS: DESIGN CONTRACT ONLY — NOT A DEPLOYABLE MIGRATION
+--
+-- The official dashboard requires:
+--   FIN-01 Approved outlay
+--   FIN-02 Funds released
+--   FIN-03 Expenditure
+--   FIN-04 Utilisation percentage
+--   FIN-05 Balance
+--
+-- The existing AIP investment_amount and SIP proposed contribution values are
+-- planning/registry indicators. They MUST NOT be substituted for these KPIs.
+--
+-- No authoritative Finance/FMS schema or approved accounting policy has been
+-- supplied. Therefore:
+--   * The table and column names below are proposed logical names only.
+--   * Do not run these statements against any environment.
+--   * Do not expose write endpoints until the Finance access matrix is approved.
+--   * Do not calculate FIN-04 or FIN-05 until their formulas are approved.
+--
+-- ============================================================================
+-- 1. PROPOSED LEDGER ENTITIES (logical contract; schema owner to confirm)
+-- ============================================================================
+--
+-- approved_outlays
+--   id                  BIGINT PRIMARY KEY
+--   sanction_reference  VARCHAR NOT NULL
+--   sanction_date       DATE NOT NULL
+--   financial_year      VARCHAR NOT NULL
+--   approved_amount     NUMERIC(18,2) NOT NULL CHECK (approved_amount >= 0)
+--   scope_level         VARCHAR NOT NULL  -- allowed values TO CONFIRM
+--   cluster_id          INTEGER NULL      -- FK / attribution rule TO CONFIRM
+--   iti_id              INTEGER NULL      -- FK / attribution rule TO CONFIRM
+--   project_reference   VARCHAR NULL      -- project master / reference TO CONFIRM
+--   source_system       VARCHAR NOT NULL
+--   source_record_id    VARCHAR NOT NULL
+--   source_updated_at   TIMESTAMPTZ NULL
+--   created_by          VARCHAR NULL
+--   created_at          TIMESTAMPTZ NOT NULL
+--   updated_at          TIMESTAMPTZ NOT NULL
+--   UNIQUE (source_system, source_record_id)
+--
+-- fund_releases
+--   id                  BIGINT PRIMARY KEY
+--   outlay_id            BIGINT NOT NULL REFERENCES approved_outlays(id)
+--   release_reference   VARCHAR NOT NULL
+--   release_date        DATE NOT NULL
+--   financial_year      VARCHAR NOT NULL
+--   released_amount     NUMERIC(18,2) NOT NULL CHECK (released_amount >= 0)
+--   recipient_reference VARCHAR NOT NULL
+--   source_system       VARCHAR NOT NULL
+--   source_record_id    VARCHAR NOT NULL
+--   source_updated_at   TIMESTAMPTZ NULL
+--   created_by          VARCHAR NULL
+--   created_at          TIMESTAMPTZ NOT NULL
+--   updated_at          TIMESTAMPTZ NOT NULL
+--   UNIQUE (source_system, source_record_id)
+--
+-- expenditures
+--   id                    BIGINT PRIMARY KEY
+--   outlay_id              BIGINT NOT NULL REFERENCES approved_outlays(id)
+--   release_id             BIGINT NULL REFERENCES fund_releases(id)
+--   transaction_reference VARCHAR NOT NULL
+--   transaction_date      DATE NOT NULL
+--   financial_year        VARCHAR NOT NULL
+--   amount                NUMERIC(18,2) NOT NULL CHECK (amount >= 0)
+--   payee_reference       VARCHAR NULL
+--   evidence_reference    VARCHAR NULL
+--   recognition_basis     VARCHAR NOT NULL -- booked/paid/certified policy TO CONFIRM
+--   source_system         VARCHAR NOT NULL
+--   source_record_id      VARCHAR NOT NULL
+--   source_updated_at     TIMESTAMPTZ NULL
+--   created_by            VARCHAR NULL
+--   created_at            TIMESTAMPTZ NOT NULL
+--   updated_at            TIMESTAMPTZ NOT NULL
+--   UNIQUE (source_system, source_record_id)
+--
+-- IMPORTANT:
+--   This is a reviewable proposal, not an approved schema. In particular,
+--   recognition_basis, scope attribution, project references, correction and
+--   reversal handling, and actor identity must be confirmed before migration.
+--   Corrections must remain traceable; no silent overwrite/delete behaviour.
+--
+-- ============================================================================
+-- 2. PROPOSED READ QUERY CONTRACTS (not executable until schema approval)
+-- ============================================================================
+--
+-- FIN-01 — Approved outlay by financial year and scope
+--
+-- SELECT
+--     financial_year,
+--     SUM(approved_amount)::numeric(18,2) AS approved_outlay
+-- FROM approved_outlays
+-- WHERE financial_year = :financialYear
+--   AND (:clusterId IS NULL OR cluster_id = :clusterId)
+--   AND (:itiId IS NULL OR iti_id = :itiId)
+-- GROUP BY financial_year;
+--
+-- FIN-02 — Funds released by financial year and scope
+--
+-- SELECT
+--     financial_year,
+--     SUM(released_amount)::numeric(18,2) AS funds_released
+-- FROM fund_releases
+-- WHERE financial_year = :financialYear
+--   AND (:clusterId IS NULL OR cluster_id = :clusterId)
+--   AND (:itiId IS NULL OR iti_id = :itiId)
+-- GROUP BY financial_year;
+--
+-- FIN-03 — Expenditure by financial year and scope
+--
+-- NOTE: The accepted expenditure predicate cannot be written until Finance
+-- confirms the recognition basis and accepted/reversed record semantics.
+--
+-- SELECT
+--     financial_year,
+--     SUM(amount)::numeric(18,2) AS expenditure
+-- FROM expenditures
+-- WHERE financial_year = :financialYear
+--   AND (:clusterId IS NULL OR cluster_id = :clusterId)
+--   AND (:itiId IS NULL OR iti_id = :itiId)
+--   AND <FINANCE_APPROVED_ACCEPTANCE_PREDICATE>
+-- GROUP BY financial_year;
+--
+-- FIN-04 / FIN-05
+--
+-- No query is enabled here. Utilisation and balance formulas, zero-denominator
+-- behaviour, reversals/refunds, and balance definition require Finance approval.
+--
+-- ============================================================================
+-- 3. INGESTION / IDEMPOTENCY CONTRACT
+-- ============================================================================
+--
+-- Every imported record must carry a stable source_system + source_record_id.
+-- The unique pair prevents duplicate source deliveries from creating duplicate
+-- ledger events. Upsert semantics MUST NOT overwrite financial values blindly:
+-- compare source version/timestamp and preserve a reconciliation/audit trail.
+--
+-- External FMS integration must use an approved API/file contract through the
+-- integration layer. External systems must never receive direct DB credentials
+-- or direct access to the PM-SETU production database.
+--
+-- ============================================================================
+-- 4. TRANSACTION AND AUDIT CONTRACT
+-- ============================================================================
+--
+-- Financial writes are expected to run in a database transaction with their
+-- audit event. The approvals module demonstrates this pattern in
+-- src/modules/approvals/approval.repository.ts.
+--
+-- Finance audit failure policy, actor identity, audit entity/action vocabulary,
+-- and correction/reversal event format require explicit sign-off. Until then,
+-- this file does not define an executable INSERT/UPDATE/DELETE.
+--
+-- ============================================================================
+-- 5. REQUIRED INDEXES (final set depends on approved schema and query plans)
+-- ============================================================================
+--
+-- UNIQUE (source_system, source_record_id) on each source-backed ledger entity
+-- INDEX (financial_year, cluster_id)
+-- INDEX (financial_year, iti_id)
+-- INDEX (outlay_id) on fund_releases and expenditures
+-- INDEX (release_id) on expenditures
+--
+-- ============================================================================
+-- 6. ACCEPTANCE TESTS REQUIRED BEFORE ENABLEMENT
+-- ============================================================================
+--
+-- * Duplicate source delivery is idempotent.
+-- * Monetary values preserve NUMERIC(18,2) precision end-to-end.
+-- * Outlay, release and expenditure remain separate event classes.
+-- * Cross-scope records cannot leak across cluster / ITI filters.
+-- * Source references and provenance survive reconciliation and corrections.
+-- * A failed audit write rolls back the financial write if fail-closed is chosen.
+-- * Public dashboard never substitutes AIP/SIP planning values for official
+--   financial progress.
+-- * FIN-04 and FIN-05 remain unavailable until Finance signs off formulas.
+--
+-- ============================================================================
