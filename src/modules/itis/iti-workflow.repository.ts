@@ -2,7 +2,7 @@ import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/database";
 import type { UpdateItiProfile, CreateItiSubmission } from "./iti-workflow.schema";
 
-export async function updateItiProfile(id: number, data: UpdateItiProfile) {
+export async function updateItiProfile(id: number, data: UpdateItiProfile, db: Prisma.TransactionClient = prisma) {
   const columns: Record<string, (value: never) => Prisma.Sql> = {
     address: value => Prisma.sql`address = ${value}`,
     principal: value => Prisma.sql`principal = ${value}`,
@@ -15,12 +15,12 @@ export async function updateItiProfile(id: number, data: UpdateItiProfile) {
     lab_details: value => Prisma.sql`lab_details = ${value}`,
   };
   const sets = Object.entries(data).map(([key, value]) => columns[key](value as never));
-  const rows = await prisma.$queryRaw<{id:number}[]>(Prisma.sql`UPDATE itis SET ${Prisma.join(sets, ", ")} WHERE id = ${id} RETURNING id`);
+  const rows = await db.$queryRaw<{id:number}[]>(Prisma.sql`UPDATE itis SET ${Prisma.join(sets, ", ")} WHERE id = ${id} RETURNING id`);
   return rows.length > 0;
 }
 
-export async function createSubmission(itiId:number, userId:number, data:CreateItiSubmission) {
-  const rows = await prisma.$queryRaw<any[]>(Prisma.sql`
+export async function createSubmission(itiId:number, userId:number, data:CreateItiSubmission, db: Prisma.TransactionClient = prisma) {
+  const rows = await db.$queryRaw<any[]>(Prisma.sql`
     INSERT INTO iti_submissions (iti_id, created_by, report_type, title, payload, status, updated_at)
     VALUES (${itiId}, ${userId}, ${data.report_type}, ${data.title}, ${JSON.stringify(data.payload)}::jsonb, 'DRAFT', NOW())
     RETURNING id, iti_id, created_by, report_type, title, payload, status, submitted_at, reviewed_by, reviewed_at, review_remarks, created_at, updated_at
@@ -28,7 +28,7 @@ export async function createSubmission(itiId:number, userId:number, data:CreateI
   return rows[0];
 }
 export async function listSubmissions(itiId:number) {
-  return prisma.$queryRaw<any[]>(Prisma.sql`
+  return db.$queryRaw<any[]>(Prisma.sql`
     SELECT s.id, s.iti_id, s.created_by, u.full_name AS creator_name, s.report_type, s.title,
       s.payload, s.status, s.submitted_at, s.reviewed_by, reviewer.full_name AS reviewer_name,
       s.reviewed_at, s.review_remarks, s.created_at, s.updated_at
@@ -38,16 +38,16 @@ export async function listSubmissions(itiId:number) {
     WHERE s.iti_id=${itiId} ORDER BY s.updated_at DESC, s.id DESC
   `);
 }
-export async function getSubmission(id:number, itiId:number) {
-  const rows=await prisma.$queryRaw<any[]>(Prisma.sql`
+export async function getSubmission(id:number, itiId:number, db: Prisma.TransactionClient = prisma) {
+  const rows=await db.$queryRaw<any[]>(Prisma.sql`
     SELECT id, iti_id, created_by, report_type, title, payload, status, submitted_at,
       reviewed_by, reviewed_at, review_remarks, created_at, updated_at
     FROM iti_submissions WHERE id=${id} AND iti_id=${itiId}
   `);
   return rows[0] ?? null;
 }
-export async function updateDraft(id:number, itiId:number, userId:number, data:{title?:string;payload?:Record<string,unknown>}) {
-  const rows=await prisma.$queryRaw<any[]>(Prisma.sql`
+export async function updateDraft(id:number, itiId:number, userId:number, data:{title?:string;payload?:Record<string,unknown>}, db: Prisma.TransactionClient = prisma) {
+  const rows=await db.$queryRaw<any[]>(Prisma.sql`
     UPDATE iti_submissions SET
       title=COALESCE(${data.title ?? null}, title),
       payload=COALESCE(${data.payload === undefined ? null : JSON.stringify(data.payload)}::jsonb, payload),
@@ -57,8 +57,8 @@ export async function updateDraft(id:number, itiId:number, userId:number, data:{
   `);
   return rows[0] ?? null;
 }
-export async function submitDraft(id:number, itiId:number, userId:number) {
-  const rows=await prisma.$queryRaw<any[]>(Prisma.sql`
+export async function submitDraft(id:number, itiId:number, userId:number, db: Prisma.TransactionClient = prisma) {
+  const rows=await db.$queryRaw<any[]>(Prisma.sql`
     UPDATE iti_submissions SET status='SUBMITTED', submitted_at=NOW(), reviewed_by=NULL,
       reviewed_at=NULL, review_remarks=NULL, updated_at=NOW()
     WHERE id=${id} AND iti_id=${itiId} AND created_by=${userId} AND status IN ('DRAFT','REVISION_REQUESTED')
@@ -66,8 +66,8 @@ export async function submitDraft(id:number, itiId:number, userId:number) {
   `);
   return rows[0] ?? null;
 }
-export async function reviewSubmission(id:number, itiId:number, reviewerId:number, decision:"APPROVED"|"REVISION_REQUESTED"|"REJECTED", remarks:string) {
-  const rows=await prisma.$queryRaw<any[]>(Prisma.sql`
+export async function reviewSubmission(id:number, itiId:number, reviewerId:number, decision:"APPROVED"|"REVISION_REQUESTED"|"REJECTED", remarks:string, db: Prisma.TransactionClient = prisma) {
+  const rows=await db.$queryRaw<any[]>(Prisma.sql`
     UPDATE iti_submissions SET status=${decision}, reviewed_by=${reviewerId},
       reviewed_at=NOW(), review_remarks=${remarks}, updated_at=NOW()
     WHERE id=${id} AND iti_id=${itiId} AND status='SUBMITTED'
