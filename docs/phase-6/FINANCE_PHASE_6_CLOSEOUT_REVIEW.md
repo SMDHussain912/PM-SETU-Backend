@@ -43,7 +43,17 @@ The review is an engineering assessment. It is not a Finance/DET approval, accou
 - Current ITI-to-cluster assignment may differ from historical assignment at sanction time; this is explicitly disclosed as a limitation.
 - CSV export includes warning metadata only and neutralizes spreadsheet formula prefixes.
 
-## 3. Review conclusions and limitations
+## 3. Reconciliation scope correction
+
+The close-out review identified a query-selection gap: filtering release and expenditure rows only by their own financial year could omit a record whose linked outlay or release belonged to the requested financial year. That could hide the very cross-year inconsistency the reconciliation diagnostic is intended to flag.
+
+The reconciliation predicates now include:
+- releases whose own financial year **or linked outlay financial year** matches the requested year;
+- expenditures whose own financial year, linked outlay year, **or linked release year** matches the requested year.
+
+Scope and as-of-date filters remain applied. Pure predicate tests cover the cross-year inclusion and optional filters in `tests/finance-reconciliation-query.test.ts`.
+
+## 4. Review conclusions and limitations
 
 1. **No source correction/reversal workflow is approved.** The present duplicate behaviour is intentionally immutable; it is not a substitute for an approved correction, reversal, refund, or restatement process.
 2. **No authoritative FMS/source contract is confirmed.** Production ingestion cannot be treated as live until Finance/DET confirms source ownership, interface, mapping, and source evidence.
@@ -55,7 +65,7 @@ The review is an engineering assessment. It is not a Finance/DET approval, accou
 8. **Retention is unresolved.** Raw CSV content and normalized financial row payloads are deliberately not retained by the import-batch metadata design.
 9. **PostgreSQL concurrency test evidence must be recorded from the actual target environment.** The tests are opt-in and skipped when `PM_SETU_TEST_DATABASE_URL` is absent. A successful ordinary test run with the variable absent does not prove database concurrency behaviour.
 
-## 4. Required acceptance evidence before Phase 6 can be called operationally accepted
+## 5. Required acceptance evidence before Phase 6 can be called operationally accepted
 
 - Finance/DET-approved authoritative source system and FMS interface/export contract.
 - Approved outlay, release, and expenditure definitions and evidence requirements.
@@ -69,7 +79,7 @@ The review is an engineering assessment. It is not a Finance/DET approval, accou
 - Reconciliation of representative source extracts against authoritative Finance records.
 - Operational owner acceptance and recorded sign-off.
 
-## 5. Next engineering action
+## 6. Next engineering action
 
 After the user confirms the PostgreSQL test output from the dedicated test database, perform a final source-level review of:
 - scope/as-of-date filtering in reconciliation queries;
