@@ -61,7 +61,10 @@ export function validateFinanceImportBatchInput(input: CreateFinanceImportBatchI
     if (input.lifecycle === "EXECUTED" && (attempted === 0 || rejected > 0 || input.invalid_rows > 0)) {
         throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
     }
-    if (input.lifecycle === "PARTIALLY_EXECUTED" && (rejected > 0 || input.invalid_rows > 0)) {\n        throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");\n    }\n    if ((input.lifecycle === "EXECUTED_WITH_REJECTIONS" || input.lifecycle === "PARTIALLY_EXECUTED_WITH_REJECTIONS") &&
+    if (input.lifecycle === "PARTIALLY_EXECUTED" && (rejected > 0 || input.invalid_rows > 0)) {
+        throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
+    }
+    if ((input.lifecycle === "EXECUTED_WITH_REJECTIONS" || input.lifecycle === "PARTIALLY_EXECUTED_WITH_REJECTIONS") &&
         rejected === 0 && input.invalid_rows === 0) {
         throw new Error("FINANCE_IMPORT_LIFECYCLE_COUNTERS_INCONSISTENT");
     }
