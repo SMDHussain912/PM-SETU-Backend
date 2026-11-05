@@ -102,6 +102,7 @@ export async function getTrainingCapacityReporting(): Promise<TrainingCapacityRe
             value: state.student_capacity,
         },
         coverage: state.coverage,
+        without_reportable_cluster: state.without_reportable_cluster,
         by_cluster: byCluster,
         reporting_context: {
             data_as_of: null,
