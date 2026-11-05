@@ -2618,6 +2618,19 @@ export const openApiSpec = {
                 },
             },
         },
+        "/admin/industry-outcomes/summary": {
+            get: {
+                tags: ["Industry Outcomes"],
+                summary: "Industry outcome intake review summary",
+                description: "Operational record counts by review status and outcome type. These are intake workflow counts, not official programme KPI totals.",
+                security: [{ bearerAuth: [] }],
+                responses: {
+                    "200": { description: "Total, pending, verified and rejected intake record counts grouped by outcome type" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role" },
+                },
+            },
+        },
         "/admin/industry-outcomes": {
             get: {
                 tags: ["Industry Outcomes"], summary: "List industry outcome intake records",
