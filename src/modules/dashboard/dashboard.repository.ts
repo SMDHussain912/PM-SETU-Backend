@@ -182,7 +182,20 @@ export async function getFundingMetrics(): Promise<FinanceMetrics> {
                 (SELECT COALESCE(SUM(industry_contribution), 0)::double precision FROM sips WHERE is_sample = FALSE) AS total_sip_industry,
                 (SELECT COALESCE(SUM(government_contribution), 0)::double precision FROM sips WHERE is_sample = FALSE) AS total_sip_government`,
     );
-    return { ...rows[0], by_cluster: [] };
+    return {
+        ...rows[0],
+        by_cluster: [],
+        // Official financial KPIs remain unavailable until an approved Finance/FMS source is connected.
+        // Do not substitute AIP/SIP planning indicators for approved outlay, releases, or expenditure.
+        official_financial_progress: {
+            status: "SOURCE_NOT_CONNECTED",
+            approved_outlay: null,
+            funds_released: null,
+            expenditure: null,
+            utilisation_percentage: null,
+            balance: null,
+        },
+    };
 }
 
 export async function getFinanceByCluster(): Promise<FinanceByCluster[]> {
