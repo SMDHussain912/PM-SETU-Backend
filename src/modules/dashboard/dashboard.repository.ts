@@ -240,7 +240,7 @@ export async function getTrainingCapacityState(): Promise<TrainingCapacityScope>
         total_itis: number;
         itis_with_capacity: number;
         itis_without_capacity: number;
-        unassigned_itis: number;
+        itis_without_reportable_cluster: number;
     }>>(
         Prisma.sql`
             SELECT
@@ -248,9 +248,10 @@ export async function getTrainingCapacityState(): Promise<TrainingCapacityScope>
                 COUNT(*)::int AS total_itis,
                 COUNT(student_strength)::int AS itis_with_capacity,
                 COUNT(*) FILTER (WHERE student_strength IS NULL)::int AS itis_without_capacity,
-                COUNT(*) FILTER (WHERE cluster_id IS NULL)::int AS unassigned_itis
-            FROM itis
-            WHERE is_sample = FALSE`,
+                COUNT(*) FILTER (WHERE c.id IS NULL)::int AS itis_without_reportable_cluster
+            FROM itis i
+            LEFT JOIN clusters c ON c.id = i.cluster_id AND c.is_sample = FALSE
+            WHERE i.is_sample = FALSE`,
     );
     const row = rows[0];
     return {
@@ -259,7 +260,7 @@ export async function getTrainingCapacityState(): Promise<TrainingCapacityScope>
             total_itis: row?.total_itis ?? 0,
             itis_with_capacity: row?.itis_with_capacity ?? 0,
             itis_without_capacity: row?.itis_without_capacity ?? 0,
-            unassigned_itis: row?.unassigned_itis ?? 0,
+            itis_without_reportable_cluster: row?.itis_without_reportable_cluster ?? 0,
         },
     };
 }
