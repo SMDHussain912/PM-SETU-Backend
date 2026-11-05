@@ -321,3 +321,7 @@ Whenever work progresses, update:
 - [ ] Test/typecheck/build status only when supported by actual output.
 
 **This file is the continuation anchor.** If the chat or plan limit interrupts work, clone/pull the repository, read this file, inspect the latest code, and continue from the next task listed above.
+
+#### Verification follow-up — caller fixture correction
+
+The first local verification after the idempotency migration confirmed that all three migrations applied and Prisma Client generated successfully. Typecheck emitted no error in the supplied log. The test run reported 196 passing and 2 failing: both failures were preview-persistence tests that had not been updated to supply the newly required UUID `idempotency_key`. Their fixtures are now updated in commit `a697b37`. The supplied output does not establish a successful full test run or completed build; rerun both before treating this milestone as verified.
