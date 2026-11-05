@@ -168,7 +168,7 @@ The three finance ledger ingestion functions now use database conflict-safe inse
 - `ingestFundRelease()`
 - `ingestExpenditure()`
 
-A successful insert returns `CREATED`; a concurrent source-identity conflict returns `DUPLICATE` with the canonical persisted row. Existing rows are not overwritten. Unit tests simulate the conflict outcome for all three record kinds. A live PostgreSQL multi-connection test remains outstanding; do not claim it has been performed.
+A successful insert returns `CREATED`; a concurrent source-identity conflict returns `DUPLICATE` with the canonical persisted row. Existing rows are not overwritten. Unit tests simulate the conflict outcome for all three record kinds. An opt-in PostgreSQL concurrency test has been added at `tests/finance-ledger-postgres-concurrency.test.ts`. It exercises concurrent same-source submissions for all three ledgers using only `PM_SETU_TEST_DATABASE_URL`; execution against a dedicated migrated test database remains to be confirmed by the user.
 
 Commits:
 - Implementation: `382debacaaeb049b2e232702b60c46d6163b95c3`
@@ -193,17 +193,18 @@ Documentation: `docs/phase-6/FINANCE_CSV_PREVIEW_PERSISTENCE.md`.
 
 #### Current active work — next task
 
-Run the full checks against the newly added opt-in PostgreSQL concurrency test. Then, against a dedicated migrated PostgreSQL test database only, run:
+Run both opt-in PostgreSQL concurrency tests against a dedicated migrated test database only:
 
 ```bash
 export PM_SETU_TEST_DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/pm_setu_test?schema=public'
 npx tsx --test tests/finance-import-batch-postgres-concurrency.test.ts
+npx tsx --test tests/finance-ledger-postgres-concurrency.test.ts
 npm run typecheck
 npm test
 npm run build
 ```
 
-Do not use production, staging, or a shared database for this test. If the dedicated test database is not available, leave live concurrency verification explicitly pending and continue with database-independent review/test coverage. Keep application/API caller wiring explicitly blocked on approved Finance access and audit policy. Preserve the policy that a deliberate re-import uses a new key.
+Do not use production, staging, or a shared database. If a dedicated test database is unavailable, leave live concurrency verification pending. After these tests, continue the Finance close-out review: reconciliation invariants, source-record immutability/correction handling, and operational evidence gaps. Keep application/API caller wiring blocked on approved Finance access and audit policy. Preserve the policy that a deliberate import re-run uses a new idempotency key.
 
 #### Finance data and policy guardrails
 
@@ -319,7 +320,8 @@ Completion evidence should include:
 | 2026-11-05 | 6 | Added HTTP-level integration tests for the opt-in finance recovery route factory | Commit `98aab40329205024b33f804e5c3f2a5475935ee5`; user reported the suite passed. Route remains intentionally unmounted pending Finance/DET access approval. |
 | 2026-11-06 | 6 | Made outlay, release, and expenditure source-identity inserts conflict-safe; added duplicate-race unit coverage | Commits `382debac`, `56b2e160`, and `5efdfe92`. Live PostgreSQL multi-connection verification remains outstanding. |
 | 2026-11-06 | 6 | Added caller-keyed finance import-batch idempotency, unique schema constraint, historical UUID backfill migration, and retry contract docs | Commits `2c1cee5`, `cdb7659`, `03e9c1e`, `7837bea`, `ded8215`, `72fbb92`, `ba6c180`, `0441961`, and `07033a4`. User reports local verification passes; real PostgreSQL multi-connection verification remains outstanding. |
-| 2026-11-06 | 6 | Added opt-in PostgreSQL concurrent same-key import-batch test and dedicated test-database instructions | Commits `65e3600` and `3340144`. Test uses only `PM_SETU_TEST_DATABASE_URL`, unique UUIDs, and exact-key cleanup; live DB execution is pending. |
+| 2026-11-06 | 6 | Added opt-in PostgreSQL concurrent same-key import-batch test and dedicated test-database instructions | Commits `65e3600` and `3340144`. Test uses only `PM_SETU_TEST_DATABASE_URL`, unique UUIDs, and exact-key cleanup; user reports tests completed. |
+| 2026-11-06 | 6 | Added opt-in PostgreSQL concurrent source-identity tests for outlay, release, and expenditure ledgers | Commits `1042a9e`, `ec49f40`, and `ba82b36`. Uses a dedicated migrated test database via `PM_SETU_TEST_DATABASE_URL`; live execution is pending. |
 | 2026-11-06 | 6 | Added an injectable transaction boundary and repository tests for same-key replay, immutable row diagnostics on replay, and key reuse conflicts | Commits `dc80e56` and `3c6d96a`. New tests still require local typecheck/test/build verification; they simulate transaction behaviour and are not a live PostgreSQL race test. |
 
 ---
