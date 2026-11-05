@@ -34,7 +34,7 @@ export interface Aip {
     status: string;
     /** §8 "investment". Column name established by the Home KPI contract. */
     investment_amount: number | null;
-    /** Academic/technology partner. Scalar-vs-relational storage TO CONFIRM. */
+    /** Boolean flag from the Prisma Aip model. */
     academic_partner: boolean;
     /** Contact. Format TO CONFIRM (user-required field). */
     contact: string | null;
