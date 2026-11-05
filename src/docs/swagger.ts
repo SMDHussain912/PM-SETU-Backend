@@ -2679,6 +2679,25 @@ export const openApiSpec = {
                 responses: { "201": { description: "Created as PENDING review" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" }, "409": { description: "Duplicate source_system + source_record_id" }, "422": { description: "Invalid attribution or payload" } },
             },
         },
+        "/admin/industry-outcomes/{id}/history": {
+            get: {
+                tags: ["Industry Outcomes"],
+                summary: "Get paginated audit history for an industry outcome",
+                description: "Returns audit actions and privacy-minimized before/after snapshots. Network metadata and raw participant/evidence payload fields are not exposed.",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } },
+                    { name: "page", in: "query", schema: { type: "integer", minimum: 1 } },
+                    { name: "pageSize", in: "query", schema: { type: "integer", minimum: 1, maximum: 100 } },
+                ],
+                responses: {
+                    "200": { description: "Paginated outcome audit history" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role" },
+                    "404": { description: "Outcome record not found" },
+                },
+            },
+        },
         "/admin/industry-outcomes/{id}": {
             get: {
                 tags: ["Industry Outcomes"], summary: "Get industry outcome intake record",
