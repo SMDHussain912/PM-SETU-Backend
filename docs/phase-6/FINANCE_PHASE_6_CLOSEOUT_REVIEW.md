@@ -62,7 +62,18 @@ The ledger columns use PostgreSQL `DECIMAL(18,2)`, which permits at most 16 inte
 
 Implementation: `src/modules/finance/finance.amount.validation.ts`; tests: `tests/finance-amount-validation.test.ts` and `tests/finance-csv-amount-boundaries.test.ts`.
 
-## 5. Review conclusions and limitations
+## 5. Import metadata reconciliation safeguard
+
+A further edge-case review found that persisted import-batch validation checked the row-diagnostic count against valid + invalid counters, but did not independently assert that the batch's declared total row count matched those counters. It also relied on persistence constraints rather than validating duplicate/invalid CSV row positions at the validation boundary.
+
+Validation now rejects:
+- `total_rows` values that differ from `valid_rows + invalid_rows`;
+- duplicate row numbers within one batch;
+- row numbers that are not safe integers or are before the first data row (row 2).
+
+Regression coverage is in `tests/finance-import-batch-validation.test.ts`. This is import metadata integrity only; it does not change execution or accounting acceptance policy.
+
+## 6. Review conclusions and limitations
 
 1. **No source correction/reversal workflow is approved.** The present duplicate behaviour is intentionally immutable; it is not a substitute for an approved correction, reversal, refund, or restatement process.
 2. **No authoritative FMS/source contract is confirmed.** Production ingestion cannot be treated as live until Finance/DET confirms source ownership, interface, mapping, and source evidence.
@@ -74,7 +85,7 @@ Implementation: `src/modules/finance/finance.amount.validation.ts`; tests: `test
 8. **Retention is unresolved.** Raw CSV content and normalized financial row payloads are deliberately not retained by the import-batch metadata design.
 9. **PostgreSQL concurrency test evidence must be recorded from the actual target environment.** The tests are opt-in and skipped when `PM_SETU_TEST_DATABASE_URL` is absent. A successful ordinary test run with the variable absent does not prove database concurrency behaviour.
 
-## 6. Required acceptance evidence before Phase 6 can be called operationally accepted
+## 7. Required acceptance evidence before Phase 6 can be called operationally accepted
 
 - Finance/DET-approved authoritative source system and FMS interface/export contract.
 - Approved outlay, release, and expenditure definitions and evidence requirements.
@@ -88,7 +99,7 @@ Implementation: `src/modules/finance/finance.amount.validation.ts`; tests: `test
 - Reconciliation of representative source extracts against authoritative Finance records.
 - Operational owner acceptance and recorded sign-off.
 
-## 7. Next engineering action
+## 8. Next engineering action
 
 After the user confirms the PostgreSQL test output from the dedicated test database, perform a final source-level review of:
 - scope/as-of-date filtering in reconciliation queries;
