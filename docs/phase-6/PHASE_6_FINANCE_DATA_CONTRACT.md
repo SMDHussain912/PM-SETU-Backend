@@ -294,3 +294,7 @@ The normal full-import coordinator remains unchanged in behaviour. Retry executi
 Added a deterministic projection from a CSV preview and optional execution summary into the persisted batch metadata contract. It derives the technical lifecycle (PREVIEWED, INVALID, EXECUTED, or EXECUTED_WITH_REJECTIONS), validates execution counters and row identities, preserves per-row invalid diagnostics and execution outcomes, and leaves valid but unattempted rows marked VALID (important for selective retry batches).
 
 The projection stores only row numbers, technical outcomes, target record IDs and bounded diagnostics; it does not retain source CSV contents or normalized financial values. It does not create a batch itself: the existing repository remains responsible for the atomic metadata/row write. The helper makes no Finance approval or accounting-acceptance assertion. Tests cover preview, execution, selective retry, invalid rows, counter mismatches and malformed metadata.
+
+### Import batch consistency safeguards
+
+The internal batch repository validates that persisted row outcomes reconcile with the preview counts, that attempted/created/duplicate/rejected counters agree, and that the lifecycle label matches the recorded technical outcomes. Unattempted structurally valid rows remain `VALID` for selective retry. These checks protect metadata integrity only; they do not represent accounting approval, and they do not change the documented possibility of partial commits during row execution.
