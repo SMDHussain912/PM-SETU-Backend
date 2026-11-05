@@ -53,7 +53,7 @@ test("projects execution outcomes and counters into a consistent completed batch
 
 test("preserves valid but unattempted rows during selective retry projection", () => {
     const preview = previewFinanceCsv(validCsv, "OUTLAY");
-    const result = buildFinanceImportBatchInput(preview, { file_sha256: hash }, summary({
+    const result = buildFinanceImportBatchInput(preview, { file_sha256: hash, idempotency_key: idempotencyKey }, summary({
         attempted_rows: 1,
         created: 1,
         rejected: 0,
@@ -65,7 +65,7 @@ test("preserves valid but unattempted rows during selective retry projection", (
 
 test("marks structurally invalid rows and derives rejection lifecycle", () => {
     const preview = previewFinanceCsv(validCsv + "\nFMS,A3,SAN-3,not-a-date,2026-27,10,STATE", "OUTLAY");
-    const result = buildFinanceImportBatchInput(preview, { file_sha256: hash });
+    const result = buildFinanceImportBatchInput(preview, { file_sha256: hash, idempotency_key: idempotencyKey });
     assert.equal(result.lifecycle, "INVALID");
     assert.equal(result.invalid_rows, 1);
     assert.equal(result.rows.find((row) => row.row_number === 4)?.outcome, "INVALID");
@@ -73,10 +73,10 @@ test("marks structurally invalid rows and derives rejection lifecycle", () => {
 
 test("rejects inconsistent execution counts and rows outside the preview", () => {
     const preview = previewFinanceCsv(validCsv, "OUTLAY");
-    assert.throws(() => buildFinanceImportBatchInput(preview, { file_sha256: hash }, summary({
+    assert.throws(() => buildFinanceImportBatchInput(preview, { file_sha256: hash, idempotency_key: idempotencyKey }, summary({
         attempted_rows: 99,
     })), /COUNTERS_INCONSISTENT/);
-    assert.throws(() => buildFinanceImportBatchInput(preview, { file_sha256: hash }, summary({
+    assert.throws(() => buildFinanceImportBatchInput(preview, { file_sha256: hash, idempotency_key: idempotencyKey }, summary({
         results: [{ row_number: 99, outcome: "CREATED", record_id: 1 }],
     })), /INVALID_FINANCE_IMPORT_EXECUTION_RESULTS/);
 });
