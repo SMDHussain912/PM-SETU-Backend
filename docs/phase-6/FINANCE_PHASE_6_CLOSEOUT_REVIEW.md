@@ -98,7 +98,7 @@ The migration performs a preflight check and aborts rather than silently rewriti
 8. **Retention is unresolved.** Raw CSV content and normalized financial row payloads are deliberately not retained by the import-batch metadata design.
 9. **PostgreSQL concurrency test evidence must be recorded from the actual target environment.** The tests are opt-in and skipped when `PM_SETU_TEST_DATABASE_URL` is absent. A successful ordinary test run with the variable absent does not prove database concurrency behaviour.
 
-## 7. Required acceptance evidence before Phase 6 can be called operationally accepted
+## 8. Required acceptance evidence before Phase 6 can be called operationally accepted
 
 - Finance/DET-approved authoritative source system and FMS interface/export contract.
 - Approved outlay, release, and expenditure definitions and evidence requirements.
