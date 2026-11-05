@@ -117,7 +117,7 @@
 -- )
 -- VALUES (
 --     :userId, :action, :entity, :entityId,
---     :oldValue, :newValue, :approvalStatus,
+--     CAST(:oldValue AS JSONB), CAST(:newValue AS JSONB), :approvalStatus,
 --     :ipAddress, :userAgent, :path, :timestamp
 -- )
 -- RETURNING id;
