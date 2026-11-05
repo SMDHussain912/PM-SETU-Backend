@@ -9,6 +9,12 @@ function actorId(id: number) {
     if (!Number.isSafeInteger(id) || id <= 0) throw new ApiError({ statusCode: 401, code: "UNAUTHENTICATED", message: "Authentication required" });
     return id;
 }
+const GLOBAL_ACADEMIC_READ_ROLES = ["super_admin", "state_pmu_admin", "det_content_admin", "approving_authority"];
+function canReadSensitiveAcademicFields(roles: string[]) { return roles.some((role) => GLOBAL_ACADEMIC_READ_ROLES.includes(role)); }
+function publicScopedRecord<T extends { payload: unknown; subjectToken: string | null; reviewNote: string | null }>(item: T) {
+    const { payload: _payload, subjectToken: _subjectToken, reviewNote: _reviewNote, ...safe } = item;
+    return safe;
+}
 async function scope(actor: number, roles: string[]) {
     if (buildAcademicScopeWhere(roles, []) === undefined) return undefined;
     const assignments = await prisma.userScopeAssignment.findMany({ where: { userId: actor, scopeType: { in: ["CLUSTER", "ITI"] } }, select: { scopeType: true, scopeId: true } });
@@ -36,12 +42,13 @@ export async function create(input: AcademicRecordInput, actor: number, context:
 }
 export async function list(query: AcademicListQuery, actor: number, roles: string[]) {
     const result = await repo.list(query, await scope(actorId(actor), roles));
-    return { items: result.items, meta: buildPaginationMeta(result.total, query.page, query.pageSize) };
+    const items = canReadSensitiveAcademicFields(roles) ? result.items : result.items.map(publicScopedRecord);
+    return { items, meta: buildPaginationMeta(result.total, query.page, query.pageSize) };
 }
 export async function get(id: number, actor: number, roles: string[]) {
     const item = await repo.get(id, await scope(actorId(actor), roles));
     if (!item) throw new ApiError({ statusCode: 404, code: "RECORD_NOT_FOUND", message: "Academic source record not found" });
-    return item;
+    return canReadSensitiveAcademicFields(roles) ? item : publicScopedRecord(item);
 }
 export async function summary(actor: number, roles: string[]) {
     return repo.summary(await scope(actorId(actor), roles));
