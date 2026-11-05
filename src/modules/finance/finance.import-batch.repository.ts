@@ -7,6 +7,8 @@ export type FinanceImportBatchLifecycle =
     | "INVALID"
     | "EXECUTED"
     | "EXECUTED_WITH_REJECTIONS"
+    | "PARTIALLY_EXECUTED"
+    | "PARTIALLY_EXECUTED_WITH_REJECTIONS"
     | "EXECUTION_BLOCKED";
 
 export type FinanceImportBatchRowOutcome =
