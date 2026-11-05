@@ -2618,6 +2618,24 @@ export const openApiSpec = {
                 },
             },
         },
+        "/admin/industry-outcomes/import": {
+            post: {
+                tags: ["Industry Outcomes"],
+                summary: "Import industry outcome records in a validated batch",
+                description: "Accepts 1–200 JSON records. Each record requires source_system and a non-empty source_record_id. Rows are processed independently; valid rows are committed with audit entries while duplicates and validation/attribution errors are reported by input index. Duplicate identity is source_system + source_record_id.",
+                security: [{ bearerAuth: [] }],
+                requestBody: { required: true, content: { "application/json": { schema: {
+                    type: "object", required: ["records"], additionalProperties: false,
+                    properties: { records: { type: "array", minItems: 1, maxItems: 200, items: { type: "object" } } },
+                } } } },
+                responses: {
+                    "200": { description: "Import report with created rows, duplicate indexes and row-level errors" },
+                    "401": { description: "Authentication required" },
+                    "403": { description: "Insufficient role" },
+                    "422": { description: "Batch must contain between 1 and 200 records" },
+                },
+            },
+        },
         "/admin/industry-outcomes/summary": {
             get: {
                 tags: ["Industry Outcomes"],
