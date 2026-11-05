@@ -20,7 +20,7 @@ type Operation = {
     }>;
 };
 
-const paths = openApiSpec.paths as Record<string, Record<string, Operation>>;
+const paths = openApiSpec.paths as unknown as Record<string, Record<string, Operation>>;
 
 const dashboardContracts = [
     ["/dashboard/state", "StateMetrics"],
