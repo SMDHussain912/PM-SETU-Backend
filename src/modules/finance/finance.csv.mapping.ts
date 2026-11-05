@@ -61,7 +61,17 @@ export function mapFinanceCsvRows(
             errors.push({ row_number: 1, field: header, code: "REQUIRED_HEADER_MISSING", message: `Required column "${header}" is missing` });
         }
     }
-    if (errors.length) return { record_kind: kind, valid_rows: [], errors, duplicate_source_rows: [] };
+    if (errors.length) {
+        for (const row of parsed.rows) {
+            errors.push({
+                row_number: row.row_number,
+                field: "*",
+                code: "ROW_UNMAPPABLE_REQUIRED_HEADERS",
+                message: "This row cannot be mapped until all required columns are present",
+            });
+        }
+        return { record_kind: kind, valid_rows: [], errors, duplicate_source_rows: [] };
+    }
 
     for (const row of parsed.rows) {
         const rowErrors: FinanceCsvMappingResult["errors"] = [];
