@@ -119,6 +119,10 @@ export interface TrainingCapacityCoverage {
 export interface TrainingCapacityScope {
     student_capacity: number | null;
     coverage: TrainingCapacityCoverage;
+    without_reportable_cluster: {
+        student_capacity: number | null;
+        coverage: TrainingCapacityCoverage;
+    };
 }
 
 export interface TrainingCapacityByCluster extends TrainingCapacityScope {
