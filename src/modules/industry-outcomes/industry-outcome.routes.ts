@@ -13,9 +13,9 @@ const scopedReadRoles = [ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.HUB_ITI_USER, ROLE
 const outcomeReadRoles = [...readRoles, ...scopedReadRoles];
 router.use(requireAuth);
 router.get("/summary", requireRoles(...outcomeReadRoles), controller.summary);
-router.get("/", validate({ query: outcomeListQuerySchema }), requireRoles(...readRoles), controller.list);
-router.get("/:id/history", validate({ params: outcomeIdParamsSchema, query: outcomeHistoryQuerySchema }), requireRoles(...readRoles), controller.history);
-router.get("/:id", validate({ params: outcomeIdParamsSchema }), requireRoles(...readRoles), controller.get);
+router.get("/", validate({ query: outcomeListQuerySchema }), requireRoles(...outcomeReadRoles), controller.list);
+router.get("/:id/history", validate({ params: outcomeIdParamsSchema, query: outcomeHistoryQuerySchema }), requireRoles(...outcomeReadRoles), controller.history);
+router.get("/:id", validate({ params: outcomeIdParamsSchema }), requireRoles(...outcomeReadRoles), controller.get);
 router.post("/import", validate({ body: importOutcomeBatchSchema }), requireRoles(...writeRoles), controller.importBatch);
 router.post("/", validate({ body: createOutcomeSchema }), requireRoles(...writeRoles), controller.create);
 router.post("/:id/review", validate({ params: outcomeIdParamsSchema, body: reviewOutcomeSchema }), requireRoles(ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.APPROVING_AUTHORITY), controller.review);
