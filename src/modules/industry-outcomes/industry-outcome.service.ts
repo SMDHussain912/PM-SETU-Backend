@@ -36,17 +36,32 @@ export async function getOutcome(id: number) {
 
 export async function createOutcome(body: CreateOutcomeBody, actor: number, context: AuditContext) {
     const userId = actorId(actor);
-    return prisma.$transaction(async (tx) => {
-        const result = await repository.createOutcome(body, userId, tx);
-        if ("missing" in result) {
-            throw new ApiError({ statusCode: 422, code: `${result.missing}_NOT_FOUND`, message: `${result.missing} does not exist` });
+    try {
+        return await prisma.$transaction(async (tx) => {
+            const result = await repository.createOutcome(body, userId, tx);
+            if ("missing" in result) {
+                throw new ApiError({ statusCode: 422, code: `${result.missing}_NOT_FOUND`, message: `${result.missing} does not exist` });
+            }
+            if ("mismatch" in result) {
+                throw new ApiError({ statusCode: 422, code: "ITI_CLUSTER_MISMATCH", message: "The ITI does not belong to the supplied cluster" });
+            }
+            await audit(tx, userId, "CREATE", result.item.id, null, result.item, context);
+            return result.item;
+        });
+    } catch (error) {
+        if (isUniqueConstraintError(error)) {
+            throw new ApiError({
+                statusCode: 409,
+                code: "DUPLICATE_SOURCE_RECORD",
+                message: "An industry outcome with this source_system and source_record_id already exists",
+            });
         }
-        if ("mismatch" in result) {
-            throw new ApiError({ statusCode: 422, code: "ITI_CLUSTER_MISMATCH", message: "The ITI does not belong to the supplied cluster" });
-        }
-        await audit(tx, userId, "CREATE", result.item.id, null, result.item, context);
-        return result.item;
-    });
+        throw error;
+    }
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+    return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
 }
 
 export async function reviewOutcome(id: number, body: ReviewOutcomeBody, actor: number, context: AuditContext) {
@@ -96,7 +111,6 @@ export async function importOutcomeBatch(body: { records: unknown[] }, actor: nu
             duplicates.push(index);
             continue;
         }
-        seen.add(key);
 
         try {
             const item = await prisma.$transaction(async (tx) => {
@@ -111,13 +125,15 @@ export async function importOutcomeBatch(body: { records: unknown[] }, actor: nu
                 return result.item;
             });
             created.push({ index, id: item.id });
+            seen.add(key);
         } catch (error) {
             if (error instanceof ApiError) {
                 errors.push({ index, code: error.code, message: error.message, ...(error.details === undefined ? {} : { details: error.details }) });
                 continue;
             }
-            if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+            if (isUniqueConstraintError(error)) {
                 duplicates.push(index);
+                seen.add(key);
                 continue;
             }
             throw error;
