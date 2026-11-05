@@ -1,6 +1,7 @@
 import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/database";
 import type { Iti, ItiListFilters, ItiType } from "./iti.types";
+import type { CreateItiBody, UpdateItiBody } from "./iti.schema";
 
 /**
  * ITI module — database access layer.
@@ -146,10 +147,13 @@ export async function countItis(filters: ItiListFilters): Promise<number> {
 }
 
 /** Single ITI by id (RoadMap §7 GET /itis/:id). */
-export async function getItiById(id: number): Promise<Iti | null> {
-    const rows = await prisma.$queryRaw<ItiRow[]>`
+export async function getItiById(
+    id: number,
+    db: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<Iti | null> {
+    const rows = await db.$queryRaw<ItiRow[]>(Prisma.sql`
         ${ITI_SELECT}
-        WHERE itis.id = ${id}`;
+        WHERE itis.id = ${id}`);
     return rows[0] ? mapItiRow(rows[0]) : null;
 }
 
@@ -160,4 +164,74 @@ export async function listClusterItis(clusterId: number): Promise<Iti[]> {
         WHERE itis.cluster_id = ${clusterId}
         ORDER BY itis.iti_name`;
     return rows.map(mapItiRow);
+}
+
+
+/** Create an ITI master record inside the caller's transaction. */
+export async function createIti(input: CreateItiBody, tx: Prisma.TransactionClient): Promise<Iti> {
+    const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+        INSERT INTO itis (
+            iti_code, iti_name, type, district, cluster_id, address, principal,
+            contact, email, existing_trades, proposed_trades, student_strength,
+            infrastructure, lab_details, latitude, longitude, photos, status
+        ) VALUES (
+            ${input.iti_code}, ${input.iti_name}, ${input.type}, ${input.district},
+            ${input.cluster_id ?? null}, ${input.address ?? null}, ${input.principal ?? null},
+            ${input.contact ?? null}, ${input.email ?? null},
+            ${input.existing_trades ?? []}, ${input.proposed_trades ?? []},
+            ${input.student_strength ?? null}, ${input.infrastructure ?? null},
+            ${input.lab_details ?? null}, ${input.latitude ?? null},
+            ${input.longitude ?? null}, ${input.photos ?? []}, ${input.status ?? "ACTIVE"}
+        )
+        RETURNING id`);
+    const item = await getItiById(rows[0].id, tx);
+    if (!item) throw new Error("Created ITI could not be reloaded");
+    return item;
+}
+
+/** Update only fields supplied by the validated request. */
+export async function updateIti(id: number, input: UpdateItiBody, tx: Prisma.TransactionClient): Promise<Iti | null> {
+    const columns: Record<keyof UpdateItiBody, (value: never) => Prisma.Sql> = {
+        iti_code: value => Prisma.sql`iti_code = ${value}`,
+        iti_name: value => Prisma.sql`iti_name = ${value}`,
+        type: value => Prisma.sql`type = ${value}`,
+        district: value => Prisma.sql`district = ${value}`,
+        cluster_id: value => Prisma.sql`cluster_id = ${value}`,
+        address: value => Prisma.sql`address = ${value}`,
+        principal: value => Prisma.sql`principal = ${value}`,
+        contact: value => Prisma.sql`contact = ${value}`,
+        email: value => Prisma.sql`email = ${value}`,
+        existing_trades: value => Prisma.sql`existing_trades = ${value}`,
+        proposed_trades: value => Prisma.sql`proposed_trades = ${value}`,
+        student_strength: value => Prisma.sql`student_strength = ${value}`,
+        infrastructure: value => Prisma.sql`infrastructure = ${value}`,
+        lab_details: value => Prisma.sql`lab_details = ${value}`,
+        latitude: value => Prisma.sql`latitude = ${value}`,
+        longitude: value => Prisma.sql`longitude = ${value}`,
+        photos: value => Prisma.sql`photos = ${value}`,
+        status: value => Prisma.sql`status = ${value}`,
+    };
+    const updates = Object.entries(input).map(([key, value]) =>
+        columns[key as keyof UpdateItiBody](value as never),
+    );
+    if (!updates.length) return getItiById(id, tx);
+    const changed = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+        UPDATE itis SET ${Prisma.join(updates, ", ")}
+        WHERE id = ${id}
+        RETURNING id`);
+    return changed[0] ? getItiById(id, tx) : null;
+}
+
+/** Delete only ITIs with no dependent submissions or explicit user assignments. */
+export async function deleteItiIfUnreferenced(id: number, tx: Prisma.TransactionClient): Promise<boolean> {
+    const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+        DELETE FROM itis
+        WHERE id = ${id}
+          AND NOT EXISTS (SELECT 1 FROM iti_submissions WHERE iti_id = ${id})
+          AND NOT EXISTS (
+              SELECT 1 FROM user_scope_assignments
+              WHERE scope_type = 'ITI' AND scope_id = ${id}
+          )
+        RETURNING id`);
+    return rows.length > 0;
 }
