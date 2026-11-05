@@ -23,6 +23,7 @@ type Operation = {
 const paths = openApiSpec.paths as unknown as Record<string, Record<string, Operation>>;
 
 const dashboardContracts = [
+    ["/dashboard/contract", "DashboardContractResponse"],
     ["/dashboard/state", "StateMetrics"],
     ["/dashboard/clusters", "ClusterSummary"],
     ["/dashboard/clusters/{id}", "ClusterDashboardResponse"],
@@ -70,6 +71,8 @@ test("cluster dashboard contract validates a positive integer path parameter", (
 test("dashboard OpenAPI schemas mark every emitted top-level field as required", () => {
     const schemas = openApiSpec.components.schemas as unknown as Record<string, { required?: string[] }>;
     const expected: Record<string, string[]> = {
+        DashboardContractResponse: ["contract_version", "generated_at", "reporting_context", "metrics"],
+        DashboardMetricContract: ["metric_id", "label", "classification", "unit", "source", "availability", "aggregation_levels", "notes", "official_kpi_code"],
         StateMetrics: ["clusters", "hub_itis", "spoke_itis", "aips", "spvs", "sips_submitted", "sips_approved", "investment", "trainees", "industries_engaged"],
         ClusterSummary: ["id", "name", "district", "sector", "hub_itis", "spoke_itis", "aips", "spvs", "investment"],
         ClusterDashboardResponse: ["cluster", "metrics", "itis", "aips"],
