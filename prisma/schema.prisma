@@ -619,3 +619,38 @@ model AcademicSourceRecord {
   @@index([eventDate], map: "idx_academic_source_records_event_date")
   @@map("academic_source_records")
 }
+
+
+/// Registered external source systems. Secrets are never stored here.
+model IntegrationSource {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique @db.VarChar(60)
+  name          String   @db.VarChar(120)
+  system        String   @db.VarChar(40)
+  transport     String   @db.VarChar(20)
+  enabled       Boolean  @default(false)
+  credentialRef String?  @map("credential_ref") @db.VarChar(120)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  runs          IntegrationSyncRun[]
+  @@map("integration_sources")
+}
+
+/// Append-only operational history for connector executions.
+model IntegrationSyncRun {
+  id             Int      @id @default(autoincrement())
+  sourceId       Int      @map("source_id")
+  status         String   @db.VarChar(20)
+  recordsRead    Int      @default(0) @map("records_read")
+  recordsCreated Int      @default(0) @map("records_created")
+  recordsUpdated Int      @default(0) @map("records_updated")
+  recordsRejected Int     @default(0) @map("records_rejected")
+  cursor         String?
+  errorCode      String?  @map("error_code") @db.VarChar(100)
+  errorSummary   String?  @map("error_summary") @db.VarChar(1000)
+  startedAt      DateTime @map("started_at")
+  completedAt    DateTime @map("completed_at")
+  source         IntegrationSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  @@index([sourceId, startedAt(sort: Desc)], map: "idx_integration_sync_runs_source_started")
+  @@map("integration_sync_runs")
+}
