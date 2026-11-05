@@ -107,6 +107,19 @@ export const openApiSpec = {
             },
         },
         schemas: {
+            IndustryOutcomeRecord: {
+                type: "object",
+                description: "Protected source-referenced intake record. VERIFIED means reviewed intake only; KPI eligibility still depends on approved definitions and source rules.",
+                properties: {
+                    id: { type: "integer" }, outcomeType: { type: "string", enum: ["APPRENTICESHIP", "OJT", "INDUSTRY_EXPOSURE", "PLACEMENT", "EMPLOYER_PARTICIPATION"] },
+                    sourceSystem: { type: "string" }, sourceRecordId: { type: "string", nullable: true },
+                    clusterId: { type: "integer", nullable: true }, itiId: { type: "integer", nullable: true },
+                    employerName: { type: "string", nullable: true }, participantRef: { type: "string", nullable: true },
+                    eventDate: { type: "string", format: "date-time", nullable: true }, evidenceRef: { type: "string", nullable: true },
+                    reviewStatus: { type: "string", enum: ["PENDING", "VERIFIED", "REJECTED"] },
+                    reviewedBy: { type: "integer", nullable: true }, reviewedAt: { type: "string", format: "date-time", nullable: true },
+                },
+            },
             PaginationMeta: {
                 type: "object",
                 description: "Pagination metadata for list endpoints.",
@@ -2599,6 +2612,53 @@ export const openApiSpec = {
                     "429": { description: "Rate limit exceeded" },
                     "500": { description: "PM SETU database schema not created yet" },
                 },
+            },
+        },
+        "/admin/industry-outcomes": {
+            get: {
+                tags: ["Industry Outcomes"], summary: "List industry outcome intake records",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { name: "outcome_type", in: "query", schema: { type: "string", enum: ["APPRENTICESHIP", "OJT", "INDUSTRY_EXPOSURE", "PLACEMENT", "EMPLOYER_PARTICIPATION"] } },
+                    { name: "review_status", in: "query", schema: { type: "string", enum: ["PENDING", "VERIFIED", "REJECTED"] } },
+                    { name: "cluster_id", in: "query", schema: { type: "integer", minimum: 1 } },
+                    { name: "iti_id", in: "query", schema: { type: "integer", minimum: 1 } },
+                    { name: "source_system", in: "query", schema: { type: "string" } },
+                    { name: "page", in: "query", schema: { type: "integer", minimum: 1 } },
+                    { name: "pageSize", in: "query", schema: { type: "integer", minimum: 1, maximum: 100 } },
+                ],
+                responses: { "200": { description: "Paginated intake records" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" } },
+            },
+            post: {
+                tags: ["Industry Outcomes"], summary: "Create source-referenced industry outcome intake record",
+                security: [{ bearerAuth: [] }],
+                requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["outcome_type", "source_system"], properties: {
+                    outcome_type: { type: "string", enum: ["APPRENTICESHIP", "OJT", "INDUSTRY_EXPOSURE", "PLACEMENT", "EMPLOYER_PARTICIPATION"] },
+                    source_system: { type: "string" }, source_record_id: { type: "string", nullable: true },
+                    cluster_id: { type: "integer", nullable: true }, iti_id: { type: "integer", nullable: true },
+                    employer_name: { type: "string", nullable: true }, participant_ref: { type: "string", nullable: true },
+                    event_date: { type: "string", format: "date-time", nullable: true }, evidence_ref: { type: "string", nullable: true }, payload: { type: "object" },
+                }}}}},
+                responses: { "201": { description: "Created as PENDING review" }, "401": { description: "Authentication required" }, "403": { description: "Insufficient role" }, "422": { description: "Invalid attribution or payload" } },
+            },
+        },
+        "/admin/industry-outcomes/{id}": {
+            get: {
+                tags: ["Industry Outcomes"], summary: "Get industry outcome intake record",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                responses: { "200": { description: "Intake record" }, "404": { description: "Not found" } },
+            },
+        },
+        "/admin/industry-outcomes/{id}/review": {
+            post: {
+                tags: ["Industry Outcomes"], summary: "Verify or reject an intake record",
+                security: [{ bearerAuth: [] }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 } }],
+                requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["review_status"], properties: {
+                    review_status: { type: "string", enum: ["VERIFIED", "REJECTED"] }, review_note: { type: "string", nullable: true },
+                }}}}},
+                responses: { "200": { description: "Review saved" }, "404": { description: "Not found" }, "409": { description: "Record is no longer pending" } },
             },
         },
         "/auth/login": {
