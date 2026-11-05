@@ -3,6 +3,9 @@
 -- Endpoints:
 --   GET /api/v1/aips        (list + filters + pagination)
 --   GET /api/v1/aips/{id}   (single AIP)
+--   POST /api/v1/admin/aips (create AIP master record)
+--   PATCH /api/v1/admin/aips/{id} (update AIP master record)
+--   DELETE /api/v1/admin/aips/{id} (reference-safe delete)
 -- Spec     : RoadMap.md §8 "AIP APIs"
 -- ============================================================================
 --
@@ -54,8 +57,8 @@
 --     registry modules and are not embedded in this AIP response.
 --   · GET /api/v1/clusters/:clusterId/aips — listed in §8 but not part of
 --     the current task scope.
---   · Admin CRUD (POST/PATCH/DELETE /api/v1/admin/aips...) and the approval
---     workflow (§21) — separate tasks.
+--   · AIP admin CRUD is implemented below. Approval workflow (§21) remains
+--     a separate module.
 --
 -- CASTING / CONVENTION NOTES
 --   - COUNT(*) is cast to ::int so Prisma returns JS numbers (not bigint).
