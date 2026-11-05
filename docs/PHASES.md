@@ -242,7 +242,7 @@ Related documentation:
 ### Phase 7 — State PMU dashboard & analytics
 **Status: IN PROGRESS — REPORTING CONTRACT AND ITI CAPACITY SCOPE IMPLEMENTED**
 
-Implemented milestone 7.2 increment: added public read-only `GET /api/v1/dashboard/training/itis/:id` for the source-backed ITI student-capacity measure. It preserves null capacity as `NOT_AVAILABLE`, excludes sample ITIs, returns 404 for absent/sample IDs, and explicitly leaves reporting period and source freshness untracked. API schema, OpenAPI, source inventory, and identifier validation tests were added. Local typecheck/test/build verification is pending. — SOURCE INVENTORY AND REPORTING CONTRACT BASELINE**
+Implemented milestone 7.2 increment: added public read-only `GET /api/v1/dashboard/training/itis/:id` for the source-backed ITI student-capacity measure. It preserves null capacity as `NOT_AVAILABLE`, excludes sample ITIs, returns 404 for absent/sample IDs, and explicitly leaves reporting period and source freshness untracked. API schema, OpenAPI, source inventory, and identifier validation tests were added. Local typecheck/test/build verification is pending.
 
 Purpose:
 - Build state-level PMU dashboard and analytical reporting on top of validated source modules.
