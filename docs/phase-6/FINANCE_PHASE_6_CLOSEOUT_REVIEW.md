@@ -53,7 +53,16 @@ The reconciliation predicates now include:
 
 Scope and as-of-date filters remain applied. Pure predicate tests cover the cross-year inclusion and optional filters in `tests/finance-reconciliation-query.test.ts`.
 
-## 4. Review conclusions and limitations
+## 4. Exact decimal boundary safeguard
+
+The ledger columns use PostgreSQL `DECIMAL(18,2)`, which permits at most 16 integer digits and 2 fractional digits. Validation now applies that same boundary in both CSV mapping and the internal ingestion services:
+- CSV values are checked as strings; no floating-point conversion is used for monetary validation.
+- Direct service inputs use Decimal.js operations to reject non-finite, negative, over-scale, and out-of-range amounts before persistence.
+- Boundary tests cover zero, the maximum accepted amount, excess fractional precision, negative values, and values beyond the integer limit.
+
+Implementation: `src/modules/finance/finance.amount.validation.ts`; tests: `tests/finance-amount-validation.test.ts` and `tests/finance-csv-amount-boundaries.test.ts`.
+
+## 5. Review conclusions and limitations
 
 1. **No source correction/reversal workflow is approved.** The present duplicate behaviour is intentionally immutable; it is not a substitute for an approved correction, reversal, refund, or restatement process.
 2. **No authoritative FMS/source contract is confirmed.** Production ingestion cannot be treated as live until Finance/DET confirms source ownership, interface, mapping, and source evidence.
@@ -65,7 +74,7 @@ Scope and as-of-date filters remain applied. Pure predicate tests cover the cros
 8. **Retention is unresolved.** Raw CSV content and normalized financial row payloads are deliberately not retained by the import-batch metadata design.
 9. **PostgreSQL concurrency test evidence must be recorded from the actual target environment.** The tests are opt-in and skipped when `PM_SETU_TEST_DATABASE_URL` is absent. A successful ordinary test run with the variable absent does not prove database concurrency behaviour.
 
-## 5. Required acceptance evidence before Phase 6 can be called operationally accepted
+## 6. Required acceptance evidence before Phase 6 can be called operationally accepted
 
 - Finance/DET-approved authoritative source system and FMS interface/export contract.
 - Approved outlay, release, and expenditure definitions and evidence requirements.
@@ -79,7 +88,7 @@ Scope and as-of-date filters remain applied. Pure predicate tests cover the cros
 - Reconciliation of representative source extracts against authoritative Finance records.
 - Operational owner acceptance and recorded sign-off.
 
-## 6. Next engineering action
+## 7. Next engineering action
 
 After the user confirms the PostgreSQL test output from the dedicated test database, perform a final source-level review of:
 - scope/as-of-date filtering in reconciliation queries;
