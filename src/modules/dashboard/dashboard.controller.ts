@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { getValidated } from "../../middleware/validate.middleware";
 import { sendSuccess } from "../../utils/response";
-import type { ClusterIdParams } from "./dashboard.schema";
+import type { ClusterIdParams, ItiIdParams } from "./dashboard.schema";
 import * as dashboardService from "./dashboard.service";
 
 /**
@@ -35,6 +35,12 @@ export async function getClusterDashboard(_req: Request, res: Response): Promise
 
 export async function getFinanceDashboard(_req: Request, res: Response): Promise<Response> {
     const data = await dashboardService.getFinanceMetrics();
+    return sendSuccess(res, data);
+}
+
+export async function getTrainingItiDashboard(_req: Request, res: Response): Promise<Response> {
+    const { params } = getValidated<unknown, unknown, ItiIdParams>(res);
+    const data = await dashboardService.getTrainingByIti(params.id);
     return sendSuccess(res, data);
 }
 
