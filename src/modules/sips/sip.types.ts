@@ -33,11 +33,13 @@ export interface SipAipSummary {
 /**
  * SIP record (public shape).
  *
- * ⚠ Database contract: the backing table does not exist yet (no Prisma
- * models/migrations). Required columns, the canonical workflow vocabulary
- * and every "TO CONFIRM" item are documented in sql/sips/sip_queries.sql.
+ * Database evidence: the current repository contains a Prisma Sip model and
+ * migrations for the SIP table. This confirms repository implementation only;
+ * deployed production schema and data reconciliation are not certified here.
  * Basic registry CRUD is implemented for the established status/relationship
- * contract. The 7 workflow transitions and SPV↔SIP link remain deferred.
+ * contract. Workflow transition commands/history and the SPV↔SIP link remain
+ * deferred. The canonical state list still requires owner confirmation because
+ * docs/operational-workflow-contract.md also describes a REJECTED state.
  */
 export interface Sip {
     id: number;
