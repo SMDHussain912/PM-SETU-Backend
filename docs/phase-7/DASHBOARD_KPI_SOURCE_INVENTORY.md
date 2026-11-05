@@ -131,6 +131,7 @@ The endpoint aggregates only the existing `itis.student_strength` capacity field
 - `itis_with_capacity`: number of rows with a non-null `student_strength`.
 - `itis_without_capacity`: number of rows with a null `student_strength`.
 - State-level `itis_without_reportable_cluster`: non-sample ITI rows with no cluster assignment or assigned only to a sample cluster.
+- A separate `without_reportable_cluster` capacity and coverage breakdown exposes the capacity amount/counts excluded from cluster rows, allowing the state total to reconcile without silently dropping those ITIs.
 
 Aggregation semantics:
 - `SUM(student_strength)` is intentionally nullable. If no source rows have a capacity value, the aggregate is null and availability is `NOT_AVAILABLE`.
