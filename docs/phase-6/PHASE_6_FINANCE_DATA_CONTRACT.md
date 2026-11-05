@@ -289,3 +289,8 @@ Added an internal retry execution function that consumes the output of the safe 
 
 The normal full-import coordinator remains unchanged in behaviour. Retry execution retains the existing sequential, per-row transaction model, so partial commits remain possible and are explicitly reported. This is internal orchestration only: no HTTP route, authorization grant, payload retention, audit guarantee, or Finance approval is implied. Tests cover selected-row-only dispatch, malformed selections and empty plans.
 
+## Import batch lifecycle projection milestone (2026-11-05)
+
+Added a deterministic projection from a CSV preview and optional execution summary into the persisted batch metadata contract. It derives the technical lifecycle (PREVIEWED, INVALID, EXECUTED, or EXECUTED_WITH_REJECTIONS), validates execution counters and row identities, preserves per-row invalid diagnostics and execution outcomes, and leaves valid but unattempted rows marked VALID (important for selective retry batches).
+
+The projection stores only row numbers, technical outcomes, target record IDs and bounded diagnostics; it does not retain source CSV contents or normalized financial values. It does not create a batch itself: the existing repository remains responsible for the atomic metadata/row write. The helper makes no Finance approval or accounting-acceptance assertion. Tests cover preview, execution, selective retry, invalid rows, counter mismatches and malformed metadata.
