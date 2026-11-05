@@ -49,7 +49,7 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 | 4 | Academic & training monitoring | <strong>Implementation complete; acceptance pending</strong> |
 | 5 | Industry & employment | <strong>Implementation complete</strong> |
 | 6 | Finance | <strong>Engineering implementation complete; operational acceptance pending</strong> |
-| 7 | State PMU dashboard & analytics | <strong>In progress — source inventory and reporting contract baseline</strong> |
+| 7 | State PMU dashboard & analytics | <strong>In progress — reporting contract, capacity aggregation, physical source-readiness audit</strong> |
 | 8 | Integrations & public portal | <strong>Not started</strong> |
 | 9 | Security, testing & production readiness | <strong>Not started</strong> |
 
@@ -346,3 +346,14 @@ Whenever work progresses, update:
 #### Verification follow-up — caller fixture correction
 
 The first local verification after the idempotency migration confirmed that all three migrations applied and Prisma Client generated successfully. Typecheck emitted no error in the supplied log. The test run reported 196 passing and 2 failing: both failures were preview-persistence tests that had not been updated to supply the newly required UUID `idempotency_key`. Their fixtures are now updated in commit `a697b37`. The supplied output does not establish a successful full test run or completed build; rerun both before treating this milestone as verified.
+
+
+### Phase 7 continuation — physical progress source-readiness audit
+
+Completed a repository evidence audit and documented the result in `docs/phase-7/PHYSICAL_PROGRESS_REPORTING_READINESS.md`.
+
+- Generic ITI submissions (`INFRASTRUCTURE`, `MONTHLY_PROGRESS`) are operational workflow records, not typed physical KPI facts.
+- `itis.infrastructure` and `itis.lab_details` are free-text profile fields.
+- No dedicated civil works, equipment lifecycle, lab inventory, or smart-classroom source models were found.
+- PHY-01..PHY-04 remain unavailable; no dashboard values or proxy calculations were added.
+- Next: obtain the approved physical source/domain contract. In parallel, continue source-readiness inspection of industry/employment records, preserving the distinction between verified outcomes and intake workflow records.
