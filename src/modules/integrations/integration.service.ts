@@ -1,4 +1,4 @@
-import { prisma } from "../../config/database";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { ApiError } from "../../utils/response";
 import { integrationAdapterRegistry } from "./integration.adapters";
 import { integrationIngestSchema } from "./integration.schema";
@@ -44,7 +44,7 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
   const latest = await repo.listRuns(source.id, 1);
   const previous = latest[0];
   const cursor = previous?.status === "PARTIAL" ? previous.cursor : null;
-  let page;
+  let page: Awaited<ReturnType<typeof adapter.fetchPage>> | undefined;
   let lastError: unknown;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try { page = await adapter.fetchPage({ sourceCode: source.code, cursor, since: previous?.completedAt.toISOString() ?? null }); break; }
@@ -61,8 +61,6 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
   return repo.ingestBatch(source.id, parsed.data.records, { cursor: page.nextCursor ?? null, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", startedAt });
 }
 
-
-import { createHmac, timingSafeEqual } from "node:crypto";
 
 async function enabledSource(id: number) {
   const source = await repo.get(id);
