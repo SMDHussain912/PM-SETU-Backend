@@ -18,10 +18,10 @@ import type {
  * is passed through tagged-template interpolation (bound parameters) — never
  * string-concatenate values, never use $queryRawUnsafe.
  *
- * ⚠ STATUS (full details in sql/dashboard/dashboard_queries.sql):
- *   The PM SETU tables do not exist yet. Until the DBA creates the real
- *   schema, these queries fail at runtime and the endpoints return a 500
- *   error envelope. That is intentional: no fake dashboard records.
+ * The repository contains Prisma models and migrations for these tables.
+ * This source review does not certify that migrations are deployed or that
+ * production data has been reconciled. Registry KPIs exclude is_sample rows
+ * and deliberately do not apply unapproved active/approved status filters.
  */
 
 interface StateRow {
@@ -81,14 +81,14 @@ export async function getStateMetrics(): Promise<StateMetrics> {
     const rows = await prisma.$queryRaw<StateRow[]>(
         Prisma.sql`
             SELECT
-                (SELECT COUNT(*)::int FROM clusters) AS clusters,
-                (SELECT COUNT(*)::int FROM itis WHERE type = 'HUB') AS hub_itis,
-                (SELECT COUNT(*)::int FROM itis WHERE type = 'SPOKE') AS spoke_itis,
-                (SELECT COUNT(*)::int FROM aips) AS aips,
-                (SELECT COUNT(*)::int FROM spvs) AS spvs,
+                (SELECT COUNT(*)::int FROM clusters WHERE is_sample = FALSE) AS clusters,
+                (SELECT COUNT(*)::int FROM itis WHERE is_sample = FALSE AND type = 'HUB') AS hub_itis,
+                (SELECT COUNT(*)::int FROM itis WHERE is_sample = FALSE AND type = 'SPOKE') AS spoke_itis,
+                (SELECT COUNT(*)::int FROM aips WHERE is_sample = FALSE) AS aips,
+                (SELECT COUNT(*)::int FROM spvs WHERE is_sample = FALSE) AS spvs,
                 (SELECT COUNT(*)::int FROM sips WHERE status = 'SUBMITTED') AS sips_submitted,
                 (SELECT COUNT(*)::int FROM sips WHERE status = 'APPROVED') AS sips_approved,
-                (SELECT COALESCE(SUM(investment_amount), 0)::double precision FROM aips) AS investment`,
+                (SELECT COALESCE(SUM(investment_amount), 0)::double precision FROM aips WHERE is_sample = FALSE) AS investment`,
     );
     return {
         ...rows[0],
@@ -103,12 +103,13 @@ export async function getClusterSummaries(): Promise<ClusterSummary[]> {
         Prisma.sql`
             SELECT
                 c.id, c.name, c.district, c.sector,
-                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.type = 'HUB') AS hub_itis,
-                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.type = 'SPOKE') AS spoke_itis,
-                (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id) AS aips,
-                (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id) AS spvs,
-                (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id) AS investment
+                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.is_sample = FALSE AND i.type = 'HUB') AS hub_itis,
+                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.is_sample = FALSE AND i.type = 'SPOKE') AS spoke_itis,
+                (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id AND a.is_sample = FALSE) AS aips,
+                (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id AND s.is_sample = FALSE) AS spvs,
+                (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id AND a.is_sample = FALSE) AS investment
             FROM clusters c
+            WHERE c.is_sample = FALSE
             ORDER BY c.name`,
     );
     return rows;
@@ -119,13 +120,13 @@ export async function getClusterById(id: number): Promise<ClusterRow | null> {
         Prisma.sql`
             SELECT
                 c.id, c.name, c.district, c.sector,
-                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.type = 'HUB') AS hub_itis,
-                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.type = 'SPOKE') AS spoke_itis,
-                (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id) AS aips,
-                (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id) AS spvs,
-                (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id) AS investment
+                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.is_sample = FALSE AND i.type = 'HUB') AS hub_itis,
+                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.is_sample = FALSE AND i.type = 'SPOKE') AS spoke_itis,
+                (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id AND a.is_sample = FALSE) AS aips,
+                (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id AND s.is_sample = FALSE) AS spvs,
+                (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id AND a.is_sample = FALSE) AS investment
             FROM clusters c
-            WHERE c.id = ${id}`,
+            WHERE c.id = ${id} AND c.is_sample = FALSE`,
     );
     return rows[0] ?? null;
 }
@@ -136,7 +137,7 @@ export async function getClusterItis(clusterId: number): Promise<ClusterDashboar
             SELECT
                 id, iti_code, iti_name, type, district
             FROM itis
-            WHERE cluster_id = ${clusterId}
+            WHERE cluster_id = ${clusterId} AND is_sample = FALSE
             ORDER BY iti_name`,
     );
     return rows;
@@ -148,7 +149,7 @@ export async function getClusterAips(clusterId: number): Promise<ClusterDashboar
             SELECT
                 id, name, sector, status, investment_amount
             FROM aips
-            WHERE cluster_id = ${clusterId}
+            WHERE cluster_id = ${clusterId} AND is_sample = FALSE
             ORDER BY name`,
     );
     return rows;
