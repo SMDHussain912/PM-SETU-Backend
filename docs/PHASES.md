@@ -4,7 +4,7 @@
 >
 > **Repository:** [SMDHussain912/PM-SETU-Backend](https://github.com/SMDHussain912/PM-SETU-Backend)  
 > **Working branch:** `main`  
-> **Last documented:** 2026-11-05
+> **Last documented:** 2026-11-06
 
 ---
 
@@ -161,13 +161,23 @@ Latest route work:
 
 The route factory is intentionally **not mounted** in `src/routes/index.ts`. It requires injected authorization and report resolution. Do not mount it until the Finance/DET access matrix and permission policy are approved.
 
+#### Completed concurrency safeguard — source identity ingestion
+
+The three finance ledger ingestion functions now use database conflict-safe insertion against their existing composite source identity constraints:
+- `ingestApprovedOutlay()`
+- `ingestFundRelease()`
+- `ingestExpenditure()`
+
+A successful insert returns `CREATED`; a concurrent source-identity conflict returns `DUPLICATE` with the canonical persisted row. Existing rows are not overwritten. Unit tests simulate the conflict outcome for all three record kinds. A live PostgreSQL multi-connection test remains outstanding; do not claim it has been performed.
+
+Commits:
+- Implementation: `382debacaaeb049b2e232702b60c46d6163b95c3`
+- Tests: `56b2e1602907d072df04f0038e7be423db31397b`
+- Documentation: `5efdfe92c5cb7a728ddc3bb1ed26f385d6ecbd46`
+
 #### Current active work — next task
 
-The HTTP-level route integration tests are implemented using an ephemeral Express server and Node's built-in `fetch`; no new dependency was added. The tests cover authorization denial (including resolver non-invocation), successful download body/headers, missing report, invalid batch ID, and resolver error forwarding. The user should run typecheck, tests, and build against the resulting commits before this milestone is considered verified.
-
-#### Current active work — next task
-
-Audit finance import-batch lifecycle and persistence concurrency guarantees. Inspect the Prisma repository, lifecycle transitions, execution/reconciliation/recovery interactions, and existing tests for duplicate execution, concurrent retries, stale state writes, and idempotency. Add only evidence-backed safeguards that fit the existing schema and contracts. Do not invent batch-level atomicity, correction/reversal rules, retention policy, or finance permissions. Document any unresolved race conditions rather than masking them.
+Audit finance import-batch lifecycle and persistence concurrency guarantees. Inspect whether batch metadata writes can be duplicated, overwritten, or left stale when retries or concurrent workers act on the same batch. Focus on repository-level update paths, not assumptions. Add safeguards only where the existing schema and contracts support them. Do not invent batch-level atomicity, correction/reversal rules, retention policy, or finance permissions. Document unresolved races and add a real database integration test where practical.
 
 #### Finance data and policy guardrails
 
@@ -280,7 +290,8 @@ Completion evidence should include:
 
 | Date | Phase | Milestone | Evidence / note |
 |---|---|---|---|
-| 2026-11-05 | 6 | Added HTTP-level integration tests for the opt-in finance recovery route factory | Commit `98aab40329205024b33f804e5c3f2a5475935ee5`; test execution is pending user verification. Route remains intentionally unmounted pending Finance/DET access approval. |
+| 2026-11-05 | 6 | Added HTTP-level integration tests for the opt-in finance recovery route factory | Commit `98aab40329205024b33f804e5c3f2a5475935ee5`; user reported the suite passed. Route remains intentionally unmounted pending Finance/DET access approval. |
+| 2026-11-06 | 6 | Made outlay, release, and expenditure source-identity inserts conflict-safe; added duplicate-race unit coverage | Commits `382debac`, `56b2e160`, and `5efdfe92`. Live PostgreSQL multi-connection verification remains outstanding. |
 
 ---
 
