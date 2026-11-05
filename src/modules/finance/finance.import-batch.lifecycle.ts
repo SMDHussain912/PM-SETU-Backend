@@ -94,8 +94,12 @@ export function buildFinanceImportBatchInput(
     rows.sort((a, b) => a.row_number - b.row_number);
 
     const invalidRows = invalidByRow.size;
+    const unattemptedValidRows = mapping.valid_rows.length - (execution?.attempted_rows ?? 0);
+    if (unattemptedValidRows < 0) throw new Error("FINANCE_IMPORT_ATTEMPTED_ROWS_EXCEED_VALID_ROWS");
     const lifecycle = execution
-        ? (invalidRows > 0 || execution.rejected > 0 ? "EXECUTED_WITH_REJECTIONS" : "EXECUTED")
+        ? (unattemptedValidRows > 0
+            ? (invalidRows > 0 || execution.rejected > 0 ? "PARTIALLY_EXECUTED_WITH_REJECTIONS" : "PARTIALLY_EXECUTED")
+            : (invalidRows > 0 || execution.rejected > 0 ? "EXECUTED_WITH_REJECTIONS" : "EXECUTED"))
         : (preview.accepted_for_review ? "PREVIEWED" : "INVALID");
 
     return {
