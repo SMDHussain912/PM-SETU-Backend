@@ -29,7 +29,7 @@ export async function ingestApprovedOutlay(
         if (input.cluster_id != null && iti.clusterId !== input.cluster_id) return { error: "ITI_CLUSTER_MISMATCH" };
     }
 
-    const item = await tx.financeApprovedOutlay.create({
+    const inserted = await tx.financeApprovedOutlay.createMany({
         data: {
             sanctionReference: input.sanction_reference,
             sanctionDate: input.sanction_date,
@@ -44,8 +44,13 @@ export async function ingestApprovedOutlay(
             sourceUpdatedAt: input.source_updated_at ?? null,
             createdBy: input.created_by ?? null,
         },
+        skipDuplicates: true,
     });
-    return { outcome: "CREATED", item };
+    const item = await tx.financeApprovedOutlay.findUnique({
+        where: { sourceSystem_sourceRecordId: { sourceSystem: input.source_system, sourceRecordId: input.source_record_id } },
+    });
+    if (!item) throw new Error("FINANCE_OUTLAY_INSERT_NOT_CONFIRMED");
+    return { outcome: inserted.count === 1 ? "CREATED" : "DUPLICATE", item };
 }
 
 export async function ingestFundRelease(
@@ -60,7 +65,7 @@ export async function ingestFundRelease(
     const outlay = await tx.financeApprovedOutlay.findUnique({ where: { id: input.outlay_id }, select: { id: true } });
     if (!outlay) return { error: "OUTLAY_NOT_FOUND" };
 
-    const item = await tx.financeFundRelease.create({
+    const inserted = await tx.financeFundRelease.createMany({
         data: {
             outlayId: input.outlay_id,
             releaseReference: input.release_reference,
@@ -73,8 +78,13 @@ export async function ingestFundRelease(
             sourceUpdatedAt: input.source_updated_at ?? null,
             createdBy: input.created_by ?? null,
         },
+        skipDuplicates: true,
     });
-    return { outcome: "CREATED", item };
+    const item = await tx.financeFundRelease.findUnique({
+        where: { sourceSystem_sourceRecordId: { sourceSystem: input.source_system, sourceRecordId: input.source_record_id } },
+    });
+    if (!item) throw new Error("FINANCE_RELEASE_INSERT_NOT_CONFIRMED");
+    return { outcome: inserted.count === 1 ? "CREATED" : "DUPLICATE", item };
 }
 
 export async function ingestExpenditure(
@@ -98,7 +108,7 @@ export async function ingestExpenditure(
         if (release.outlayId !== input.outlay_id) return { error: "RELEASE_OUTLAY_MISMATCH" };
     }
 
-    const item = await tx.financeExpenditure.create({
+    const inserted = await tx.financeExpenditure.createMany({
         data: {
             outlayId: input.outlay_id,
             releaseId: input.release_id ?? null,
@@ -114,6 +124,11 @@ export async function ingestExpenditure(
             sourceUpdatedAt: input.source_updated_at ?? null,
             createdBy: input.created_by ?? null,
         },
+        skipDuplicates: true,
     });
-    return { outcome: "CREATED", item };
+    const item = await tx.financeExpenditure.findUnique({
+        where: { sourceSystem_sourceRecordId: { sourceSystem: input.source_system, sourceRecordId: input.source_record_id } },
+    });
+    if (!item) throw new Error("FINANCE_EXPENDITURE_INSERT_NOT_CONFIRMED");
+    return { outcome: inserted.count === 1 ? "CREATED" : "DUPLICATE", item };
 }
