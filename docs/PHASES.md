@@ -193,18 +193,9 @@ Documentation: `docs/phase-6/FINANCE_CSV_PREVIEW_PERSISTENCE.md`.
 
 #### Current active work — next task
 
-Run both opt-in PostgreSQL concurrency tests against a dedicated migrated test database only:
+The user reports that the latest test suite passed after adding the opt-in PostgreSQL concurrency coverage. Confirm whether both PostgreSQL tests were actually run with `PM_SETU_TEST_DATABASE_URL` pointing to a dedicated migrated test database; if not, retain live database concurrency as an explicit evidence gap.
 
-```bash
-export PM_SETU_TEST_DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/pm_setu_test?schema=public'
-npx tsx --test tests/finance-import-batch-postgres-concurrency.test.ts
-npx tsx --test tests/finance-ledger-postgres-concurrency.test.ts
-npm run typecheck
-npm test
-npm run build
-```
-
-Do not use production, staging, or a shared database. If a dedicated test database is unavailable, leave live concurrency verification pending. After these tests, continue the Finance close-out review: reconciliation invariants, source-record immutability/correction handling, and operational evidence gaps. Keep application/API caller wiring blocked on approved Finance access and audit policy. Preserve the policy that a deliberate import re-run uses a new idempotency key.
+The engineering close-out review is documented in `docs/phase-6/FINANCE_PHASE_6_CLOSEOUT_REVIEW.md`. Next, complete the final source-level review of reconciliation scope/as-of filtering, import reconciliation edge cases, exact decimal boundaries, and migration/test evidence. Do not mount finance write/recovery routes or activate official derived KPIs while source ownership, Finance permissions, audit semantics, correction/reversal policy, and formula approvals remain unresolved. Preserve the policy that a deliberate import re-run uses a new idempotency key.
 
 #### Finance data and policy guardrails
 
@@ -321,7 +312,8 @@ Completion evidence should include:
 | 2026-11-06 | 6 | Made outlay, release, and expenditure source-identity inserts conflict-safe; added duplicate-race unit coverage | Commits `382debac`, `56b2e160`, and `5efdfe92`. Live PostgreSQL multi-connection verification remains outstanding. |
 | 2026-11-06 | 6 | Added caller-keyed finance import-batch idempotency, unique schema constraint, historical UUID backfill migration, and retry contract docs | Commits `2c1cee5`, `cdb7659`, `03e9c1e`, `7837bea`, `ded8215`, `72fbb92`, `ba6c180`, `0441961`, and `07033a4`. User reports local verification passes; real PostgreSQL multi-connection verification remains outstanding. |
 | 2026-11-06 | 6 | Added opt-in PostgreSQL concurrent same-key import-batch test and dedicated test-database instructions | Commits `65e3600` and `3340144`. Test uses only `PM_SETU_TEST_DATABASE_URL`, unique UUIDs, and exact-key cleanup; user reports tests completed. |
-| 2026-11-06 | 6 | Added opt-in PostgreSQL concurrent source-identity tests for outlay, release, and expenditure ledgers | Commits `1042a9e`, `ec49f40`, and `ba82b36`. Uses a dedicated migrated test database via `PM_SETU_TEST_DATABASE_URL`; live execution is pending. |
+| 2026-11-06 | 6 | Added opt-in PostgreSQL concurrent source-identity tests for outlay, release, and expenditure ledgers | Commits `1042a9e`, `ec49f40`, and `ba82b36`. User reports latest tests passed; confirm whether opt-in DB tests were executed with the dedicated test URL. |
+| 2026-11-06 | 6 | Completed engineering close-out review of finance integrity, reconciliation, import recovery, and policy gates | Commit `fe84e28`; review records implemented controls, limitations, and acceptance evidence required before operational sign-off. |
 | 2026-11-06 | 6 | Added an injectable transaction boundary and repository tests for same-key replay, immutable row diagnostics on replay, and key reuse conflicts | Commits `dc80e56` and `3c6d96a`. New tests still require local typecheck/test/build verification; they simulate transaction behaviour and are not a live PostgreSQL race test. |
 
 ---
