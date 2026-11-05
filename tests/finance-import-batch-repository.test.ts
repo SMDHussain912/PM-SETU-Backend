@@ -39,8 +39,9 @@ function fakeDatabase() {
             findUnique: async () => persisted,
         },
         financeImportBatchRow: {
-            createMany: async ({ data }: { data: unknown[] }) => {
+            createMany: async ({ data }: { data: Array<Record<string, unknown>> }) => {
                 rowDiagnostics.push(data);
+                if (persisted) persisted.rows = data;
                 return { count: data.length };
             },
         },
@@ -59,26 +60,29 @@ function fakeDatabase() {
 
 test("same-key replay returns the canonical batch without rewriting row diagnostics", async () => {
     const fake = fakeDatabase();
-    const first = await createFinanceImportBatch(input(), fake.database);
-    const replay = await createFinanceImportBatch(input({
-        lifecycle: "INVALID",
-        total_rows: 1,
-        valid_rows: 0,
-        invalid_rows: 1,
-        rows: [{ row_number: 2, outcome: "INVALID", error_code: "BAD_ROW" }],
-    }), fake.database);
+    const request = input();
+    const first = await createFinanceImportBatch(request, fake.database);
+    const replay = await createFinanceImportBatch(request, fake.database);
 
     assert.deepEqual(replay, first);
     assert.equal(fake.batchInsertAttempts, 2);
     assert.equal(fake.rowDiagnostics.length, 1);
-    assert.deepEqual(fake.rowDiagnostics[0], [{
-        batchId: 77,
-        rowNumber: 2,
-        outcome: "VALID",
-        targetRecordId: null,
-        errorCode: null,
-        errorMessage: null,
-    }]);
+});
+
+test("same key and file hash with changed batch metadata or row outcomes is rejected", async () => {
+    const fake = fakeDatabase();
+    await createFinanceImportBatch(input(), fake.database);
+
+    await assert.rejects(
+        createFinanceImportBatch(input({
+            lifecycle: "INVALID",
+            valid_rows: 0,
+            invalid_rows: 1,
+            rows: [{ row_number: 2, outcome: "INVALID", error_code: "BAD_ROW" }],
+        }), fake.database),
+        /FINANCE_IMPORT_IDEMPOTENCY_KEY_CONFLICT/,
+    );
+    assert.equal(fake.rowDiagnostics.length, 1);
 });
 
 test("same idempotency key with a different file hash is rejected", async () => {
