@@ -126,8 +126,8 @@ export async function getDocumentFile(id: number): Promise<{ filePath: string; f
     return { filePath: document.file_path, fileName: document.original_name ?? "document" };
 }
 
-async function requireDocument(id: number): Promise<Document> {
-    const document = await documentRepository.getDocumentById(id);
+async function requireDocument(id: number, db: Prisma.TransactionClient = prisma): Promise<Document> {
+    const document = await documentRepository.getDocumentById(id, db);
     if (!document) {
         throw new ApiError({
             statusCode: 404,
@@ -162,18 +162,6 @@ export async function createDocument(body: CreateDocumentBody, context: Document
         await recordDocumentAudit(tx, created, "CREATE", null, context);
         return created;
     });
-}
-
-async function requireDocument(id: number, db: Prisma.TransactionClient = prisma): Promise<Document> {
-    const document = await documentRepository.getDocumentById(id, db);
-    if (!document) {
-        throw new ApiError({
-            statusCode: 404,
-            code: "RECORD_NOT_FOUND",
-            message: "Document not found",
-        });
-    }
-    return document;
 }
 
 export async function updateDocument(id: number, body: UpdateDocumentBody, context: DocumentAuditContext): Promise<Document> {
