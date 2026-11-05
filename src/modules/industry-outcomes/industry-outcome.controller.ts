@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { getValidated } from "../../middleware/validate.middleware";
 import { ApiError, sendCreated, sendSuccess } from "../../utils/response";
-import type { CreateOutcomeBody, ImportOutcomeBatchBody, OutcomeIdParams, OutcomeListQuery, ReviewOutcomeBody } from "./industry-outcome.schema";
+import type { CreateOutcomeBody, ImportOutcomeBatchBody, OutcomeHistoryQuery, OutcomeIdParams, OutcomeListQuery, ReviewOutcomeBody } from "./industry-outcome.schema";
 import * as service from "./industry-outcome.service";
 
 function actor(req: Request): number {
@@ -23,6 +23,12 @@ export async function list(req: Request, res: Response): Promise<Response> {
 export async function get(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, OutcomeIdParams>(res);
     return sendSuccess(res, await service.getOutcome(params.id));
+}
+
+export async function history(req: Request, res: Response): Promise<Response> {
+    const { params, query } = getValidated<unknown, OutcomeHistoryQuery, OutcomeIdParams>(res);
+    const result = await service.getOutcomeHistory(params.id, query);
+    return sendSuccess(res, result.items, result.meta);
 }
 export async function create(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<CreateOutcomeBody>(res);
