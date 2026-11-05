@@ -68,8 +68,8 @@
 --     (SELECT COUNT(*)::int FROM itis WHERE is_sample = FALSE AND type = 'SPOKE') AS spoke_itis,
 --     (SELECT COUNT(*)::int FROM aips WHERE is_sample = FALSE) AS aips,
 --     (SELECT COUNT(*)::int FROM spvs WHERE is_sample = FALSE) AS spvs,
---     (SELECT COUNT(*)::int FROM sips WHERE status = 'SUBMITTED') AS sips_submitted,
---     (SELECT COUNT(*)::int FROM sips WHERE status = 'APPROVED') AS sips_approved,
+--     (SELECT COUNT(*)::int FROM sips WHERE is_sample = FALSE AND status = 'SUBMITTED') AS sips_submitted,
+--     (SELECT COUNT(*)::int FROM sips WHERE is_sample = FALSE AND status = 'APPROVED') AS sips_approved,
 --     (SELECT COALESCE(SUM(investment_amount), 0)::double precision FROM aips WHERE is_sample = FALSE) AS investment;
 --
 -- 2. CLUSTER SUMMARIES
@@ -108,13 +108,13 @@
 -- 7. FINANCE METRICS
 --
 -- SELECT
---     (SELECT COALESCE(SUM(investment_amount), 0)::double precision FROM aips) AS total_investment,
---     (SELECT COALESCE(SUM(proposed_investment), 0)::double precision FROM sips) AS total_sip_proposed,
---     (SELECT COALESCE(SUM(infrastructure_contribution), 0)::double precision FROM sips) AS total_sip_infrastructure,
---     (SELECT COALESCE(SUM(equipment_contribution), 0)::double precision FROM sips) AS total_sip_equipment,
---     (SELECT COALESCE(SUM(training_contribution), 0)::double precision FROM sips) AS total_sip_training,
---     (SELECT COALESCE(SUM(industry_contribution), 0)::double precision FROM sips) AS total_sip_industry,
---     (SELECT COALESCE(SUM(government_contribution), 0)::double precision FROM sips) AS total_sip_government;
+--     (SELECT COALESCE(SUM(investment_amount), 0)::double precision FROM aips WHERE is_sample = FALSE) AS total_investment,
+--     (SELECT COALESCE(SUM(proposed_investment), 0)::double precision FROM sips WHERE is_sample = FALSE) AS total_sip_proposed,
+--     (SELECT COALESCE(SUM(infrastructure_contribution), 0)::double precision FROM sips WHERE is_sample = FALSE) AS total_sip_infrastructure,
+--     (SELECT COALESCE(SUM(equipment_contribution), 0)::double precision FROM sips WHERE is_sample = FALSE) AS total_sip_equipment,
+--     (SELECT COALESCE(SUM(training_contribution), 0)::double precision FROM sips WHERE is_sample = FALSE) AS total_sip_training,
+--     (SELECT COALESCE(SUM(industry_contribution), 0)::double precision FROM sips WHERE is_sample = FALSE) AS total_sip_industry,
+--     (SELECT COALESCE(SUM(government_contribution), 0)::double precision FROM sips WHERE is_sample = FALSE) AS total_sip_government;
 --
 -- 8. FINANCE BY CLUSTER
 --
@@ -125,20 +125,21 @@
 -- FROM clusters c
 -- LEFT JOIN (
 --     SELECT cluster_id, SUM(investment_amount) AS investment
---     FROM aips GROUP BY cluster_id
+--     FROM aips WHERE is_sample = FALSE GROUP BY cluster_id
 -- ) a ON a.cluster_id = c.id
 -- LEFT JOIN (
 --     SELECT cluster_id, SUM(proposed_investment) AS sip_proposed
---     FROM sips GROUP BY cluster_id
+--     FROM sips WHERE is_sample = FALSE GROUP BY cluster_id
 -- ) s ON s.cluster_id = c.id
--- ORDER BY c.name;
+-- WHERE c.is_sample = FALSE
+ORDER BY c.name;
 --
 -- 9. TRAINING METRICS
 --
 -- SELECT
---     (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis) AS total_student_capacity,
---     (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis WHERE type = 'HUB') AS hub_capacity,
---     (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis WHERE type = 'SPOKE') AS spoke_capacity;
+--     (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis WHERE is_sample = FALSE) AS total_student_capacity,
+--     (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis WHERE is_sample = FALSE AND type = 'HUB') AS hub_capacity,
+--     (SELECT COALESCE(SUM(student_strength), 0)::int FROM itis WHERE is_sample = FALSE AND type = 'SPOKE') AS spoke_capacity;
 --
 -- 10. TRAINING BY CLUSTER
 --
@@ -147,7 +148,7 @@
 --     COALESCE(SUM(i.student_strength), 0)::int AS student_capacity,
 --     COUNT(i.id)::int AS iti_count
 -- FROM clusters c
--- LEFT JOIN itis i ON i.cluster_id = c.id
+-- LEFT JOIN itis i ON i.cluster_id = c.id AND i.is_sample = FALSE
 -- GROUP BY c.id, c.name
 -- ORDER BY c.name;
 --
