@@ -282,3 +282,10 @@ Added an internal paginated batch-history query with filters for record kind, te
 Added a pure retry planner for re-uploaded CSV files. It requires the SHA-256 fingerprint of the new upload to match the original batch exactly, validates the new preview, and selects only rows previously marked REJECTED that are still structurally valid. Previously created, duplicate, invalid, and other rows are skipped. A changed file is rejected to prevent row-number drift from replaying the wrong financial record.
 
 **Execution boundary:** this milestone produces a retry plan only; it does not execute rows, reconstruct missing payloads, or add an HTTP route. The caller must re-upload the exact original file. Finance authorization, audit failure semantics and a secure retained-payload policy remain unresolved. Rejected rows that are not valid in the re-uploaded preview are not retried.
+
+## Selective safe retry execution milestone (2026-11-05)
+
+Added an internal retry execution function that consumes the output of the safe retry planner and dispatches only the selected row numbers through the existing injected finance ingestion handlers. The execution function revalidates that every selected row number is a unique positive safe integer and is present in the current structurally valid preview. Invalid or stale selections fail closed; an empty retry plan performs no writes.
+
+The normal full-import coordinator remains unchanged in behaviour. Retry execution retains the existing sequential, per-row transaction model, so partial commits remain possible and are explicitly reported. This is internal orchestration only: no HTTP route, authorization grant, payload retention, audit guarantee, or Finance approval is implied. Tests cover selected-row-only dispatch, malformed selections and empty plans.
+
