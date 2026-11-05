@@ -4,6 +4,7 @@ import type { CreateFinanceImportBatchInput, FinanceImportBatchRowInput } from "
 
 export interface FinanceImportBatchProjectionOptions {
     file_sha256: string;
+    idempotency_key: string;
     created_by?: string;
     completed_at?: Date;
 }
@@ -19,6 +20,9 @@ export function buildFinanceImportBatchInput(
     execution?: FinanceCsvImportSummary,
 ): CreateFinanceImportBatchInput {
     if (!/^[a-f0-9]{64}$/i.test(options.file_sha256)) throw new Error("INVALID_FILE_SHA256");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(options.idempotency_key)) {
+        throw new Error("INVALID_FINANCE_IMPORT_IDEMPOTENCY_KEY");
+    }
     if (options.completed_at && Number.isNaN(options.completed_at.getTime())) {
         throw new Error("INVALID_BATCH_COMPLETED_AT");
     }
@@ -29,6 +33,7 @@ export function buildFinanceImportBatchInput(
         return {
             record_kind: preview.record_kind,
             file_sha256: options.file_sha256,
+            idempotency_key: options.idempotency_key,
             lifecycle: "INVALID",
             total_rows: 0,
             valid_rows: 0,
@@ -96,6 +101,7 @@ export function buildFinanceImportBatchInput(
     return {
         record_kind: preview.record_kind,
         file_sha256: options.file_sha256,
+        idempotency_key: options.idempotency_key,
         lifecycle,
         total_rows: preview.total_rows,
         valid_rows: mapping.valid_rows.length,
