@@ -152,7 +152,7 @@ Implemented milestones on `main` include:
 - Operational recovery planning and recovery evidence.
 - Recovery report generation and JSON export.
 - Recovery report delivery descriptor.
-- Opt-in protected recovery HTTP route factory, its initial tests, and documentation.
+- Opt-in protected recovery HTTP route factory with HTTP-level integration coverage for authorization denial, successful download headers/body, missing reports, invalid IDs, and resolver error forwarding.
 
 Latest route work:
 - `src/modules/finance/finance.import-batch.recovery.routes.ts`
@@ -163,14 +163,11 @@ The route factory is intentionally **not mounted** in `src/routes/index.ts`. It 
 
 #### Current active work — next task
 
-Add meaningful HTTP-level integration tests for the recovery route factory:
-1. Authorization denial (401/403 as supplied by the injected middleware) must prevent report resolution.
-2. Successful authorized request returns the JSON report and expected download/cache headers.
-3. Missing report returns 404.
-4. Invalid batch ID returns 400.
-5. Errors from the resolver are forwarded to Express error handling.
+The HTTP-level route integration tests are implemented using an ephemeral Express server and Node's built-in `fetch`; no new dependency was added. The tests cover authorization denial (including resolver non-invocation), successful download body/headers, missing report, invalid batch ID, and resolver error forwarding. The user should run typecheck, tests, and build against the resulting commits before this milestone is considered verified.
 
-First inspect `package.json`, the existing route factory, and test conventions. Prefer existing dependencies or Node built-ins; do not add a dependency without need. Keep the router unmounted until access approval. Update the route tests and phase-6 documentation, then update this tracker.
+#### Current active work — next task
+
+Audit finance import-batch lifecycle and persistence concurrency guarantees. Inspect the Prisma repository, lifecycle transitions, execution/reconciliation/recovery interactions, and existing tests for duplicate execution, concurrent retries, stale state writes, and idempotency. Add only evidence-backed safeguards that fit the existing schema and contracts. Do not invent batch-level atomicity, correction/reversal rules, retention policy, or finance permissions. Document any unresolved race conditions rather than masking them.
 
 #### Finance data and policy guardrails
 
@@ -283,7 +280,7 @@ Completion evidence should include:
 
 | Date | Phase | Milestone | Evidence / note |
 |---|---|---|---|
-| 2026-11-05 | 6 | Finance import-batch lifecycle, validation, preview, diagnostics, reconciliation, recovery, JSON report delivery, and opt-in route factory implemented in successive commits | See Git history and `docs/phase-6/`. User reported the preceding milestone test suite passed; the latest route-factory HTTP integration coverage is still the next task. |
+| 2026-11-05 | 6 | Added HTTP-level integration tests for the opt-in finance recovery route factory | Commit `98aab40329205024b33f804e5c3f2a5475935ee5`; test execution is pending user verification. Route remains intentionally unmounted pending Finance/DET access approval. |
 
 ---
 
