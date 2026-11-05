@@ -16,7 +16,8 @@ export function validateFinanceImportRecoveryReport(value: unknown): value is Fi
     if (!Array.isArray(value.investigation_steps) || !value.investigation_steps.every((v) => typeof v === "string")) return false;
     if (!Array.isArray(value.evidence_checklist)) return false;
     if (!value.evidence_checklist.every((item) => isObject(item) &&
-        typeof item.evidence_key === "string" && typeof item.description === "string" &&
+        typeof item.evidence_key === "string" && item.evidence_key.trim().length > 0 &&
+        typeof item.description === "string" && item.description.trim().length > 0 &&
         ["REQUIRED", "NOT_AVAILABLE", "CONDITIONAL"].includes(String(item.requirement)))) return false;
     if (!isObject(value.safeguards) || value.safeguards.automatic_retry_allowed !== false ||
         value.safeguards.financial_records_modified !== false ||
@@ -24,9 +25,6 @@ export function validateFinanceImportRecoveryReport(value: unknown): value is Fi
     if (new Set(value.affected_row_numbers).size !== value.affected_row_numbers.length) return false;
     if (!value.discrepancy_codes.every((code) => code.trim().length > 0) ||
         !value.investigation_steps.every((step) => step.trim().length > 0)) return false;
-    if (!value.evidence_checklist.every((item) =>
-        (item as Record<string, unknown>).evidence_key.toString().trim().length > 0 &&
-        (item as Record<string, unknown>).description.toString().trim().length > 0)) return false;
     const evidenceKeys = value.evidence_checklist.map((item) => (item as Record<string, unknown>).evidence_key);
     if (new Set(evidenceKeys).size !== evidenceKeys.length) return false;
     if (value.status === "NO_RECOVERY_REQUIRED") {
