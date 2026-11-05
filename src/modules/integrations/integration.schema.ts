@@ -12,6 +12,7 @@ export const integrationSourceSchema = z.object({
  credential_ref:z.string().trim().min(2).max(120).regex(/^[A-Z][A-Z0-9_]*$/).nullable().optional(),
  sync_interval_seconds:z.number().int().min(60).max(86400).nullable().optional(),
 }).strict();
+export const integrationScheduleSchema=z.object({sync_interval_seconds:z.number().int().min(60).max(86400).nullable()}).strict();
 export const integrationIdSchema=z.object({id:z.coerce.number().int().positive()});
 export const integrationListSchema=z.object({enabled:z.enum(["true","false"]).optional(),system:z.enum(INTEGRATION_SYSTEMS).optional()});
 export const integrationRunSchema=z.object({
