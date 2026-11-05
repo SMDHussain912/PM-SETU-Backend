@@ -2,7 +2,7 @@ import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../config/database";
 import type { CreateClusterReport } from "./cluster-workflow.schema";
 
-export async function getOverview(clusterId:number) {
+export async function getOverview(clusterId:number, db: Prisma.TransactionClient = prisma) {
   const rows=await db.$queryRaw<any[]>(Prisma.sql`
     SELECT c.id,c.name,c.district,c.sector,
       COUNT(i.id)::int AS total_itis,
@@ -16,7 +16,7 @@ export async function getOverview(clusterId:number) {
   `);
   return rows[0] ?? null;
 }
-export async function listInstituteReports(clusterId:number) {
+export async function listInstituteReports(clusterId:number, db: Prisma.TransactionClient = prisma) {
   return db.$queryRaw<any[]>(Prisma.sql`
     SELECT s.id,s.iti_id,i.iti_name,i.type,s.created_by,u.full_name AS creator_name,
       s.report_type,s.title,s.status,s.submitted_at,s.reviewed_at,s.review_remarks,s.updated_at
@@ -35,7 +35,7 @@ export async function createReport(clusterId:number,userId:number,data:CreateClu
   `);
   return rows[0];
 }
-export async function listReports(clusterId:number) {
+export async function listReports(clusterId:number, db: Prisma.TransactionClient = prisma) {
   return db.$queryRaw<any[]>(Prisma.sql`
     SELECT s.id,s.cluster_id,s.created_by,u.full_name AS creator_name,s.title,s.report_period,
       s.payload,s.status,s.submitted_at,s.reviewed_by,s.reviewed_at,s.review_remarks,s.created_at,s.updated_at
