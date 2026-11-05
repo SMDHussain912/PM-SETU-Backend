@@ -27,7 +27,7 @@ import newsRouter, {
 import roleRouter, { permissionRouter } from "../modules/roles/role.routes";
 import sipRouter, { sipClusterRouter } from "../modules/sips/sip.routes";
 import searchRouter from "../modules/search/search.routes";
-import spvRouter, { spvClusterRouter } from "../modules/spvs/spv.routes";
+import spvRouter, { spvAdminRouter, spvClusterRouter } from "../modules/spvs/spv.routes";
 import spvWorkflowRouter from "../modules/spvs/spv-workflow.routes";
 import userRouter from "../modules/users/user.routes";
 import { logger } from "../utils/logger";
@@ -124,6 +124,7 @@ router.use("/admin/banners", bannerAdminRouter);
 router.use("/admin/clusters", clusterAdminRouter);
 router.use("/admin/itis", itiAdminRouter);
 router.use("/admin/aips", aipAdminRouter);
+router.use("/admin/spvs", spvAdminRouter);
 
 // RoadMap.md §12 + §24 — document admin CRUD + publish/archive/version/file
 // upload. The module router enforces requireAuth + DOCUMENT_WRITE_ROLES itself.
