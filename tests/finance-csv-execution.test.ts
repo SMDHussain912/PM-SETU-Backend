@@ -96,6 +96,11 @@ test("retry execution rejects duplicate or invalid row selections", async () => 
         reason: "RETRY_REJECTED_ROWS",
     }, handlers()), /INVALID_FINANCE_RETRY_PLAN/);
     await assert.rejects(() => executeFinanceCsvRetry(preview, {
+        retry_row_numbers: [1],
+        skipped_row_numbers: [],
+        reason: "RETRY_REJECTED_ROWS",
+    }, handlers()), /INVALID_FINANCE_RETRY_PLAN/);
+    await assert.rejects(() => executeFinanceCsvRetry(preview, {
         retry_row_numbers: [99],
         skipped_row_numbers: [],
         reason: "RETRY_REJECTED_ROWS",
