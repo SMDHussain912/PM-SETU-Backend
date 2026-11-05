@@ -77,7 +77,7 @@ export async function createFinanceImportBatch(
     }
     const seen = new Set<number>();
     for (const row of input.rows) {
-        if (!Number.isSafeInteger(row.row_number) || row.row_number < 1) {
+        if (!Number.isSafeInteger(row.row_number) || row.row_number < 2) {
             throw new Error("INVALID_ROW_NUMBER");
         }
         if (seen.has(row.row_number)) throw new Error("DUPLICATE_BATCH_ROW_NUMBER");
