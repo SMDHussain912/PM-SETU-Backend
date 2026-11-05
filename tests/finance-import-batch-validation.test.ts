@@ -101,3 +101,15 @@ test("rejects duplicate or invalid CSV row positions", () => {
         ],
     }), /ROW_NUMBER_INVALID/);
 });
+
+test("rejects header row and non-integer CSV row positions", () => {
+    for (const row_number of [1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+        assert.throws(() => validateFinanceImportBatchInput({
+            ...base,
+            rows: [
+                { row_number, outcome: "VALID" },
+                { row_number: 3, outcome: "VALID" },
+            ],
+        }), /ROW_NUMBER_INVALID/);
+    }
+});
