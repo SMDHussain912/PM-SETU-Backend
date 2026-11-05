@@ -13,15 +13,10 @@
 --   Prisma $queryRaw. If a query changes here, mirror the change there
 --   (and vice versa).
 --
--- STATUS  ⚠ READ FIRST
---   The PM SETU schema does NOT exist yet:
---     - prisma/schema.prisma defines no models
---     - prisma/migrations/ does not exist
---   This file documents the PLANNED queries and the contract of what must be
---   created. NOTHING here creates tables — schema creation is owned by the
---   database developer (Prisma models or raw SQL, their choice). Until the
---   schema exists the queries fail at runtime and the endpoints return a
---   500 error envelope. That is intentional: no fake ITI records.
+-- STATUS
+--   The ITI and Cluster tables are defined in prisma/schema.prisma and the
+--   initial migration. This file remains the DBA-facing reference for the
+--   public reads and admin master-data writes. Runtime values are database-backed.
 --
 -- REQUIRED DATABASE OBJECTS (final names/types to be confirmed by the DBA;
 -- names below follow the RoadMap.md §25 entities in snake_case)
