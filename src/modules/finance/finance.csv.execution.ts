@@ -186,7 +186,7 @@ export async function executeFinanceCsvRetry(
     const selected = new Set<number>();
 
     for (const rowNumber of retryPlan.retry_row_numbers) {
-        if (!Number.isSafeInteger(rowNumber) || rowNumber < 1 || selected.has(rowNumber) || !validRowNumbers.has(rowNumber)) {
+        if (!Number.isSafeInteger(rowNumber) || rowNumber < 2 || selected.has(rowNumber) || !validRowNumbers.has(rowNumber)) {
             throw new Error("INVALID_FINANCE_RETRY_PLAN");
         }
         selected.add(rowNumber);
