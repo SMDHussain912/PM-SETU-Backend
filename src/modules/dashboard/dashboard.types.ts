@@ -109,6 +109,17 @@ export interface FinanceMetrics {
     by_cluster: FinanceByCluster[];
 }
 
+export interface TrainingByIti {
+    iti_id: number;
+    iti_code: string;
+    iti_name: string;
+    type: string;
+    district: string;
+    cluster_id: number | null;
+    cluster_name: string | null;
+    student_capacity: number | null;
+}
+
 export interface TrainingByCluster {
     cluster_id: number;
     cluster_name: string;
