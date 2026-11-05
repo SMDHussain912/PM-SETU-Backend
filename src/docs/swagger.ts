@@ -2651,6 +2651,22 @@ export const openApiSpec = {
                 },
             },
         },
+        "/dashboard/training/itis/{id}": {
+            get: {
+                tags: ["Dashboard"],
+                summary: "ITI-level training capacity reporting",
+                description: "Returns the source-backed student_strength capacity for one non-sample ITI. A null capacity is NOT_AVAILABLE, not zero. Reporting period and data freshness remain untracked.",
+                security: [],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 }, description: "ITI id" }],
+                responses: {
+                    "200": { description: "ITI capacity reporting context and value", content: { "application/json": { schema: { type: "object" } } } },
+                    "404": { description: "ITI not found" },
+                    "422": { description: "Validation failed (invalid id)" },
+                    "429": { description: "Rate limit exceeded" },
+                    "500": { description: "PM SETU database schema not created yet" },
+                },
+            },
+        },
         "/dashboard/placements": {
             get: {
                 tags: ["Dashboard"],
