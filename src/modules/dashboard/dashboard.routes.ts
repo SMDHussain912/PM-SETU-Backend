@@ -3,6 +3,7 @@ import { validate } from "../../middleware/validate.middleware";
 import { clusterIdParamsSchema } from "./dashboard.schema";
 import {
     getClusterDashboard,
+    getDashboardContract,
     getClustersDashboard,
     getFinanceDashboard,
     getPlacementsDashboard,
@@ -28,6 +29,7 @@ import {
 
 const dashboardRouter = Router();
 
+dashboardRouter.get("/contract", getDashboardContract);
 dashboardRouter.get("/state", getStateDashboard);
 dashboardRouter.get("/clusters", getClustersDashboard);
 dashboardRouter.get(
