@@ -1,8 +1,8 @@
-import fs from "node:fs";
 import path from "node:path";
+import { realpath, stat } from "node:fs/promises";
 import { buildPaginationMeta, type PaginationMeta } from "../../utils/pagination";
 import { ApiError } from "../../utils/response";
-import { ensureUploadDir } from "../../config/storage";
+import { ensureUploadDir, uploadsRoot } from "../../config/storage";
 import { prisma } from "../../config/database";
 import { recordAuditEntry } from "../audit/audit.service";
 import type { Prisma } from "../../generated/prisma/client";
@@ -46,6 +46,119 @@ async function recordDocumentAudit(
             path: context.path,
         },
     }, tx);
+}
+
+type UploadedDocumentMetadata = {
+    file_path: string;
+    file_size: number;
+    mime_type: string;
+    original_name: string;
+};
+
+const DOCUMENT_MIME_BY_EXTENSION: Record<string, string> = {
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+};
+
+async function resolveStoredDocumentPath(filePath: string): Promise<string> {
+    let documentsRoot: string;
+    let resolvedPath: string;
+    try {
+        documentsRoot = await realpath(path.join(uploadsRoot, "documents"));
+        resolvedPath = await realpath(filePath);
+    } catch {
+        throw new ApiError({
+            statusCode: 422,
+            code: "INVALID_DOCUMENT_FILE",
+            message: "The referenced uploaded document does not exist",
+        });
+    }
+
+    const relativePath = path.relative(documentsRoot, resolvedPath);
+    if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+        throw new ApiError({
+            statusCode: 422,
+            code: "INVALID_DOCUMENT_FILE_PATH",
+            message: "The document file must be inside the managed documents storage directory",
+        });
+    }
+
+    const fileStats = await stat(resolvedPath);
+    if (!fileStats.isFile()) {
+        throw new ApiError({
+            statusCode: 422,
+            code: "INVALID_DOCUMENT_FILE",
+            message: "The referenced document is not a regular file",
+        });
+    }
+
+    return resolvedPath;
+}
+
+/**
+ * Never trust a client-supplied absolute path or file metadata. Resolve the
+ * path through realpath (including symlinks), enforce the managed directory,
+ * and compare the claimed size/MIME with the actual stored file.
+ */
+async function validateUploadedDocumentMetadata(input: {
+    file_path?: string | null;
+    file_size?: number | null;
+    mime_type?: string | null;
+    original_name?: string | null;
+}): Promise<UploadedDocumentMetadata | null> {
+    if (input.file_path === undefined) return null;
+    if (input.file_path === null) {
+        return {
+            file_path: null as unknown as string,
+            file_size: null as unknown as number,
+            mime_type: null as unknown as string,
+            original_name: null as unknown as string,
+        };
+    }
+
+    const resolvedPath = await resolveStoredDocumentPath(input.file_path);
+    const fileStats = await stat(resolvedPath);
+    const extension = path.extname(input.original_name ?? "").toLowerCase();
+    const expectedMime = DOCUMENT_MIME_BY_EXTENSION[extension];
+
+    if (
+        !expectedMime ||
+        input.mime_type !== expectedMime ||
+        input.file_size !== fileStats.size ||
+        !input.original_name?.trim()
+    ) {
+        throw new ApiError({
+            statusCode: 422,
+            code: "INVALID_DOCUMENT_FILE_METADATA",
+            message: "The uploaded file metadata does not match the stored file",
+        });
+    }
+
+    const originalName = path.basename(input.original_name)
+        .replace(/[\\r\\n\\0]/g, "")
+        .slice(0, 180);
+    if (!originalName) {
+        throw new ApiError({
+            statusCode: 422,
+            code: "INVALID_DOCUMENT_FILE_NAME",
+            message: "A valid original document filename is required",
+        });
+    }
+
+    return {
+        file_path: resolvedPath,
+        file_size: fileStats.size,
+        mime_type: expectedMime,
+        original_name: originalName,
+    };
 }
 
 export interface DocumentListResult {
@@ -115,15 +228,8 @@ export async function getDocumentFile(id: number): Promise<{ filePath: string; f
             message: "File not found",
         });
     }
-    // Verify the file exists on disk
-    if (!fs.existsSync(document.file_path)) {
-        throw new ApiError({
-            statusCode: 404,
-            code: "FILE_NOT_FOUND",
-            message: "File not found on disk",
-        });
-    }
-    return { filePath: document.file_path, fileName: document.original_name ?? "document" };
+    const filePath = await resolveStoredDocumentPath(document.file_path);
+    return { filePath, fileName: document.original_name ?? "document" };
 }
 
 async function requireDocument(id: number, db: Prisma.TransactionClient = prisma): Promise<Document> {
@@ -158,6 +264,7 @@ function toDateOrNull(value: string | null | undefined): Date | null {
 }
 
 export async function createDocument(body: CreateDocumentBody, context: DocumentAuditContext): Promise<Document> {
+    const fileMetadata = await validateUploadedDocumentMetadata(body);
     return prisma.$transaction(async (tx) => {
         const id = await documentRepository.createDocument({
             title: body.title ?? null,
@@ -169,6 +276,10 @@ export async function createDocument(body: CreateDocumentBody, context: Document
             cluster_id: body.cluster_id ?? null,
             keywords: body.keywords ?? null,
             language: body.language ?? null,
+            file_path: fileMetadata?.file_path ?? null,
+            file_size: fileMetadata?.file_size ?? null,
+            mime_type: fileMetadata?.mime_type ?? null,
+            original_name: fileMetadata?.original_name ?? null,
         }, tx);
         const created = await requireDocument(id, tx);
         await recordDocumentAudit(tx, created, "CREATE", null, context);
@@ -177,6 +288,7 @@ export async function createDocument(body: CreateDocumentBody, context: Document
 }
 
 export async function updateDocument(id: number, body: UpdateDocumentBody, context: DocumentAuditContext): Promise<Document> {
+    const fileMetadata = await validateUploadedDocumentMetadata(body);
     return prisma.$transaction(async (tx) => {
         const previous = await getLockedDocument(id, tx);
         await documentRepository.updateDocument(id, {
@@ -189,6 +301,16 @@ export async function updateDocument(id: number, body: UpdateDocumentBody, conte
             cluster_id: body.cluster_id,
             keywords: body.keywords,
             language: body.language,
+            ...(fileMetadata
+                ? {
+                    file_path: fileMetadata.file_path,
+                    file_size: fileMetadata.file_size,
+                    mime_type: fileMetadata.mime_type,
+                    original_name: fileMetadata.original_name,
+                }
+                : body.file_path === null
+                    ? { file_path: null, file_size: null, mime_type: null, original_name: null }
+                    : {}),
         }, tx);
         const updated = await requireDocument(id, tx);
         await recordDocumentAudit(tx, updated, "UPDATE", previous, context);
