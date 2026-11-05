@@ -32,13 +32,23 @@ export function validateFinanceImportRecoveryReport(value: unknown): value is Fi
             value.discrepancy_codes.length === 0 && value.affected_row_numbers.length === 0 &&
             value.investigation_steps.length === 0 && value.evidence_checklist.length === 0;
     }
-    if (value.case_type === "MISSING_METADATA") {
-        return value.batch_id === null && value.discrepancy_codes.length > 0 &&
-            value.investigation_steps.length > 0 && value.evidence_checklist.length > 0;
-    }
-    return value.case_type === "METADATA_MISMATCH" && value.batch_id !== null &&
-        value.discrepancy_codes.length > 0 && value.investigation_steps.length > 0 &&
-        value.evidence_checklist.length > 0;
+    if (value.case_type !== "MISSING_METADATA" && value.case_type !== "METADATA_MISMATCH") return false;
+    if ((value.case_type === "MISSING_METADATA") !== (value.batch_id === null)) return false;
+    if (value.discrepancy_codes.length === 0 || value.investigation_steps.length === 0) return false;
+
+    const expectedEvidence = [
+        ["EXECUTION_SUMMARY", "REQUIRED"],
+        ["SOURCE_FILE_SHA256", "REQUIRED"],
+        ["PERSISTED_BATCH_SNAPSHOT", value.case_type === "MISSING_METADATA" ? "NOT_AVAILABLE" : "REQUIRED"],
+        ["SOURCE_SYSTEM_COMPARISON", "REQUIRED"],
+        ["EXECUTION_FAILURE_LOGS", "CONDITIONAL"],
+    ];
+    if (value.evidence_checklist.length !== expectedEvidence.length) return false;
+    return value.evidence_checklist.every((item, index) => {
+        const evidence = item as Record<string, unknown>;
+        return evidence.evidence_key === expectedEvidence[index][0] &&
+            evidence.requirement === expectedEvidence[index][1];
+    });
 }
 
 /** Stable JSON text with fixed key order, two-space indentation, and trailing newline. */
