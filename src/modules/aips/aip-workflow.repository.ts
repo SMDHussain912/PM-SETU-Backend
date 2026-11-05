@@ -1,11 +1,11 @@
 import {Prisma} from "../../generated/prisma/client";
 import {prisma} from "../../config/database";
 import type {CreateAipActivity,CreateAipReport} from "./aip-workflow.schema";
-export async function instituteBelongsToAipCluster(aipId:number,instituteId:number){
+export async function instituteBelongsToAipCluster(aipId:number,instituteId:number, db: Prisma.TransactionClient = prisma){
  const rows=await db.$queryRaw<{allowed:boolean}[]>(Prisma.sql`SELECT EXISTS(SELECT 1 FROM aips a JOIN itis i ON i.cluster_id=a.cluster_id WHERE a.id=${aipId} AND i.id=${instituteId}) AS allowed`);
  return rows[0]?.allowed===true;
 }
-export async function listActivities(aipId:number){
+export async function listActivities(aipId:number, db: Prisma.TransactionClient = prisma){
  return db.$queryRaw<any[]>(Prisma.sql`SELECT a.id,a.aip_id,a.created_by,u.full_name AS creator_name,a.activity_type,a.title,a.description,a.quantity,a.activity_date,a.institute_id,i.iti_name AS institute_name,a.evidence_url,a.created_at,a.updated_at FROM aip_activity_records a JOIN users u ON u.id=a.created_by LEFT JOIN itis i ON i.id=a.institute_id WHERE a.aip_id=${aipId} ORDER BY a.activity_date DESC NULLS LAST,a.id DESC`);
 }
 export async function createActivity(aipId:number,userId:number,d:CreateAipActivity, db: Prisma.TransactionClient = prisma){
@@ -16,7 +16,7 @@ export async function createReport(aipId:number,userId:number,d:CreateAipReport,
  const rows=await db.$queryRaw<any[]>(Prisma.sql`INSERT INTO aip_submissions(aip_id,created_by,title,report_period,payload,status,updated_at) VALUES(${aipId},${userId},${d.title},${d.report_period},${JSON.stringify(d.payload)}::jsonb,'DRAFT',NOW()) RETURNING *`);
  return rows[0];
 }
-export async function listReports(aipId:number){
+export async function listReports(aipId:number, db: Prisma.TransactionClient = prisma){
  return db.$queryRaw<any[]>(Prisma.sql`SELECT s.*,u.full_name AS creator_name,r.full_name AS reviewer_name FROM aip_submissions s JOIN users u ON u.id=s.created_by LEFT JOIN users r ON r.id=s.reviewed_by WHERE s.aip_id=${aipId} ORDER BY s.updated_at DESC,s.id DESC`);
 }
 export async function getReport(id:number,aipId:number, db: Prisma.TransactionClient = prisma){
