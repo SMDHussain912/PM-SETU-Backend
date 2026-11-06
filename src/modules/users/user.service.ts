@@ -63,6 +63,17 @@ async function assertTargetManageable(targetId: number, actorId: string, actorRo
     return target;
 }
 
+function userAuditValue(user: UserWithRoles) {
+    return {
+        id: user.id,
+        username: user.username,
+        full_name: user.full_name,
+        email: user.email,
+        status: user.status,
+        roles: user.roles.map(({ id, code, name }) => ({ id, code, name })),
+    };
+}
+
 export interface UserListResult {
     items: UserWithRoles[];
     meta: PaginationMeta;
@@ -95,7 +106,7 @@ export async function getUserById(id: number): Promise<UserWithRoles> {
     return user;
 }
 
-export async function createUser(input: CreateUserInput, actorRoles: string[]): Promise<UserWithRoles> {
+export async function createUser(input: CreateUserInput, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
     // The password is hashed HERE so only the bcrypt hash ever reaches the
     // repository/SQL layer. No plaintext is persisted or returned.
@@ -115,21 +126,26 @@ export async function createUser(input: CreateUserInput, actorRoles: string[]): 
             message: "Created user could not be read back",
         });
     }
+    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "USER", entityId: user.id, oldValue: null, newValue: userAuditValue(user), approvalStatus: null, context: { userId: actorId } });
     return user;
 }
 
 export async function updateUser(
     id: number,
     input: UpdateUserInput,
+    actorId: string,
     actorRoles: string[],
 ): Promise<UserWithRoles> {
     // Profile changes to privileged administrator accounts are Super Admin only.
+    const previous = await getUserById(id);
     await assertPrivilegedTargetRequiresSuperAdmin(id, actorRoles);
     await userRepository.updateUser(id, {
         full_name: input.full_name,
         email: input.email,
     });
-    return getUserById(id);
+    const updated = await getUserById(id);
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: userAuditValue(previous), newValue: userAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    return updated;
 }
 
 export async function updateUserStatus(
@@ -144,7 +160,9 @@ export async function updateUserStatus(
         if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
     }
     await userRepository.updateStatusPreservingSuperAdmin(id, input.status);
-    return getUserById(id);
+    const updated = await getUserById(id);
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: userAuditValue(target), newValue: userAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    return updated;
 }
 
 export async function updateUserRoles(
@@ -164,7 +182,9 @@ export async function updateUserRoles(
     }
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
     await userRepository.replaceUserRoles(id, input.role_ids);
-    return getUserById(id);
+    const updated = await getUserById(id);
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: userAuditValue(target), newValue: userAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    return updated;
 }
 
 /**
@@ -179,7 +199,9 @@ export async function deactivateUser(id: number, actorId: string, actorRoles: st
         if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
     }
     await userRepository.updateStatusPreservingSuperAdmin(id, "INACTIVE");
-    return getUserById(id);
+    const updated = await getUserById(id);
+    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "USER", entityId: id, oldValue: userAuditValue(target), newValue: userAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    return updated;
 }
 
 
