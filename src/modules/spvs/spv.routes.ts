@@ -40,15 +40,12 @@ spvAdminRouter.post("/", requireRoles(ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUP
 spvAdminRouter.patch(
     "/:id",
     requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
-    validate({ params: spvIdParamsSchema, body: updateSpvSchema }),
-    preventClusterAdminReassignment,
-    requireResourceScope("SPV"),
+    requireResourceScope("SPV"), preventClusterAdminReassignment, validate({ params: spvIdParamsSchema, body: updateSpvSchema }),
     spvController.updateSpv,
 );
 spvAdminRouter.delete(
     "/:id",
     requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
-    validate({ params: spvIdParamsSchema }),
-    requireResourceScope("SPV"),
+    requireResourceScope("SPV"), validate({ params: spvIdParamsSchema }),
     spvController.deleteSpv,
 );
