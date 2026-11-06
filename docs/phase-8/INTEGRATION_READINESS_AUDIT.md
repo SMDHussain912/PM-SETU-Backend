@@ -317,3 +317,14 @@ Regression coverage in `tests/integration-webhook-signature.test.ts` verifies va
 Scheduled adapter execution now rejects a page that declares `hasMore: true` while returning the exact cursor used to request that page. The service raises HTTP 502 `ADAPTER_CURSOR_NOT_ADVANCING` before either the empty-page checkpoint path or record-ingestion path can persist anything. This prevents a misbehaving adapter from repeatedly committing the same continuation position and causing an endless scheduled replay loop.
 
 Regression coverage in `tests/integration-scheduled-source-service.test.ts` verifies that the repeated cursor produces the expected error and that neither a run/checkpoint write nor record ingestion occurs. Cursor contents remain opaque; the generic layer only enforces forward progress when the adapter explicitly claims another page exists. Provider-specific ordering, snapshot and cursor semantics remain part of the approved source contract.
+
+## 30. Enforce transport-specific scheduler eligibility
+
+Scheduled polling is now restricted to pull transports:
+
+- Source creation validation rejects a non-null sync interval for `CSV_UPLOAD` and `WEBHOOK`.
+- Schedule updates return HTTP 409 `INTEGRATION_TRANSPORT_NOT_SCHEDULABLE` for those push-based transports.
+- The PostgreSQL due-source claim query selects only `REST` and `SFTP`, so legacy or manually altered push-source schedules are not claimed.
+- REST and SFTP scheduling remain supported; CSV and webhook sources remain valid when unscheduled and continue to use their existing delivery paths.
+
+Regression coverage in `tests/integration-transport-schedule.test.ts` verifies accepted pull transports, rejected push-transport schedules, and valid unscheduled push sources. The database claim predicate is a defense-in-depth guard for existing rows. Provider-specific SFTP connection, authentication and file semantics remain blocked on an approved source-owner contract.
