@@ -363,3 +363,10 @@ Scheduled checkpoint lookup now considers only `SCHEDULED` and compatibility `LE
 The scheduled-source service now persists the `ADAPTER_NOT_CONFIGURED` / `ADAPTER_SYSTEM_MISMATCH` failure through the same injected repository boundary used by the other scheduled execution paths. Previously, this early-return branch called the module-level repository directly, bypassing an injected repository supplied by service tests or controlled callers. The runtime default remains the production repository module; the change makes dependency injection consistent and keeps the failure path testable.
 
 Regression coverage in `tests/integration-scheduled-source-service.test.ts` verifies that a missing adapter writes one sanitized FAILED run through the injected repository without reading a checkpoint or attempting ingestion. This does not register or approve a provider adapter.
+
+
+## 34. Aggregate integration batch payload bound
+
+The generic ingestion schema now enforces a 1 MB maximum on the complete serialized record batch, in addition to the existing per-record payload, record-count, nesting-depth and field restrictions. This closes the amplification gap where 500 individually valid 16 KB payloads could otherwise produce a multi-megabyte scheduled adapter batch and a correspondingly large database transaction. Non-serializable object graphs are rejected as validation failures rather than escaping the schema boundary as an exception.
+
+Regression coverage in `tests/integration-ingest-schema.test.ts` verifies aggregate-size rejection and safe handling of circular object input. The HTTP JSON parser limit remains unchanged; this additional bound also protects adapter-originated data before persistence. This is a generic resource bound, not a provider field mapping or source approval.
