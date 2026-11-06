@@ -62,9 +62,11 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Impact:** A deployment that omits `CORS_ORIGIN` accepts cross-origin browser requests from arbitrary origins. This is broader than a least-privilege production allowlist.
 
-**Required action:** Confirm the deployed frontend origins and operational environments. Consider failing production startup when the allowlist is missing or wildcard, while retaining an explicit development policy. Add tests for missing, wildcard, exact and multiple origins before changing behaviour.
+**Remediation on `main` (2026-11-07):** Added `resolveCorsOrigins()` and changed configuration loading so production startup throws unless `CORS_ORIGIN` contains an explicit comma-separated allowlist. Missing, blank and wildcard values remain permissive only outside production. Wildcard cannot be mixed with explicit origins; explicit origins are trimmed and deduplicated. Added `tests/cors-config.test.ts` for these cases.
 
-**Disposition:** Configuration hardening required before production sign-off; confirm deployment origins.
+**Operational requirement:** Set `CORS_ORIGIN` to the actual frontend origins in every production environment before deployment. The repository cannot determine the deployment's authoritative domains.
+
+**Disposition:** Code hardening implemented; CI verification and deployment environment configuration remain pending.
 
 ### SEC-ROUTE-05 — Upload storage is local filesystem storage
 
