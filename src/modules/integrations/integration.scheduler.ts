@@ -2,24 +2,19 @@ import { logger } from "../../utils/logger";
 import * as repo from "./integration.repository";
 import { runScheduledSource } from "./integration.service";
 import { createSchedulerLifecycle } from "./integration.scheduler.lifecycle";
+import { createLeaseHeartbeat } from "./integration.scheduler.heartbeat";
 
 const LEASE_HEARTBEAT_MS = 60_000;
 let timer: NodeJS.Timeout | undefined;
 
 async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueSources>>[number]): Promise<void> {
-  let leaseLost = false;
-  const heartbeat = setInterval(() => {
-    void repo.renewSourceClaim(source.id, source.claimToken).then((renewed) => {
-      if (!renewed) {
-        leaseLost = true;
-        logger.error("Integration scheduler lease ownership lost", { sourceCode: source.code });
-      }
-    }).catch(() => {
-      leaseLost = true;
-      logger.error("Integration scheduler lease renewal failed", { sourceCode: source.code });
-    });
-  }, LEASE_HEARTBEAT_MS);
-  heartbeat.unref();
+  const heartbeat = createLeaseHeartbeat({
+    intervalMs: LEASE_HEARTBEAT_MS,
+    renew: () => repo.renewSourceClaim(source.id, source.claimToken),
+    onLost: () => logger.error("Integration scheduler lease ownership lost", { sourceCode: source.code }),
+    onError: () => logger.error("Integration scheduler lease renewal failed", { sourceCode: source.code }),
+  });
+  heartbeat.start();
 
   try {
     await runScheduledSource(source, source.claimToken);
@@ -43,13 +38,13 @@ async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueS
       logger.error("Could not persist scheduled integration failure", { sourceCode: source.code });
     }
   } finally {
-    clearInterval(heartbeat);
+    await heartbeat.stop();
     try {
       await repo.releaseSourceClaim(source.id, source.claimToken);
     } catch {
       logger.error("Could not release integration scheduler lease", {
         sourceCode: source.code,
-        leaseLost,
+        leaseLost: heartbeat.leaseLost,
       });
     }
   }
