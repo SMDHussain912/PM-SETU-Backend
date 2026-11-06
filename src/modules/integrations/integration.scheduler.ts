@@ -3,6 +3,7 @@ import * as repo from "./integration.repository";
 import { runScheduledSource } from "./integration.service";
 import { createSchedulerLifecycle } from "./integration.scheduler.lifecycle";
 import { createLeaseHeartbeat } from "./integration.scheduler.heartbeat";
+import { persistScheduledFailureIfOwned } from "./integration.scheduler.failure";
 
 const LEASE_HEARTBEAT_MS = 60_000;
 let timer: NodeJS.Timeout | undefined;
@@ -21,19 +22,18 @@ async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueS
   } catch {
     logger.error("Scheduled integration sync failed", { sourceCode: source.code });
     try {
-      const committed = await repo.listCommittedRuns(source.id, 1);
-      await repo.createScheduledRun(source.id, source.claimToken, {
-        status: "FAILED",
-        recordsRead: 0,
-        recordsCreated: 0,
-        recordsUpdated: 0,
-        recordsRejected: 0,
-        cursor: committed[0]?.cursor ?? null,
-        errorCode: "ADAPTER_EXECUTION_FAILED",
-        errorSummary: "Scheduled adapter execution failed; inspect protected application logs",
-        startedAt: new Date(),
-        completedAt: new Date(),
-      });
+      const persisted = await persistScheduledFailureIfOwned(
+        source.id,
+        source.claimToken,
+        heartbeat.ownershipUncertain,
+      );
+      if (!persisted) {
+        logger.error("Skipped scheduled failure write because lease ownership is unverified", {
+          sourceCode: source.code,
+          leaseLost: heartbeat.leaseLost,
+        ownershipUncertain: heartbeat.ownershipUncertain,
+        });
+      }
     } catch {
       logger.error("Could not persist scheduled integration failure", { sourceCode: source.code });
     }
