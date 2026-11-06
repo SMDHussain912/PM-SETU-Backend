@@ -566,3 +566,16 @@ Commits: `b142057` (database-clock renewal), `87b2aee` (database-clock test), `5
 **Verification required:** run typecheck, full tests and build with `PM_SETU_TEST_DATABASE_URL` configured; confirm the PostgreSQL lease-renewal test ran rather than skipped.
 
 **Current active work:** continue Phase 8 scheduler reliability review after verification. Provider-specific adapter work remains gated on an approved source-owner contract.
+
+
+### Phase 8 continuation — immediate lease revocation on source disable
+
+Updated `updateEnabled()` so disabling a source clears its scheduler claim token and expiry as well as setting `next_sync_at` to null. Existing in-flight workers fail the transaction-scoped enabled/token fence and cannot commit after disable. Re-enabling schedules the source immediately without waiting for a stale 15-minute lease to expire.
+
+Added opt-in PostgreSQL test `tests/integration-scheduler-disable-postgres.test.ts` with two independent clients. It verifies lease clearing, stale worker commit rejection, absence of a sync-run row, and immediate reclaim after re-enable. The repository update accepts an optional Prisma client for isolated testing; production defaults are unchanged.
+
+Commits: `8273942` (lease revocation), `87a5ebd` (PostgreSQL test), plus the audit update.
+
+**Verification required:** run typecheck, full tests and build with `PM_SETU_TEST_DATABASE_URL` configured; confirm the new PostgreSQL test ran rather than skipped.
+
+**Current active work:** continue Phase 8 scheduler reliability review after verification. Provider-specific adapter work remains gated on an approved source-owner contract.
