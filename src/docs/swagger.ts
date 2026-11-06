@@ -788,8 +788,20 @@ export const openApiSpec = {
             FinanceMetrics: {
                 type: "object",
                 description: "Finance dashboard (RoadMap.md §16). SIP contribution fields are task-brief fields NOT in RoadMap §10 — TO CONFIRM.",
-                required: ["total_investment", "total_sip_proposed", "total_sip_infrastructure", "total_sip_equipment", "total_sip_training", "total_sip_industry", "total_sip_government", "by_cluster"],
+                required: ["official_financial_progress", "total_investment", "total_sip_proposed", "total_sip_infrastructure", "total_sip_equipment", "total_sip_training", "total_sip_industry", "total_sip_government", "by_cluster"],
                 properties: {
+                    official_financial_progress: {
+                        type: "object",
+                        required: ["status", "approved_outlay", "funds_released", "expenditure", "utilisation_percentage", "balance"],
+                        properties: {
+                            status: { type: "string", enum: ["SOURCE_NOT_CONNECTED"] },
+                            approved_outlay: { type: "number", nullable: true },
+                            funds_released: { type: "number", nullable: true },
+                            expenditure: { type: "number", nullable: true },
+                            utilisation_percentage: { type: "number", nullable: true },
+                            balance: { type: "number", nullable: true },
+                        },
+                    },
                     total_investment: { type: "number" },
                     total_sip_proposed: { type: "number" },
                     total_sip_infrastructure: { type: "number" },

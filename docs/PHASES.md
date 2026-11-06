@@ -56,7 +56,7 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 | 8 | Integrations & public portal | <strong>Foundation implemented; provider contracts and integrations pending</strong> |
 | 9 | Security, testing & production readiness | <strong>In progress — route authorization/security audit and remediation</strong> |
 
-**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 has started with a source inventory and reporting-contract baseline; metric implementation remains dependent on approved sources and definitions. Phase 8 has an existing generic ingestion/scheduler foundation, but provider-specific integrations remain blocked on approved contracts. Phase 9 has started with dependency auditing and upload-content validation; the broader security review remains open.
+**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 now includes read-only state/cluster/finance/training/placement dashboard endpoints, training capacity reporting at state/cluster/ITI levels, KPI readiness metadata, and expanded OpenAPI contract tests. Phase 7 remains in progress: response-schema alignment and broader dashboard contract auditing continue, while official physical, academic, industry, and finance KPIs remain gated by approved source ownership and definitions. Phase 8 has an existing generic ingestion/scheduler foundation, but provider-specific integrations remain blocked on approved contracts. Phase 9 has started with dependency auditing, upload-content validation, and route authorization review; the broader security review remains open.
 
 A phase marked implementation-complete is not automatically government-approved, production-accepted, or operationally verified.
 
@@ -324,6 +324,8 @@ Completion evidence should include:
 - **Tests:** User-reported test results should be recorded with the commit and commands only when the user provides the output.
 
 ## 5. Milestone log
+
+| 2026-11-07 | 7 | Align finance dashboard OpenAPI response with official financial-progress placeholder and add regression coverage | `FinanceMetrics.official_financial_progress` is now documented as required with `SOURCE_NOT_CONNECTED` status and nullable measures; CI verification pending. |
 
 | 2026-11-07 | 7 | Expanded training reporting OpenAPI assertions and reconciled dashboard route documentation | Commit `2cf77b7` passed CI run #42307561860: dependency audit, isolated PostgreSQL migrations, typecheck, PostgreSQL integration tests, and production build. |
 | Date | Phase | Milestone | Evidence / note |

@@ -85,3 +85,32 @@ test("dashboard training reporting OpenAPI documents concrete response contracts
     assert.equal(itiRecord.properties.student_capacity.nullable, true);
     assert.equal(itiRecord.properties.student_capacity.minimum, 0);
 });
+
+test("dashboard finance OpenAPI documents unavailable official financial progress", () => {
+    const schemas = openApiSpec.components.schemas as Record<string, any>;
+    const finance = schemas.FinanceMetrics;
+
+    assert.ok(finance);
+    assert.ok(finance.required.includes("official_financial_progress"));
+
+    const official = finance.properties.official_financial_progress;
+    assert.deepEqual(official.required, [
+        "status",
+        "approved_outlay",
+        "funds_released",
+        "expenditure",
+        "utilisation_percentage",
+        "balance",
+    ]);
+    assert.deepEqual(official.properties.status.enum, ["SOURCE_NOT_CONNECTED"]);
+    for (const field of [
+        "approved_outlay",
+        "funds_released",
+        "expenditure",
+        "utilisation_percentage",
+        "balance",
+    ]) {
+        assert.equal(official.properties[field].type, "number");
+        assert.equal(official.properties[field].nullable, true);
+    }
+});
