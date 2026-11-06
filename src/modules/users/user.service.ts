@@ -12,6 +12,7 @@ import type {
 import * as userRepository from "./user.repository";
 import type { UserStatus, UserWithRoles } from "./user.types";
 import { ROLE_CODES } from "../roles/role.constants";
+import * as auditService from "../audit/audit.service";
 
 /**
  * Users module — service layer (RoadMap.md §19).
