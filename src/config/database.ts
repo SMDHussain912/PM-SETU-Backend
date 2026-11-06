@@ -8,10 +8,10 @@ import { env } from "./env";
 // fall back to DATABASE_URL. The deliberately unreachable test-only URL makes
 // accidental, ungated database access fail closed instead of reaching a real DB.
 const databaseUrl =
-    env.databaseUrl ??
-    (env.nodeEnv === "test"
-        ? "postgresql://test:test@127.0.0.1:1/pm_setu_test?schema=public"
-        : undefined);
+    env.nodeEnv === "test"
+        ? (process.env.TEST_DATABASE_URL ??
+            "postgresql://test:test@127.0.0.1:1/pm_setu_test?schema=public")
+        : env.databaseUrl;
 
 if (!databaseUrl) {
     throw new Error(
