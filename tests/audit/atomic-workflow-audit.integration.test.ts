@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { assertDedicatedTestDatabaseUrl } from "../helpers/test-database";
 import { prisma } from "../../src/config/database";
 import { recordAuditEntry } from "../../src/modules/audit/audit.service";
 
 test("workflow writes roll back when the transaction-scoped audit insert fails", {
     skip: !process.env.TEST_DATABASE_URL,
 }, async () => {
+    assertDedicatedTestDatabaseUrl(process.env.TEST_DATABASE_URL);
     await prisma.$executeRaw`DROP TABLE IF EXISTS public.ci_workflow_atomicity_probe`;
 
     await assert.rejects(
