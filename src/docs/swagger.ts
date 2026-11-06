@@ -805,6 +805,97 @@ export const openApiSpec = {
                     } } },
                 },
             },
+            TrainingCapacityMetric: {
+                type: "object",
+                required: ["metric_id", "classification", "unit", "availability", "value"],
+                properties: {
+                    metric_id: { type: "string", enum: ["academic.student_capacity"] },
+                    classification: { type: "string", enum: ["CAPACITY"] },
+                    unit: { type: "string", enum: ["COUNT"] },
+                    availability: { type: "string", enum: ["AVAILABLE", "NOT_AVAILABLE"] },
+                    value: { type: "integer", nullable: true, minimum: 0 },
+                },
+            },
+            TrainingCapacityCoverage: {
+                type: "object",
+                required: ["total_itis", "itis_with_capacity", "itis_without_capacity"],
+                properties: {
+                    total_itis: { type: "integer", minimum: 0 },
+                    itis_with_capacity: { type: "integer", minimum: 0 },
+                    itis_without_capacity: { type: "integer", minimum: 0 },
+                    itis_without_reportable_cluster: { type: "integer", minimum: 0, description: "Present on state and without-reportable-cluster coverage." },
+                },
+            },
+            TrainingCapacityReporting: {
+                type: "object",
+                required: ["scope", "metric", "coverage", "without_reportable_cluster", "by_cluster", "reporting_context"],
+                properties: {
+                    scope: { type: "string", enum: ["STATE"] },
+                    metric: { $ref: "#/components/schemas/TrainingCapacityMetric" },
+                    coverage: { $ref: "#/components/schemas/TrainingCapacityCoverage" },
+                    without_reportable_cluster: {
+                        type: "object",
+                        required: ["student_capacity", "coverage"],
+                        properties: {
+                            student_capacity: { type: "integer", nullable: true, minimum: 0 },
+                            coverage: { $ref: "#/components/schemas/TrainingCapacityCoverage" },
+                        },
+                    },
+                    by_cluster: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            required: ["cluster_id", "cluster_name", "student_capacity", "coverage"],
+                            properties: {
+                                cluster_id: { type: "integer" },
+                                cluster_name: { type: "string" },
+                                student_capacity: { type: "integer", nullable: true, minimum: 0 },
+                                coverage: { $ref: "#/components/schemas/TrainingCapacityCoverage" },
+                            },
+                        },
+                    },
+                    reporting_context: {
+                        type: "object",
+                        required: ["data_as_of", "reporting_period", "source_freshness"],
+                        properties: {
+                            data_as_of: { type: "string", format: "date-time", nullable: true },
+                            reporting_period: { type: "string", nullable: true },
+                            source_freshness: { type: "string", enum: ["NOT_TRACKED"] },
+                        },
+                    },
+                },
+            },
+            TrainingCapacityItiReporting: {
+                type: "object",
+                required: ["scope", "metric", "reporting_context", "iti"],
+                properties: {
+                    scope: { type: "string", enum: ["ITI"] },
+                    metric: { $ref: "#/components/schemas/TrainingCapacityMetric" },
+                    reporting_context: {
+                        type: "object",
+                        required: ["data_as_of", "reporting_period", "source_freshness"],
+                        properties: {
+                            data_as_of: { type: "string", format: "date-time", nullable: true },
+                            reporting_period: { type: "string", nullable: true },
+                            source_freshness: { type: "string", enum: ["NOT_TRACKED"] },
+                        },
+                    },
+                    iti: {
+                        type: "object",
+                        required: ["iti_id", "iti_code", "iti_name", "type", "district", "cluster_id", "cluster_name", "student_capacity"],
+                        properties: {
+                            iti_id: { type: "integer" },
+                            iti_code: { type: "string" },
+                            iti_name: { type: "string" },
+                            type: { type: "string", enum: ["HUB", "SPOKE"] },
+                            district: { type: "string" },
+                            cluster_id: { type: "integer", nullable: true },
+                            cluster_name: { type: "string", nullable: true },
+                            student_capacity: { type: "integer", nullable: true, minimum: 0 },
+                        },
+                    },
+                },
+            },
             TrainingMetrics: {
                 type: "object",
                 description: "Training dashboard (RoadMap.md §16). Only student capacity available — full training metrics require a future data source.",
@@ -2659,7 +2750,7 @@ export const openApiSpec = {
                 security: [],
                 parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1, maximum: 9007199254740991 }, description: "Positive safe integer ITI id" }],
                 responses: {
-                    "200": { description: "ITI capacity reporting context and value", content: { "application/json": { schema: { type: "object" } } } },
+                    "200": { description: "ITI capacity reporting context and value", content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean", example: true }, data: { $ref: "#/components/schemas/TrainingCapacityItiReporting" } } } } } },
                     "404": { description: "ITI not found" },
                     "422": { description: "Validation failed (invalid id)" },
                     "429": { description: "Rate limit exceeded" },
@@ -2674,7 +2765,7 @@ export const openApiSpec = {
                 description: "State and cluster aggregation of ITI student capacity. Returns nullable state and cluster capacity values, ITI coverage counts, and the capacity total for ITIs without a reportable non-sample cluster so scope totals can reconcile. This is capacity, not trainees trained or enrolled. Reporting period and source freshness remain untracked.",
                 security: [],
                 responses: {
-                    "200": { description: "State capacity metric, coverage, and cluster breakdown", content: { "application/json": { schema: { type: "object" } } } },
+                    "200": { description: "State capacity metric, coverage, and cluster breakdown", content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean", example: true }, data: { $ref: "#/components/schemas/TrainingCapacityReporting" } } } } } },
                     "429": { description: "Rate limit exceeded" },
                     "500": { description: "PM SETU database schema not created yet" },
                 },
