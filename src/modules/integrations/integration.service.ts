@@ -40,11 +40,11 @@ export async function ingest(id: number, records: import("./integration.schema")
 
 function delay(ms: number) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
-export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<typeof repo.get>>>) {
+export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<typeof repo.get>>>, claimToken: string) {
   const startedAt = new Date();
   const adapter = integrationAdapterRegistry.get(source.code);
   if (!adapter || adapter.system !== source.system) {
-    return repo.createRun({ sourceId: source.id, status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: null, errorCode: adapter ? "ADAPTER_SYSTEM_MISMATCH" : "ADAPTER_NOT_CONFIGURED", errorSummary: adapter ? "Adapter system does not match source system" : "No reviewed adapter is registered for this source", startedAt, completedAt: new Date() });
+    return repo.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: null, errorCode: adapter ? "ADAPTER_SYSTEM_MISMATCH" : "ADAPTER_NOT_CONFIGURED", errorSummary: adapter ? "Adapter system does not match source system" : "No reviewed adapter is registered for this source", startedAt, completedAt: new Date() });
   }
   const history = await repo.listCommittedRuns(source.id, 1);
   const previous = selectCommittedCheckpoint(history);
@@ -61,13 +61,13 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
     // Do not persist upstream exception text: providers sometimes include URLs,
     // response fragments, or credentials in error messages.
     void lastError;
-    return repo.createRun({ sourceId: source.id, status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: "Adapter request failed after four attempts", startedAt, completedAt: new Date() });
+    return repo.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: "Adapter request failed after four attempts", startedAt, completedAt: new Date() });
   }
   if (!Array.isArray(page.records) || page.records.length > 500 || typeof page.hasMore !== "boolean" || (page.hasMore && !page.nextCursor)) throw new ApiError({ statusCode: 502, code: "ADAPTER_RESPONSE_INVALID", message: "Adapter returned an invalid page or missing continuation cursor" });
-  if (page.records.length === 0) return repo.createRun({ sourceId: source.id, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: page.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
+  if (page.records.length === 0) return repo.createScheduledRun(source.id, claimToken, { status: page.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: page.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
   const parsed = integrationIngestSchema.safeParse({ records: page.records });
   if (!parsed.success) throw new ApiError({ statusCode: 422, code: "ADAPTER_RECORDS_INVALID", message: "Adapter records failed ingestion validation", details: parsed.error.flatten() });
-  return repo.ingestBatch(source.id, parsed.data.records, { cursor: page.nextCursor ?? null, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", startedAt });
+  return repo.ingestBatch(source.id, parsed.data.records, { cursor: page.nextCursor ?? null, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", startedAt, claimToken });
 }
 
 
