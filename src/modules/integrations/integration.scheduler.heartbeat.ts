@@ -40,6 +40,7 @@ export function createLeaseHeartbeat(options: LeaseHeartbeatOptions) {
       timer = setInterval(() => { void renew(); }, options.intervalMs);
       timer.unref?.();
     },
+    pulse: renew,
     async stop(): Promise<void> {
       if (timer) clearInterval(timer);
       timer = undefined;
