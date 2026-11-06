@@ -12,9 +12,9 @@ const writeRoles = [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_COD
 const reviewRoles = [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.APPROVING_AUTHORITY];
 router.use(requireAuth);
 router.get("/summary", requireRoles(...readRoles), controller.summary);
-router.get("/", validate({ query: academicListQuerySchema }), requireRoles(...readRoles), controller.list);
-router.get("/:id", validate({ params: academicIdParamsSchema }), requireRoles(...readRoles), controller.get);
-router.post("/import", validate({ body: academicBatchSchema }), requireRoles(...writeRoles), controller.importBatch);
-router.post("/", validate({ body: academicRecordSchema }), requireRoles(...writeRoles), controller.create);
-router.post("/:id/review", validate({ params: academicIdParamsSchema, body: academicReviewSchema }), requireRoles(...reviewRoles), controller.review);
+router.get("/", requireRoles(...readRoles), validate({ query: academicListQuerySchema }), controller.list);
+router.get("/:id", requireRoles(...readRoles), validate({ params: academicIdParamsSchema }), controller.get);
+router.post("/import", requireRoles(...writeRoles), validate({ body: academicBatchSchema }), controller.importBatch);
+router.post("/", requireRoles(...writeRoles), validate({ body: academicRecordSchema }), controller.create);
+router.post("/:id/review", requireRoles(...reviewRoles), validate({ params: academicIdParamsSchema, body: academicReviewSchema }), controller.review);
 export default router;
