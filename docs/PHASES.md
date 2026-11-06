@@ -416,3 +416,12 @@ The user's full test run exposed a test bootstrap defect: database-backed module
 - `docs/testing/DATABASE_SAFETY.md` documents the no-database unit-test path and explicit integration-test opt-in.
 
 This fixes the import-time crash path. It does not claim PostgreSQL integration coverage when the dedicated test URL is absent; those tests must be reported as skipped. Local typecheck, test, and build results are pending the user's pull and verification.
+
+
+### Phase 7 continuation — training capacity reporting verification
+
+Reviewed the public read-only `GET /api/v1/dashboard/training/reporting` and `GET /api/v1/dashboard/contract` implementation. Added `tests/dashboard/training-reporting-service.test.ts` to verify state/cluster/unassigned reconciliation, null-versus-zero availability, and explicitly untracked reporting-period/as-of context. Added `docs/phase-7/TRAINING_REPORTING_VERIFICATION.md` with the source semantics and verification gates.
+
+The existing repository tests already cover sample-row exclusion and nullable aggregate SQL; the existing reporting-contract tests cover unavailable measures and finance approval gates. The new service tests still require local typecheck/test/build verification on their commit. Do not add date boundaries or freshness claims until source owners approve the period/as-of contract.
+
+**Next:** after local verification, continue the Phase 7 KPI source-owner decision register and implement only metrics with an approved authoritative source contract.
