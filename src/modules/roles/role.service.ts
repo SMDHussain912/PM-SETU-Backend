@@ -3,6 +3,7 @@ import * as roleRepository from "./role.repository";
 import type { Permission, Role, RoleWithPermissions } from "./role.types";
 import type { CreateRoleInput, UpdateRoleInput } from "./role.schema";
 import * as auditService from "../audit/audit.service";
+import { toRoleAuditValue } from "./role.audit";
 
 /**
  * Roles module — service layer.
@@ -44,7 +45,7 @@ export async function createRole(input: CreateRoleInput, actorId: string): Promi
             message: "Created role could not be read back",
         });
     }
-    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "ROLE", entityId: role.id, oldValue: null, newValue: role, approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "ROLE", entityId: role.id, oldValue: null, newValue: toRoleAuditValue(role), approvalStatus: null, context: { userId: actorId } });
     return role;
 }
 
@@ -76,7 +77,7 @@ export async function updateRole(
             message: "Role not found",
         });
     }
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "ROLE", entityId: id, oldValue: existing, newValue: role, approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(existing), newValue: toRoleAuditValue(role), approvalStatus: null, context: { userId: actorId } });
     return role;
 }
 
@@ -97,7 +98,7 @@ export async function deleteRole(id: number, actorId: string): Promise<RoleWithP
         });
     }
     await roleRepository.deleteRole(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "ROLE", entityId: id, oldValue: role, newValue: null, approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(role), newValue: null, approvalStatus: null, context: { userId: actorId } });
     return role;
 }
 

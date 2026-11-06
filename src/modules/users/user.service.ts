@@ -13,6 +13,7 @@ import * as userRepository from "./user.repository";
 import type { UserStatus, UserWithRoles } from "./user.types";
 import { ROLE_CODES } from "../roles/role.constants";
 import * as auditService from "../audit/audit.service";
+import { toUserAuditValue } from "./user.audit";
 
 /**
  * Users module — service layer (RoadMap.md §19).
@@ -63,16 +64,6 @@ async function assertTargetManageable(targetId: number, actorId: string, actorRo
     return target;
 }
 
-function userAuditValue(user: UserWithRoles) {
-    return {
-        id: user.id,
-        username: user.username,
-        full_name: user.full_name,
-        email: user.email,
-        status: user.status,
-        roles: user.roles.map(({ id, code, name }) => ({ id, code, name })),
-    };
-}
 
 export interface UserListResult {
     items: UserWithRoles[];
@@ -126,7 +117,7 @@ export async function createUser(input: CreateUserInput, actorId: string, actorR
             message: "Created user could not be read back",
         });
     }
-    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "USER", entityId: user.id, oldValue: null, newValue: userAuditValue(user), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "USER", entityId: user.id, oldValue: null, newValue: toUserAuditValue(user), approvalStatus: null, context: { userId: actorId } });
     return user;
 }
 
@@ -144,7 +135,7 @@ export async function updateUser(
         email: input.email,
     });
     const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: userAuditValue(previous), newValue: userAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
     return updated;
 }
 
@@ -161,7 +152,7 @@ export async function updateUserStatus(
     }
     await userRepository.updateStatusPreservingSuperAdmin(id, input.status);
     const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: userAuditValue(target), newValue: userAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
     return updated;
 }
 
@@ -183,7 +174,7 @@ export async function updateUserRoles(
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
     await userRepository.replaceUserRoles(id, input.role_ids);
     const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: userAuditValue(target), newValue: userAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
     return updated;
 }
 
@@ -200,7 +191,7 @@ export async function deactivateUser(id: number, actorId: string, actorRoles: st
     }
     await userRepository.updateStatusPreservingSuperAdmin(id, "INACTIVE");
     const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "USER", entityId: id, oldValue: userAuditValue(target), newValue: userAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
     return updated;
 }
 

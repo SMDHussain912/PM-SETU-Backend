@@ -6,6 +6,7 @@ import { hashPassword, needsPasswordRehash, verifyPassword } from "../../utils/p
 import * as authRepository from "./auth.repository";
 import type { ChangePasswordInput, LoginInput } from "./auth.schema";
 import type { AuthUserProfile, LoginResponse, LoginUserRow, RoleAssignment } from "./auth.types";
+import * as auditService from "../audit/audit.service";
 
 /**
  * Auth module — service layer (RoadMap.md §18).
@@ -134,6 +135,16 @@ export async function login(input: LoginInput): Promise<LoginResponse> {
     // remain verifiable and can be upgraded through the change-password flow.
     if (needsPasswordRehash(user.password_hash) && Buffer.byteLength(input.password, "utf8") <= 72) {
         await authRepository.updatePasswordHash(user.id, await hashPassword(input.password));
+        await auditService.recordAuditEntry({
+            userId: String(user.id),
+            action: "UPDATE",
+            entity: "USER",
+            entityId: user.id,
+            oldValue: { password_hash_version: "legacy_bcrypt" },
+            newValue: { password_hash_version: "sha256_bcrypt_v1", reason: "legacy_hash_upgrade" },
+            approvalStatus: null,
+            context: { userId: String(user.id) },
+        });
     }
 
     await authRepository.resetFailedLogins(user.id);
@@ -195,5 +206,15 @@ export async function changePassword(
     }
     const nextHash = await hashPassword(input.new_password);
     await authRepository.updatePasswordHash(userId, nextHash);
+    await auditService.recordAuditEntry({
+        userId: String(userId),
+        action: "PASSWORD_CHANGE",
+        entity: "USER",
+        entityId: userId,
+        oldValue: { password_hash_version: needsPasswordRehash(user.password_hash) ? "legacy_bcrypt" : "sha256_bcrypt_v1" },
+        newValue: { password_hash_version: "sha256_bcrypt_v1" },
+        approvalStatus: null,
+        context: { userId: String(userId) },
+    });
     return { updated: true };
 }
