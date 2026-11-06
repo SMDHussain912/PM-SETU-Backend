@@ -16,7 +16,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 - Protected requests use `requireAuth`, which verifies JWTs with an explicit HS256 algorithm allowlist.
 - Protected requests re-check that the account is currently ACTIVE and reload current role and permission assignments from PostgreSQL. Authorization does not rely on stale role/permission claims from an old access token.
 - Login uses a generic invalid-credentials response and performs a dummy password hash comparison for unknown usernames to reduce account-enumeration timing differences.
-- Login account lockout counters are persisted in the database.
+- Login account lockout counters are persisted in the database and updated atomically in one PostgreSQL statement; concurrent failed-login increments are covered by a dedicated PostgreSQL integration test.
 - Global API and stricter authentication/admin rate limiters are mounted in the application.
 - Administrative route families are mounted separately from public read routes. User/role, approval, audit, CMS, cluster/ITI/AIP/SPV/SIP, and integration administration routers include authentication and route-level role guards.
 - Resource-scoped mutation routes for clusters, ITIs, AIPs, SPVs and SIPs use `requireResourceScope` where the route design requires an individual resource check.
@@ -181,6 +181,19 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 **Remediation on `main` (2026-11-07):** Added `applyDocumentDownloadSecurityHeaders()` to set `X-Content-Type-Options: nosniff` before sending the file. The existing service still resolves the stored path with `realpath`, enforces containment beneath the managed documents directory, and retrieves only published documents. Added `tests/document-download-headers.test.ts`.
 
 **Disposition:** Code hardening committed and verified by successful CI run #74 (commit `94d6205dfc2bff7a38361037f4e15025a91d77e9`). Explicit cache policy remains subject to the public document publication contract.
+
+
+### SEC-ROUTE-16 — Concurrent failed logins could lose account-lockout increments
+
+**Evidence:** The login service previously read `failed_login_attempts` with the user row, calculated the next value in application memory, then wrote that stale calculated value. Concurrent failed-password requests could therefore overwrite one another's increments and delay the configured lockout threshold.
+
+**Impact:** An attacker distributing failed login attempts across concurrent requests could make the account lockout counter advance more slowly than the actual number of failed attempts.
+
+**Remediation on `main` (2026-11-07):** Replaced the read-then-write sequence and separate lockout update with one atomic PostgreSQL `UPDATE`. The statement increments the current row value, applies the threshold and lock expiry in the same write, resets the counter at lockout, and ignores in-flight attempts while a lock is active. Added `tests/auth-lockout-postgres.test.ts`, which verifies four concurrent increments are retained and a further concurrent burst triggers lockout without losing counts.
+
+**Regression coverage:** CI sets `PM_SETU_TEST_DATABASE_URL` to its isolated migrated PostgreSQL database. The test ran in CI #79 rather than being skipped.
+
+**Disposition:** Code remediation and PostgreSQL concurrency regression committed and verified by successful CI run #79 (commit `bdd063e2ba9f71c7f239d5c1bbf34b3ce3e276cf`).
 
 ## 4. Additional verification required before sign-off
 
