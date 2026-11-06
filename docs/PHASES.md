@@ -592,3 +592,29 @@ Commits: `9068fce` (schedule removal revocation), `8639276` (PostgreSQL test), p
 **Verification required:** run typecheck, full tests and build with `PM_SETU_TEST_DATABASE_URL` configured; confirm the new PostgreSQL test ran rather than skipped.
 
 **Current active work:** continue Phase 8 scheduler reliability review after verification. Provider-specific adapter work remains gated on an approved source-owner contract.
+
+
+### Phase 8 continuation — database-clock scheduler configuration
+
+**Implemented on `main`; verification pending.**
+
+- `updateEnabled()` and `updateSchedule()` now set scheduler due timestamps using PostgreSQL `NOW()`, consistent with claim, renewal and transaction-fencing operations.
+- Disabling and unscheduling continue to revoke active leases immediately.
+- Re-enabling and restoring a schedule make the source immediately eligible.
+- Changing a non-null schedule interval preserves an existing active lease so the current execution can finish.
+- Extended the opt-in PostgreSQL disable and unschedule tests to assert that the resulting due timestamp is aligned with database time.
+
+Commits:
+- `c46ced9` — use PostgreSQL clock for scheduler configuration changes.
+- `1f2c365` — verify database clock on schedule restoration.
+- `c6b1ad6` — verify database clock on source re-enable.
+- `040db8a` — document scheduler configuration clock behaviour.
+
+Verification:
+```bash
+git pull origin main
+npm run typecheck
+npm test
+npm run build
+```
+Confirm both opt-in PostgreSQL scheduler tests ran rather than skipped using the dedicated `PM_SETU_TEST_DATABASE_URL`.
