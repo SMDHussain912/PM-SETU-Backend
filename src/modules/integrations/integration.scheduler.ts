@@ -15,6 +15,7 @@ async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueS
         logger.error("Integration scheduler lease ownership lost", { sourceCode: source.code });
       }
     }).catch(() => {
+      leaseLost = true;
       logger.error("Integration scheduler lease renewal failed", { sourceCode: source.code });
     });
   }, LEASE_HEARTBEAT_MS);
