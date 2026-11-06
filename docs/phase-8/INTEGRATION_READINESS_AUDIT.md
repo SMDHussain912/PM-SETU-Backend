@@ -174,3 +174,20 @@ Extracted lease heartbeat coordination into `integration.scheduler.heartbeat.ts`
 
 Focused tests in `tests/integration-scheduler-heartbeat.test.ts` cover renewal coalescing, stop waiting for an active renewal, lost-lease handling, renewal errors, and no renewal after stop. These are deterministic lifecycle tests; real PostgreSQL ownership/fencing remains covered by the separate opt-in lease test.
 
+
+
+## 15. Scheduler failure writes and lease ownership certainty
+
+The heartbeat now distinguishes a confirmed lease rejection from an inconclusive renewal error:
+
+- A renewal returning `false` marks the lease as lost and ownership as uncertain.
+- A renewal throwing an error marks ownership as uncertain, but does not claim that another worker definitely owns the lease.
+- Both outcomes suppress later heartbeat attempts for that claim and are exposed separately for diagnostics.
+
+When scheduled source execution throws, the scheduler now checks ownership certainty before attempting a scheduler-level FAILED run. If ownership is uncertain, it skips both checkpoint lookup and failure-run persistence; this avoids stale workers attempting writes after a rejected or unverified renewal. When ownership remains verified, it preserves the last committed cursor and writes the same sanitized failure summary as before. Repository transaction fencing remains the final authority for all writes.
+
+Regression coverage:
+- `tests/integration-scheduler-heartbeat.test.ts` distinguishes lease loss from renewal uncertainty.
+- `tests/integration-scheduler-failure.test.ts` verifies that uncertain owners perform no checkpoint read or failure write, while a verified owner persists one sanitized FAILED run with the committed cursor.
+
+A renewal error is treated conservatively as unverified ownership, not proof of lease transfer. Provider-specific failure and retry policies remain subject to the approved source contract.
