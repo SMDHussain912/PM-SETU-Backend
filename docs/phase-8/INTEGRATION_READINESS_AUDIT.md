@@ -277,3 +277,16 @@ The shared ingestion schema now rejects repeated `source_record_id` values withi
 Previously, two entries for the same source identity in one batch could be processed sequentially by the upsert loop. That produced ambiguous last-write-wins behaviour and misleading created/updated counts for a single logical record. The batch is now rejected with a field-level validation issue before any write occurs.
 
 Regression coverage is in `tests/integration-ingest-schema.test.ts`, including distinct IDs, repeated IDs and whitespace-normalized duplicates. This is batch-local identity validation; provider version ordering and cross-delivery replay/correction semantics still require an approved provider contract.
+
+
+## 25. Strict CSV quoting validation
+
+The CSV parser now rejects malformed quote placement instead of silently accepting ambiguous input:
+
+- A quote may begin a field only at the start of that field.
+- A closing quote must be followed by a delimiter, record ending or end of input.
+- Unterminated quoted fields remain rejected.
+- Properly quoted fields may contain commas and line breaks; doubled quotes continue to represent a literal quote.
+- The existing 1 MB request/parser limit and 500-record batch limit remain unchanged.
+
+Regression coverage in `tests/integration-csv.test.ts` includes quoted JSON with commas, a multiline quoted field, unterminated quotes, quotes embedded in unquoted fields, trailing characters after a closing quote, and input above 1 MB. This is syntax hardening for the generic CSV transport; it does not define a provider-specific CSV mapping.
