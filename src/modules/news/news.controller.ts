@@ -8,6 +8,7 @@ import type {
     UpdateNewsBody,
 } from "./news.schema";
 import * as newsService from "./news.service";
+import { toPublicNews } from "./news.public";
 import { discardDocumentUpload, validateDocumentUpload } from "../documents/document.file-validation";
 
 /**
@@ -21,18 +22,18 @@ import { discardDocumentUpload, validateDocumentUpload } from "../documents/docu
 export async function listNews(_req: Request, res: Response): Promise<Response> {
     const { query } = getValidated<unknown, NewsListQuery>(res);
     const { items, meta } = await newsService.listNews(query);
-    return sendSuccess(res, items, meta);
+    return sendSuccess(res, items.map(toPublicNews), meta);
 }
 
 export async function getNewsById(_req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, NewsIdParams>(res);
     const news = await newsService.getNewsById(params.id);
-    return sendSuccess(res, news);
+    return sendSuccess(res, toPublicNews(news));
 }
 
 export async function getLatestNews(_req: Request, res: Response): Promise<Response> {
     const news = await newsService.getLatestNews();
-    return sendSuccess(res, news);
+    return sendSuccess(res, news.map(toPublicNews));
 }
 
 export async function createNews(_req: Request, res: Response): Promise<Response> {
