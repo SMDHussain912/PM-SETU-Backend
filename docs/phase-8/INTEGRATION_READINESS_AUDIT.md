@@ -158,3 +158,11 @@ Scheduled adapter fetches now use the shared `executeWithRetry()` helper in `int
 - Retry tests are in `tests/integration-retry.test.ts`.
 - This generic retry policy does not replace provider-specific rate-limit, retry-after, idempotency or outage requirements in an approved provider contract.
 
+
+
+## 13. Scheduled-source retry and checkpoint service tests
+
+Added service-level tests in `tests/integration-scheduled-source-service.test.ts` using an injected repository boundary. They verify that four failed adapter attempts produce exactly one sanitized FAILED run, preserve the prior committed cursor, reuse the prior completed-at timestamp as the same `since` value on every attempt, and never call ingestion. A recovery case verifies that a transient failure followed by a valid page ingests through the transactional repository path with the original checkpoint context and current claim token.
+
+The repository dependency is optional and defaults to the production repository module; the test seam does not change runtime behaviour. These tests validate service orchestration and repository calls, not PostgreSQL transaction or lease fencing (covered separately by opt-in PostgreSQL tests).
+
