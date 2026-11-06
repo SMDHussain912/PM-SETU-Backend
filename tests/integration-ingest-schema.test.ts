@@ -63,3 +63,20 @@ test("rejects non-serializable payload objects without throwing from validation"
     records: [{ source_record_id: "circular-record", payload: circular }],
   }).success, false);
 });
+
+test("rejects payloads with excessive node counts before serializing the object", () => {
+  const result = integrationIngestSchema.safeParse({
+    records: [{
+      source_record_id: "wide-payload",
+      payload: { values: Array.from({ length: 10_001 }, (_, index) => index) },
+    }],
+  });
+  assert.equal(result.success, false);
+});
+
+test("rejects a single oversized payload string", () => {
+  const result = integrationIngestSchema.safeParse({
+    records: [{ source_record_id: "large-string", payload: { value: "x".repeat(16_385) } }],
+  });
+  assert.equal(result.success, false);
+});
