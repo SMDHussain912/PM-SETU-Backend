@@ -109,3 +109,6 @@ Regression coverage is in `tests/integration-adapter-page.test.ts`. Invalid page
 Due sources are now claimed in batches of at most 10, ordered by next scheduled time and source ID. The claim query uses PostgreSQL row locks with `SKIP LOCKED`, allowing separate application instances to claim different rows without waiting on each other's selected rows. Each bounded batch is processed concurrently, so one slow provider does not leave other already-claimed sources waiting in a sequential queue while their leases age.
 
 This is a throughput/lease-utilisation safeguard, not a provider retry or ordering contract. Sources beyond the batch limit remain due for a subsequent scheduler tick. The existing per-source claim token, lease expiry, heartbeat, and transaction fencing remain in force.
+
+
+Scheduler shutdown is coordinated with application shutdown: polling is stopped first, then the scheduler exposes an awaitable stop operation that waits for the active tick and all claimed-source processing (including claim release) before the server disconnects Prisma. The server's existing shutdown deadline remains the upper bound; if in-flight work does not finish within that deadline, the process is forced to exit.
