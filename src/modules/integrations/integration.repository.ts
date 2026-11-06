@@ -186,6 +186,13 @@ export async function ingestBatch(sourceId: number, records: Array<{ source_reco
 }
 
 
+export async function createManualRun(sourceId: number, input: ScheduledRunInput, client: typeof prisma = prisma) {
+  return client.$transaction(async (tx) => {
+    await lockEnabledSource(tx, sourceId);
+    return tx.integrationSyncRun.create({ data: { sourceId, ...input } });
+  });
+}
+
 /** Atomically claims due schedules or reclaims leases abandoned by crashed workers. */
 export async function claimDueSources(client: typeof prisma = prisma, sourceIds?: number[]) {
   const sourceIdFilter = sourceIds ?? null;
