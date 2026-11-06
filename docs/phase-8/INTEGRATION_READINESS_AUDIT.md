@@ -348,3 +348,6 @@ The service maps the transaction-level disabled-source rejection to HTTP 409 `IN
 Added an injectable repository seam to `setSchedule()` (production still defaults to the existing repository module) and `tests/integration-schedule-service.test.ts`. The tests verify that CSV_UPLOAD and WEBHOOK schedules are rejected before persistence, REST intervals and SFTP unscheduling are allowed, and missing sources return 404 without an update attempt. This complements schema validation with direct service-layer protection, so callers cannot bypass the transport rule by avoiding the HTTP route.
 
 Commits: `22f8755` (service seam), `62274dd` (regression tests). Local typecheck, full test suite and build verification are pending.
+
+
+**Verification update (2026-11-06):** The project owner reports that the latest typecheck, complete test suite and production build all passed after this milestone. The five service-level schedule guard tests are included in that verified run. The opt-in PostgreSQL tests remain a separate verification requirement unless the test output confirms they ran with the dedicated database configured.
