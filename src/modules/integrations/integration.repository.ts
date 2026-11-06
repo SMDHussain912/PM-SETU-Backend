@@ -196,6 +196,7 @@ export async function claimDueSources(client: typeof prisma = prisma, sourceIds?
       SELECT "id"
       FROM "integration_sources"
       WHERE "enabled" = TRUE
+        AND "transport" IN ('REST', 'SFTP')
         AND "sync_interval_seconds" IS NOT NULL
         AND (${sourceIdFilter}::int[] IS NULL OR "id" = ANY(${sourceIdFilter}::int[]))
         AND (
