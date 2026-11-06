@@ -34,18 +34,15 @@ test("scheduler checkpoint lookup excludes manual runs but retains scheduled and
       recordsRejected: 0,
       errorCode: null,
       errorSummary: null,
-      startedAt: new Date(),
-      completedAt: new Date(),
+      startedAt: new Date("2026-11-06T10:00:00.000Z"),
+      completedAt: new Date("2026-11-06T10:00:00.000Z"),
     };
     const legacy = await client.integrationSyncRun.create({ data: { ...base, runOrigin: "LEGACY", cursor: "legacy-cursor" } });
-    const scheduled = await client.integrationSyncRun.create({ data: { ...base, runOrigin: "SCHEDULED", cursor: "scheduled-cursor" } });
+    const scheduled = await client.integrationSyncRun.create({ data: { ...base, runOrigin: "SCHEDULED", cursor: "scheduled-cursor", startedAt: new Date("2026-11-06T11:00:00.000Z"), completedAt: new Date("2026-11-06T11:00:00.000Z") } });
     await client.integrationSyncRun.create({ data: { ...base, runOrigin: "MANUAL", cursor: "manual-cursor" } });
 
     const checkpoints = await integrationRepository.listCommittedRuns(source.id, 10, client);
-    assert.deepEqual(checkpoints.map((run) => run.id), [legacy.id, scheduled.id].sort((a, b) => {
-      const scheduledFirst = scheduled.id;
-      return a === scheduledFirst ? -1 : 1;
-    }));
+    assert.deepEqual(checkpoints.map((run) => run.id), [scheduled.id, legacy.id]);
     assert.equal(checkpoints.some((run) => run.cursor === "manual-cursor"), false);
   } finally {
     if (sourceId !== undefined) {
