@@ -124,3 +124,17 @@ Scheduler tick coordination is isolated in `integration.scheduler.lifecycle.ts` 
 
 Regression coverage is in `tests/integration-scheduler-lifecycle.test.ts`. The server awaits this stop operation before disconnecting Prisma. The process-level shutdown deadline remains the upper bound for a provider or database operation that does not settle.
 
+## 11. PostgreSQL verification of bounded multi-worker claims
+
+Added the opt-in test `tests/integration-scheduler-batch-postgres.test.ts`. It creates 23 uniquely named due sources in the dedicated test database, invokes `claimDueSources()` concurrently through two independent Prisma/PostgreSQL clients, and verifies:
+
+- Each worker receives no more than the fixed batch limit of 10.
+- Both workers receive 10 distinct sources, with no duplicate IDs across their claims.
+- A subsequent claim receives the remaining three due sources.
+- All 23 fixture sources are claimed exactly once.
+- Cleanup deletes only fixture IDs created by this test.
+
+The repository claim function accepts an optional Prisma client, defaulting to the application singleton. This keeps production behaviour unchanged while allowing the test to exercise independent database connections. The test is opt-in through `PM_SETU_TEST_DATABASE_URL` and refuses database names without the `_test` or `-test` suffix.
+
+This verifies concurrent disjoint batch claims and batch draining against PostgreSQL; it does not replace provider-specific scheduler acceptance or production load testing.
+
