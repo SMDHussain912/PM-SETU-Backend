@@ -17,7 +17,7 @@ export function createLeaseHeartbeat(options: LeaseHeartbeatOptions) {
   let stopped = true;
 
   async function renew(): Promise<void> {
-    if (stopped || leaseLost || renewal) return;
+    if (stopped || ownershipUncertain || renewal) return;
     renewal = Promise.resolve()
       .then(options.renew)
       .then((renewed) => {
