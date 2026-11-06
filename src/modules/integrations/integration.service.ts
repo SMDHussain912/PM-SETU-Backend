@@ -94,7 +94,7 @@ export async function runScheduledSource(
   }
   const adapter = integrationAdapterRegistry.get(source.code);
   if (!adapter || adapter.system !== source.system) {
-    return repo.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: null, errorCode: adapter ? "ADAPTER_SYSTEM_MISMATCH" : "ADAPTER_NOT_CONFIGURED", errorSummary: adapter ? "Adapter system does not match source system" : "No reviewed adapter is registered for this source", startedAt, completedAt: new Date() });
+    return repository.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: null, errorCode: adapter ? "ADAPTER_SYSTEM_MISMATCH" : "ADAPTER_NOT_CONFIGURED", errorSummary: adapter ? "Adapter system does not match source system" : "No reviewed adapter is registered for this source", startedAt, completedAt: new Date() });
   }
   const history = await repository.listCommittedRuns(source.id, 1);
   const previous = selectCommittedCheckpoint(history);
