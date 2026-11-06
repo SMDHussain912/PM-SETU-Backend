@@ -62,6 +62,17 @@ test("PostgreSQL scheduler lease renewal is owner- and expiry-guarded; release i
     assert.ok(afterRenewal.claimExpiresAt);
     assert.ok(afterRenewal.claimExpiresAt.getTime() > beforeRenewal.claimExpiresAt.getTime());
 
+    const databaseExpiry = await secondClient.$queryRaw<Array<{ remaining_seconds: number }>>`
+      SELECT EXTRACT(EPOCH FROM ("claim_expires_at" - NOW()))::double precision AS remaining_seconds
+      FROM "integration_sources"
+      WHERE "id" = ${source.id}
+    `;
+    assert.equal(databaseExpiry.length, 1);
+    assert.ok(
+      databaseExpiry[0].remaining_seconds > 890 && databaseExpiry[0].remaining_seconds <= 900,
+      `renewal should set expiry to approximately 15 minutes from PostgreSQL NOW(); got ${databaseExpiry[0].remaining_seconds}s`,
+    );
+
     await firstClient.integrationSource.update({
       where: { id: source.id },
       data: { claimExpiresAt: new Date(Date.now() - 1_000) },
