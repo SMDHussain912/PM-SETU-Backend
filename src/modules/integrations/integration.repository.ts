@@ -8,8 +8,18 @@ export function create(input: IntegrationSourceInput) {
   return prisma.integrationSource.create({ data: { code: input.code, name: input.name, system: input.system, transport: input.transport, enabled: input.enabled, credentialRef: input.credential_ref ?? null, syncIntervalSeconds: input.sync_interval_seconds ?? null, nextSyncAt: input.enabled && input.sync_interval_seconds ? new Date() : null }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, createdAt: true, updatedAt: true } });
 }
 export function get(id: number) { return prisma.integrationSource.findUnique({ where: { id } }); }
-export function updateEnabled(id: number, enabled: boolean) {
-  return prisma.integrationSource.update({ where: { id }, data: { enabled, nextSyncAt: enabled ? new Date() : null }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true } });
+export function updateEnabled(id: number, enabled: boolean, client: typeof prisma = prisma) {
+  return client.integrationSource.update({
+    where: { id },
+    data: {
+      enabled,
+      nextSyncAt: enabled ? new Date() : null,
+      // Disabling a source revokes its active lease immediately. A worker
+      // already executing will fail the enabled/token check before committing.
+      ...(enabled ? {} : { claimToken: null, claimExpiresAt: null }),
+    },
+    select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
+  });
 }
 export function updateSchedule(id: number, seconds: number | null) {
   return prisma.integrationSource.update({ where: { id }, data: { syncIntervalSeconds: seconds, nextSyncAt: seconds === null ? null : new Date() }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true } });
