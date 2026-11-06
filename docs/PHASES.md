@@ -718,3 +718,18 @@ Commits:
 - `d264194` — add webhook raw-body path matcher.
 - `1ce8a45` — limit raw-body capture to webhook requests.
 - `d723cc1` — add path matcher regression tests.
+
+
+### Phase 8 continuation — isolated webhook raw-body capture
+
+**Implemented on `main`; local verification pending.**
+
+- Extracted webhook-only raw-body retention into `captureIntegrationWebhookRawBody()` so the Express JSON-parser callback delegates to one directly testable policy.
+- Missing request URLs and non-webhook paths are safe no-ops.
+- Matching webhook requests receive an independent copy of the exact parser bytes used by HMAC verification.
+- Extended `tests/integration-webhook-raw-body.test.ts` to verify exact byte preservation, buffer independence, ordinary-route exclusion, and missing-URL handling.
+- No signature, replay, provider-contract, or payload-size policy was changed.
+
+Commits: `2f35b90` (helper), `ffc383f` (application wiring), `b1dd35c` (tests).
+
+**Next:** continue generic integration boundary hardening while provider-specific work remains blocked on an approved source-owner contract.
