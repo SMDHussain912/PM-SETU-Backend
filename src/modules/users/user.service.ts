@@ -47,19 +47,19 @@ async function assertRoleAssignmentAllowed(roleIds: number[], actorRoles: string
     }
 }
 
-async function assertPrivilegedTargetRequiresSuperAdmin(targetId: number, actorRoles: string[]): Promise<void> {
-    const target = await getUserById(targetId);
+async function assertPrivilegedTargetRequiresSuperAdmin(targetId: number, actorRoles: string[], db?: Prisma.TransactionClient): Promise<void> {
+    const target = await getUserById(targetId, db);
     const targetIsPrivileged = target.roles.some((role) => PRIVILEGED_ROLE_CODES.includes(role.code as typeof PRIVILEGED_ROLE_CODES[number]));
     if (targetIsPrivileged && !actorRoles.includes(ROLE_CODES.SUPER_ADMIN)) {
         forbid("Only a Super Administrator can manage privileged administrator accounts");
     }
 }
 
-async function assertTargetManageable(targetId: number, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
+async function assertTargetManageable(targetId: number, actorId: string, actorRoles: string[], db?: Prisma.TransactionClient): Promise<UserWithRoles> {
     if (String(targetId) === actorId) {
         forbid("You cannot change your own administrative status or role assignments");
     }
-    const target = await getUserById(targetId);
+    const target = await getUserById(targetId, db);
     const targetIsPrivileged = target.roles.some((role) => PRIVILEGED_ROLE_CODES.includes(role.code as typeof PRIVILEGED_ROLE_CODES[number]));
     if (targetIsPrivileged && !actorRoles.includes(ROLE_CODES.SUPER_ADMIN)) {
         forbid("Only a Super Administrator can manage privileged administrator accounts");
@@ -127,8 +127,8 @@ export async function updateUser(
     context?: AuditContext,
 ): Promise<UserWithRoles> {
     // Profile changes to privileged administrator accounts are Super Admin only.
-    await assertPrivilegedTargetRequiresSuperAdmin(id, actorRoles);
     return prisma.$transaction(async (tx) => {
+        await assertPrivilegedTargetRequiresSuperAdmin(id, actorRoles, tx);
         const previous = await getUserById(id, tx);
         await userRepository.updateUser(id, { full_name: input.full_name, email: input.email }, tx);
         const updated = await getUserById(id, tx);
@@ -144,12 +144,8 @@ export async function updateUserStatus(
     actorRoles: string[],
     context?: AuditContext,
 ): Promise<UserWithRoles> {
-    const target = await assertTargetManageable(id, actorId, actorRoles);
-    if (input.status === "INACTIVE" && target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN)) {
-        const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
-        if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
-    }
     return prisma.$transaction(async (tx) => {
+        const target = await assertTargetManageable(id, actorId, actorRoles, tx);
         const previous = await getUserById(id, tx);
         await userRepository.updateStatusPreservingSuperAdmin(id, input.status, tx);
         const updated = await getUserById(id, tx);
@@ -165,7 +161,6 @@ export async function updateUserRoles(
     actorRoles: string[],
     context?: AuditContext,
 ): Promise<UserWithRoles> {
-    const target = await assertTargetManageable(id, actorId, actorRoles);
     const assignedCodes = await userRepository.getRoleCodesByIds([...new Set(input.role_ids)]);
     if (assignedCodes.length !== new Set(input.role_ids).size) {
         throw new ApiError({ statusCode: 422, code: "INVALID_ROLE_ASSIGNMENT", message: "One or more selected roles do not exist" });
@@ -176,6 +171,7 @@ export async function updateUserRoles(
     }
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
     return prisma.$transaction(async (tx) => {
+        await assertTargetManageable(id, actorId, actorRoles, tx);
         const previous = await getUserById(id, tx);
         await userRepository.replaceUserRoles(id, input.role_ids, tx);
         const updated = await getUserById(id, tx);
@@ -190,12 +186,8 @@ export async function updateUserRoles(
  * (RoadMap §21/§22). See sql/users/user_queries.sql #9.
  */
 export async function deactivateUser(id: number, actorId: string, actorRoles: string[], context?: AuditContext): Promise<UserWithRoles> {
-    const target = await assertTargetManageable(id, actorId, actorRoles);
-    if (target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN)) {
-        const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
-        if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
-    }
     return prisma.$transaction(async (tx) => {
+        await assertTargetManageable(id, actorId, actorRoles, tx);
         const previous = await getUserById(id, tx);
         await userRepository.updateStatusPreservingSuperAdmin(id, "INACTIVE", tx);
         const updated = await getUserById(id, tx);
