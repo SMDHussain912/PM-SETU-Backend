@@ -118,8 +118,8 @@ export async function claimDueSources(client: typeof prisma = prisma, sourceIds?
 }
 
 /** Extend a lease only when the caller still owns it. */
-export async function renewSourceClaim(sourceId: number, claimToken: string): Promise<boolean> {
-  const result = await prisma.integrationSource.updateMany({
+export async function renewSourceClaim(sourceId: number, claimToken: string, client: typeof prisma = prisma): Promise<boolean> {
+  const result = await client.integrationSource.updateMany({
     where: { id: sourceId, claimToken, claimExpiresAt: { gt: new Date() }, enabled: true },
     data: { claimExpiresAt: new Date(Date.now() + 15 * 60 * 1000) },
   });
@@ -127,8 +127,8 @@ export async function renewSourceClaim(sourceId: number, claimToken: string): Pr
 }
 
 /** Release only the lease owned by this execution; stale workers cannot clear a newer claim. */
-export async function releaseSourceClaim(sourceId: number, claimToken: string): Promise<void> {
-  await prisma.integrationSource.updateMany({
+export async function releaseSourceClaim(sourceId: number, claimToken: string, client: typeof prisma = prisma): Promise<void> {
+  await client.integrationSource.updateMany({
     where: { id: sourceId, claimToken },
     data: { claimToken: null, claimExpiresAt: null },
   });
