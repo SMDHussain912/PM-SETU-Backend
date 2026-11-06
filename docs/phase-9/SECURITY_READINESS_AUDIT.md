@@ -1,9 +1,9 @@
 # Phase 9 — Security Readiness Audit
 
-**Status:** In progress; latest engineering hardening verified by CI #82 on 2026-11-07.  
+**Status:** In progress; latest engineering hardening verified by CI #84 on 2026-11-07.  
 **Repository:** `smdgamekingindo-TN/PM-SETU-Backend`  
 **Branch:** `main`  
-**Verified commit:** `cbf0e4de416ea6d1d470f3a944176993a61a9243`
+**Verified commit:** `84a84b8a078367679373a10af070233dd2f1d8a3`
 
 ## 1. Verified changes
 
@@ -37,6 +37,10 @@ Regression tests cover valid signatures, spoofed bytes, mismatched MIME declarat
 
 Published document downloads continue to resolve the stored path through `realpath` and enforce containment under the managed documents directory. The download controller sends files as attachments and now explicitly sets `X-Content-Type-Options: nosniff`, with regression coverage in `tests/document-download-headers.test.ts`. Cache policy remains a deployment/publication decision.
 
+### Password hashing and legacy compatibility
+
+New password hashes use a domain-separated SHA-256 pre-hash before bcrypt so passwords longer than bcrypt's 72-byte limit are represented in full. The versioned hash format is used for new users and password changes. Existing raw bcrypt hashes remain verifiable and are upgraded on successful login when the submitted password is at most 72 bytes. Legacy passwords longer than 72 bytes should be migrated through the authenticated change-password flow to avoid silently changing their existing effective credential. Regression coverage is in `tests/password-hashing.test.ts`.
+
 ### JWT signing-key strength
 
 Both JWT signing and verification now reject missing or undersized access secrets. The minimum is 32 UTF-8 bytes; deployment guidance recommends a cryptographically random 48-byte value. Regression coverage is in `tests/auth-secret-validation.test.ts`. Production secret rotation and entropy verification remain deployment responsibilities.
@@ -51,17 +55,17 @@ The shared Multer wrapper now limits each multipart request to 2 files, 10 text 
 
 ## 2. GitHub Actions evidence
 
-Commit: `cbf0e4de416ea6d1d470f3a944176993a61a9243`
+Commit: `84a84b8a078367679373a10af070233dd2f1d8a3`
 
-The completed workflow **Install, migrate, typecheck, test and build** (#82) passed:
+The completed workflow **Install, migrate, typecheck, test and build** (#84) passed:
 - npm dependency audit
 - Prisma client generation
 - Migrations against the isolated CI PostgreSQL database
 - TypeScript typecheck
-- Test suite: 340 passed, 0 failed, 0 skipped
+- Test suite: 342 passed, 0 failed, 0 skipped
 - Production build
 
-The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42296695804
+The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42297443500
 
 ## 3. Remaining Phase 9 work
 

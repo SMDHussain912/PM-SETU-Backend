@@ -208,6 +208,19 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Disposition:** Code hardening and regression tests verified by successful CI run #82 (commit `cbf0e4de416ea6d1d470f3a944176993a61a9243`).
 
+
+### SEC-ROUTE-18 — bcrypt silently truncated passwords beyond 72 bytes
+
+**Evidence:** Password request schemas allowed up to 128 characters, while the backend used bcrypt directly. bcrypt processes only the first 72 input bytes, so a longer password's suffix was not represented in the stored hash.
+
+**Impact:** Users could believe a password's full value was protected when bytes beyond the bcrypt limit did not contribute to authentication.
+
+**Remediation on `main` (2026-11-07):** New password hashes now use a domain-separated SHA-256 pre-hash before bcrypt, so the full UTF-8 password is represented within bcrypt's input limit. The stored format is version-prefixed. Verification remains backward-compatible with existing raw bcrypt hashes; successful logins upgrade legacy hashes automatically when the submitted password is at most 72 bytes. Added `tests/password-hashing.test.ts` covering long UTF-8 passwords, altered suffixes, and legacy hash verification.
+
+**Migration note:** Legacy hashes used with passwords longer than 72 bytes are not automatically rewritten on login, to avoid silently changing the user's effective credential. Those users should use the authenticated change-password flow to move to the full-input hash format. The reset/recovery lifecycle remains an external acceptance item.
+
+**Disposition:** New hash format, backward-compatible verification and regression tests verified by successful CI run #84 (commit `84a84b8a078367679373a10af070233dd2f1d8a3`).
+
 ## 4. Additional verification required before sign-off
 
 - Protected resource-specific mutation and workflow routes in AIP, Cluster, ITI, SIP and SPV use resource-scope middleware; PostgreSQL integration coverage exists for inherited and direct assignment cases. Public registry GET routes are intentionally unguarded in the current route design. Still inspect every public list/search/summary/export response against the approved publication policy; route-level mutation guards do not prove public-field disclosure is safe.
