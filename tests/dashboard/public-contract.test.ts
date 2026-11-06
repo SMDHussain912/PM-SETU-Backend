@@ -25,7 +25,7 @@ const paths = openApiSpec.paths as unknown as Record<string, Record<string, Oper
 const dashboardContracts = [
     ["/dashboard/contract", "DashboardContractResponse"],
     ["/dashboard/state", "StateMetrics"],
-    ["/dashboard/clusters", "ClusterSummary"],
+    ["/dashboard/clusters", "ClustersDashboardResponse"],
     ["/dashboard/clusters/{id}", "ClusterDashboardResponse"],
     ["/dashboard/finance", "FinanceMetrics"],
     ["/dashboard/training", "TrainingMetrics"],
