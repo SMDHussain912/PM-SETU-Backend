@@ -1,6 +1,8 @@
 import { buildPaginationMeta, type PaginationMeta } from "../../utils/pagination";
 import { ApiError } from "../../utils/response";
 import { hashPassword } from "../../utils/password";
+import { prisma } from "../../config/database";
+import type { Prisma } from "../../generated/prisma/client";
 import type {
     CreateUserInput,
     UpdateUserInput,
@@ -86,8 +88,8 @@ export async function listUsers(query: UserListQuery): Promise<UserListResult> {
     return { items, meta: buildPaginationMeta(total, query.page, query.pageSize) };
 }
 
-export async function getUserById(id: number): Promise<UserWithRoles> {
-    const user = await userRepository.getUserById(id);
+export async function getUserById(id: number, db?: Prisma.TransactionClient): Promise<UserWithRoles> {
+    const user = await userRepository.getUserById(id, db);
     if (!user) {
         throw new ApiError({
             statusCode: 404,
@@ -103,23 +105,18 @@ export async function createUser(input: CreateUserInput, actorId: string, actorR
     // The password is hashed HERE so only the bcrypt hash ever reaches the
     // repository/SQL layer. No plaintext is persisted or returned.
     const password_hash = await hashPassword(input.password);
-    const userId = await userRepository.createUser({
-        username: input.username,
-        full_name: input.full_name,
-        email: input.email ?? null,
-        password_hash,
-        role_ids: input.role_ids,
+    return prisma.$transaction(async (tx) => {
+        const userId = await userRepository.createUser({
+            username: input.username,
+            full_name: input.full_name,
+            email: input.email ?? null,
+            password_hash,
+            role_ids: input.role_ids,
+        }, tx);
+        const user = await getUserById(userId, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "USER", entityId: user.id, oldValue: null, newValue: toUserAuditValue(user), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return user;
     });
-    const user = await userRepository.getUserById(userId);
-    if (!user) {
-        throw new ApiError({
-            statusCode: 500,
-            code: "INTERNAL_ERROR",
-            message: "Created user could not be read back",
-        });
-    }
-    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "USER", entityId: user.id, oldValue: null, newValue: toUserAuditValue(user), approvalStatus: null, context: context ?? { userId: actorId } });
-    return user;
 }
 
 export async function updateUser(
@@ -130,15 +127,14 @@ export async function updateUser(
     context?: AuditContext,
 ): Promise<UserWithRoles> {
     // Profile changes to privileged administrator accounts are Super Admin only.
-    const previous = await getUserById(id);
     await assertPrivilegedTargetRequiresSuperAdmin(id, actorRoles);
-    await userRepository.updateUser(id, {
-        full_name: input.full_name,
-        email: input.email,
+    return prisma.$transaction(async (tx) => {
+        const previous = await getUserById(id, tx);
+        await userRepository.updateUser(id, { full_name: input.full_name, email: input.email }, tx);
+        const updated = await getUserById(id, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return updated;
     });
-    const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } });
-    return updated;
 }
 
 export async function updateUserStatus(
@@ -153,10 +149,13 @@ export async function updateUserStatus(
         const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
         if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
     }
-    await userRepository.updateStatusPreservingSuperAdmin(id, input.status);
-    const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } });
-    return updated;
+    return prisma.$transaction(async (tx) => {
+        const previous = await getUserById(id, tx);
+        await userRepository.updateStatusPreservingSuperAdmin(id, input.status, tx);
+        const updated = await getUserById(id, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return updated;
+    });
 }
 
 export async function updateUserRoles(
@@ -176,10 +175,13 @@ export async function updateUserRoles(
         if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot lose the Super Admin role");
     }
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
-    await userRepository.replaceUserRoles(id, input.role_ids);
-    const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } });
-    return updated;
+    return prisma.$transaction(async (tx) => {
+        const previous = await getUserById(id, tx);
+        await userRepository.replaceUserRoles(id, input.role_ids, tx);
+        const updated = await getUserById(id, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return updated;
+    });
 }
 
 /**
@@ -193,10 +195,13 @@ export async function deactivateUser(id: number, actorId: string, actorRoles: st
         const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
         if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
     }
-    await userRepository.updateStatusPreservingSuperAdmin(id, "INACTIVE");
-    const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } });
-    return updated;
+    return prisma.$transaction(async (tx) => {
+        const previous = await getUserById(id, tx);
+        await userRepository.updateStatusPreservingSuperAdmin(id, "INACTIVE", tx);
+        const updated = await getUserById(id, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return updated;
+    });
 }
 
 
@@ -299,18 +304,20 @@ export async function replaceUserScopes(
         throw new ApiError({ statusCode: 422, code: "INVALID_SCOPE_TYPE", message: "Unsupported organisation scope type" });
     }
 
-    const previousScopes = await userRepository.listUserScopes(id);
-    await userRepository.replaceUserScopes(id, input.scopes);
-    const updatedScopes = await userRepository.listUserScopes(id);
-    await auditService.recordAuditEntry({
-        userId: actorId,
-        action: "UPDATE",
-        entity: "USER",
-        entityId: id,
-        oldValue: { scopes: previousScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
-        newValue: { scopes: updatedScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
-        approvalStatus: null,
-        context: context ?? { userId: actorId },
+    return prisma.$transaction(async (tx) => {
+        const previousScopes = await userRepository.listUserScopes(id, tx);
+        await userRepository.replaceUserScopes(id, input.scopes, tx);
+        const updatedScopes = await userRepository.listUserScopes(id, tx);
+        await auditService.recordAuditEntry({
+            userId: actorId,
+            action: "UPDATE",
+            entity: "USER",
+            entityId: id,
+            oldValue: { scopes: previousScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
+            newValue: { scopes: updatedScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
+            approvalStatus: null,
+            context: context ?? { userId: actorId },
+        }, tx);
+        return updatedScopes;
     });
-    return updatedScopes;
 }
