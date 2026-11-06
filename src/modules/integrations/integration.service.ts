@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { ApiError } from "../../utils/response";
 import { integrationAdapterRegistry } from "./integration.adapters";
 import { selectCommittedCheckpoint } from "./integration.checkpoint";
+import { selectCommittedCheckpoint } from "./integration.checkpoint";
 import { integrationIngestSchema } from "./integration.schema";
 import * as repo from "./integration.repository";
 import type { IntegrationSourceInput } from "./integration.schema";
