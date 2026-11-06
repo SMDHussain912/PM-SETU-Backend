@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { assertDedicatedTestDatabaseUrl } from "../helpers/test-database";
 import { Pool } from "pg";
 import { prisma, disconnectPrisma } from "../../src/config/database";
 import * as documentService from "../../src/modules/documents/document.service";
@@ -20,6 +21,7 @@ async function createDocument(title: string): Promise<number> {
 
 test.before(async () => {
     if (!databaseUrl) return;
+    assertDedicatedTestDatabaseUrl(databaseUrl);
     await prisma.$connect();
     rollbackDocumentId = await createDocument("CI document before failed audit");
     successDocumentId = await createDocument("CI document before successful audit");
