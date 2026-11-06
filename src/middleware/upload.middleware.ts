@@ -21,6 +21,21 @@ export const DOCUMENT_MIME_TYPES = [
     ...IMAGE_MIME_TYPES,
 ];
 
+/**
+ * Global multipart bounds shared by every uploader. Per-route .single() /
+ * .array() limits remain stricter where configured; these limits also bound
+ * text fields and total multipart parts to prevent unbounded parser work.
+ */
+export const DEFAULT_MULTIPART_LIMITS = Object.freeze({
+    fileSize: maxFileSizeBytes,
+    files: 2,
+    fields: 10,
+    parts: 12,
+    fieldSize: 64 * 1024,
+    fieldNameSize: 100,
+    headerPairs: 2000,
+});
+
 export interface UploaderOptions {
     /** Sub-directory under the uploads root, e.g. "gallery", "documents". */
     folder?: string;
@@ -60,6 +75,7 @@ export function createUploader(options: UploaderOptions = {}) {
             },
         }),
         limits: {
+            ...DEFAULT_MULTIPART_LIMITS,
             fileSize:
                 maxFileSizeMb !== undefined
                     ? maxFileSizeMb * 1024 * 1024
