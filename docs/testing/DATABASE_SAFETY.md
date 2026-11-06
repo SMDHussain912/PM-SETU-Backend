@@ -4,6 +4,13 @@ The test command sets `NODE_ENV=test`. In that environment the application datab
 configuration reads **only** `TEST_DATABASE_URL`; it never falls back to
 `DATABASE_URL`.
 
+Database-independent unit tests can run without PostgreSQL. The Prisma module uses
+an intentionally unreachable loopback test URL only to allow repository modules to
+be imported and mocked; it cannot reach a development or production database.
+Database integration tests are skipped unless `TEST_DATABASE_URL` is configured.
+The opt-in PostgreSQL concurrency tests use the separate
+`PM_SETU_TEST_DATABASE_URL` variable and remain skipped unless explicitly enabled.
+
 Configure a dedicated PostgreSQL database, for example:
 
 ```dotenv
@@ -18,14 +25,16 @@ The dashboard registry integration test additionally refuses to run unless:
 
 The integration test inserts fixture rows and deletes those exact rows during cleanup.
 Do not use a shared development, staging, or production database for this purpose.
-Create and migrate the test database separately before running `npm test`.
+Create and migrate the test database separately before running `npm test`. The
+database-backed integration tests run only when `TEST_DATABASE_URL` is present;
+without it, they are reported as skipped rather than failed or silently redirected.
 
 Example setup (adjust credentials and host for your environment):
 
 ```bash
 createdb pm_setu_test
 TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public" npx prisma migrate deploy
-npm test
+TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public" npm test
 ```
 
 A passing unit test suite does not prove the PostgreSQL integration tests ran if the
