@@ -341,3 +341,10 @@ The pull-transport predicate is centralized in `integration.types.ts` as `isInte
 Manual integration run-history persistence now locks and verifies the source row inside the same PostgreSQL transaction that inserts the run. This closes the race where the service could read an enabled source, the source could then be disabled, and a subsequent run-history insert could still succeed.
 
 The service maps the transaction-level disabled-source rejection to HTTP 409 `INTEGRATION_DISABLED`. Regression coverage in `tests/integration-manual-run-disable.test.ts` verifies both the disable-race mapping and normalized run counters on a successful write. The repository lock uses the same row-lock serialization boundary as manual ingestion; live PostgreSQL race verification remains opt-in and must be run against the dedicated test database.
+
+
+## 2.1 Service-level schedule guard regression coverage
+
+Added an injectable repository seam to `setSchedule()` (production still defaults to the existing repository module) and `tests/integration-schedule-service.test.ts`. The tests verify that CSV_UPLOAD and WEBHOOK schedules are rejected before persistence, REST intervals and SFTP unscheduling are allowed, and missing sources return 404 without an update attempt. This complements schema validation with direct service-layer protection, so callers cannot bypass the transport rule by avoiding the HTTP route.
+
+Commits: `22f8755` (service seam), `62274dd` (regression tests). Local typecheck, full test suite and build verification are pending.
