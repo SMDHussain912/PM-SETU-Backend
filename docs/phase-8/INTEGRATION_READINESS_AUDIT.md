@@ -217,3 +217,12 @@ Added opt-in test `tests/integration-scheduler-row-lock-postgres.test.ts` using 
 The test first claims a source and expires its lease, then holds a PostgreSQL row lock on that already-expired source in one transaction. A competing scheduler claim must skip the locked row rather than reclaim it. After the lock transaction commits, the competing scheduler can claim the source with a new token.
 
 This exercises the actual `FOR UPDATE SKIP LOCKED` contention boundary used by the scheduler. It complements the output-fencing test, which verifies stale writes after a lease has already been reclaimed. The test is opt-in through `PM_SETU_TEST_DATABASE_URL`, validates the dedicated test database name, and cleans up only its fixture source. Confirm that it ran rather than skipped in local test output.
+
+
+## 18. PostgreSQL-clock lease renewal
+
+Lease renewal now uses PostgreSQL `NOW()` for both the still-valid lease predicate and the 15-minute expiry extension. This keeps claim selection, renewal, and transaction write-fencing on the same database clock; application-server clock drift no longer changes the renewal predicate or computed expiry.
+
+The existing opt-in PostgreSQL lease-renewal test now also reads the remaining lease duration from a second client and verifies that the renewed expiry is approximately 15 minutes from database time. The test continues to cover wrong-token rejection, expired-lease rejection, reclaim, stale-release fencing and current-owner release.
+
+Verification requires the dedicated `PM_SETU_TEST_DATABASE_URL`; confirm the test ran rather than skipped.
