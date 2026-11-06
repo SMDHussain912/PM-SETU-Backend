@@ -8,8 +8,8 @@ Database-independent unit tests can run without PostgreSQL. The Prisma module us
 an intentionally unreachable loopback test URL only to allow repository modules to
 be imported and mocked; it cannot reach a development or production database.
 Database integration tests are skipped unless `TEST_DATABASE_URL` is configured.
-The opt-in PostgreSQL concurrency tests use the separate
-`PM_SETU_TEST_DATABASE_URL` variable and remain skipped unless explicitly enabled.
+The PostgreSQL concurrency tests use `PM_SETU_TEST_DATABASE_URL`. Point it at the same
+isolated migrated test database when you want the full suite, including concurrency coverage.
 
 Configure a dedicated PostgreSQL database, for example:
 
@@ -26,7 +26,7 @@ All destructive PostgreSQL integration tests refuse to run unless:
 Integration tests insert fixture rows and delete those exact rows during cleanup. Setup and cleanup hooks are guarded so tests do not open a connection when the dedicated URL is absent.
 Do not use a shared development, staging, or production database for this purpose.
 Create and migrate the test database separately before running `npm test`. The
-database-backed integration tests run only when `TEST_DATABASE_URL` is present;
+database-backed integration tests run only when `TEST_DATABASE_URL` is present, and concurrency tests additionally require `PM_SETU_TEST_DATABASE_URL`;
 without it, they are reported as skipped rather than failed or silently redirected.
 
 Example setup (adjust credentials and host for your environment):
@@ -34,7 +34,8 @@ Example setup (adjust credentials and host for your environment):
 ```bash
 createdb pm_setu_test
 NODE_ENV=test TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public" npx prisma migrate deploy
-TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public" npm test
+TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public" \\
+PM_SETU_TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public" npm test
 ```
 
 A passing unit test suite does not prove the PostgreSQL integration tests ran if the
