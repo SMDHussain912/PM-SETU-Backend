@@ -54,7 +54,7 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 | 6 | Finance | <strong>Engineering implementation complete; operational acceptance pending</strong> |
 | 7 | State PMU dashboard & analytics | <strong>In progress — reporting contract, capacity aggregation, physical source-readiness audit</strong> |
 | 8 | Integrations & public portal | <strong>Foundation implemented; provider contracts and integrations pending</strong> |
-| 9 | Security, testing & production readiness | <strong>Not started</strong> |
+| 9 | Security, testing & production readiness | <strong>In progress — CI dependency gate and upload-signature hardening</strong> |
 
 **Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 has started with a source inventory and reporting-contract baseline; metric implementation remains dependent on approved sources and definitions. Phase 8 has an existing generic ingestion/scheduler foundation, but provider-specific integrations remain blocked on approved contracts. Phase 9 remains.
 
@@ -283,7 +283,16 @@ Dependencies:
 - Do not connect directly to external production databases where the agreed architecture requires an integration/ETL boundary.
 
 ### Phase 9 — Security, testing & production readiness
-**Status: NOT STARTED**
+**Status: IN PROGRESS — CI dependency gate and upload-signature hardening**
+
+Completed first security increment on 2026-11-06:
+- Added `npm audit --audit-level=high` to the GitHub Actions pipeline.
+- The initial scan identified 11 advisories (1 critical, 7 high, 3 moderate). A semver-compatible npm lockfile remediation updated 19 packages and removed 9; the follow-up npm audit reported zero vulnerabilities.
+- Image uploads for banners and gallery now verify the extension/MIME declaration against JPEG, PNG, WebP or GIF file signatures. Rejected multi-image batches are cleaned up; banner image upload is limited to its two supported desktop/mobile slots.
+- Added regression tests for valid signatures, spoofed/mismatched files, empty files, filename sanitisation and rejected-batch cleanup.
+- GitHub Actions passed on commit `060a5b83b36f4929dac6f375a9b0950b2d4cf00e`: dependency audit, Prisma client generation, isolated PostgreSQL migrations, TypeScript typecheck, all 321 tests, and production build.
+
+This is an initial engineering security increment, not a completed security audit or production security certification. Image signature checks are not malware scanning or full format decoding.
 
 Purpose:
 - Complete security and access-control review across all modules.
@@ -317,7 +326,8 @@ Completion evidence should include:
 ## 5. Milestone log
 
 | Date | Phase | Milestone | Evidence / note |
-|---|---|---|
+|---|---|---||
+| 2026-11-06 | 9 | Added dependency vulnerability gate and verified image-upload signatures | Initial scan found 11 advisories; semver-compatible lockfile remediation reduced npm audit to zero. Image validation tests added. GitHub Actions commit `060a5b83b36f4929dac6f375a9b0950b2d4cf00e` passed audit, migrations, typecheck, 321 tests and build. Full Phase 9 review remains open. |
 | 2026-11-06 | 8 | Added testable graceful scheduler shutdown coordination and regression coverage | Lifecycle controller coalesces overlapping ticks, blocks new work after stop, and waits for active work; server awaits it before Prisma disconnect. Local verification pending. |
 | 2026-11-06 | 8 | Audited existing integration foundation and documented provider readiness gates | Commit `64ec4adabaecee83f522be34c7d4d25b2fdbab90`; no provider endpoints, credentials, mappings or approvals invented. |---|
 | 2026-11-06 | 7 | Added versioned dashboard reporting contract endpoint and metric catalogue | Commits `c61f988b`, `a598ffa1`, `44a48863`, `b655ba77`, `eab15c61`, `5e018100`, `efa9e90d`, `f32f1ed1`, `54c514b8`, `2fa5e5f4`, and `3383c525`. Contract/OpenAPI tests added; local verification pending. |
