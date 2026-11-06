@@ -553,3 +553,16 @@ This closes a distinct verification gap: the prior write-fencing test covered st
 **Verification required:** run typecheck, the full test suite and build with `PM_SETU_TEST_DATABASE_URL` configured, and confirm this PostgreSQL test ran rather than skipped.
 
 **Current active work:** continue Phase 8 reliability review after verification. Provider-specific adapters remain blocked until an approved source-owner contract is supplied.
+
+
+### Phase 8 continuation — PostgreSQL-clock lease renewal
+
+Updated `renewSourceClaim()` to evaluate lease validity and calculate the 15-minute extension with PostgreSQL `NOW()`, matching the database clock already used by claim selection and transaction-scoped write fencing. This removes application-server clock drift from lease renewal decisions.
+
+Extended `tests/integration-scheduler-lease-renewal-postgres.test.ts` to verify the renewed expiry against PostgreSQL time through the second independent client. Existing wrong-token, expired-lease, reclaim and release-fencing assertions remain.
+
+Commits: `b142057` (database-clock renewal), `87b2aee` (database-clock test), `5a03b8d` (readiness audit).
+
+**Verification required:** run typecheck, full tests and build with `PM_SETU_TEST_DATABASE_URL` configured; confirm the PostgreSQL lease-renewal test ran rather than skipped.
+
+**Current active work:** continue Phase 8 scheduler reliability review after verification. Provider-specific adapter work remains gated on an approved source-owner contract.
