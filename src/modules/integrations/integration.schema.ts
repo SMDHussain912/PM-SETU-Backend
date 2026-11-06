@@ -55,6 +55,16 @@ const integrationIngestRecordsSchema = z.array(z.object({
   }
   seen.add(record.source_record_id);
  });
+ let batchBytes = 0;
+ try {
+  batchBytes = new TextEncoder().encode(JSON.stringify(records)).byteLength;
+ } catch {
+  ctx.addIssue({code:"custom",message:"records must be serializable JSON"});
+  return;
+ }
+ if(batchBytes>1024*1024) {
+  ctx.addIssue({code:"custom",message:"an ingestion batch must not exceed 1 MB of serialized JSON"});
+ }
 });
 export const integrationIngestSchema=z.object({records:integrationIngestRecordsSchema}).strict();
 export type IntegrationSourceInput=z.infer<typeof integrationSourceSchema>;
