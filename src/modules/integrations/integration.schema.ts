@@ -1,9 +1,39 @@
 import { z } from "zod";
 import { INTEGRATION_SYSTEMS } from "./integration.types";
 const payload = z.record(z.string(), z.unknown()).superRefine((v,ctx)=>{
- const safe=(x:unknown,d=0):boolean=>d<=8&&(x===null||typeof x==="string"||typeof x==="boolean"||(typeof x==="number"&&Number.isFinite(x))||(Array.isArray(x)&&x.every(y=>safe(y,d+1)))||(typeof x==="object"&&Object.entries(x as Record<string,unknown>).every(([k,y])=>!/(password|token|secret|api_?key|authorization|student_?name|trainer_?name|phone|mobile|email|aadhaar|aadhar|^dob$)/i.test(k)&&safe(y,d+1))));
- if(!safe(v))ctx.addIssue({code:"custom",message:"payload must be bounded JSON and must not contain secrets or direct personal identifiers"});
- else if(new TextEncoder().encode(JSON.stringify(v)).byteLength>16*1024)ctx.addIssue({code:"custom",message:"payload must not exceed 16 KB"});
+ const encoder = new TextEncoder();
+ let visited = 0;
+ let estimatedBytes = 0;
+ const safe = (x:unknown,d=0):boolean => {
+  if(d>8 || ++visited>10_000) return false;
+  if(x===null || typeof x==="boolean") return true;
+  if(typeof x==="string") {
+   estimatedBytes += encoder.encode(x).byteLength;
+   return estimatedBytes<=16*1024;
+  }
+  if(typeof x==="number") return Number.isFinite(x);
+  if(Array.isArray(x)) return x.every(y=>safe(y,d+1));
+  if(typeof x==="object") {
+   return Object.entries(x as Record<string,unknown>).every(([k,y])=>{
+    estimatedBytes += encoder.encode(k).byteLength;
+    return estimatedBytes<=16*1024 &&
+     !/(password|token|secret|api_?key|authorization|student_?name|trainer_?name|phone|mobile|email|aadhaar|aadhar|^dob$)/i.test(k) &&
+     safe(y,d+1);
+   });
+  }
+  return false;
+ };
+ let serialized: string | undefined;
+ try {
+  if(safe(v)) serialized = JSON.stringify(v);
+ } catch {
+  serialized = undefined;
+ }
+ if(serialized===undefined) {
+  ctx.addIssue({code:"custom",message:"payload must be bounded JSON and must not contain secrets or direct personal identifiers"});
+ } else if(encoder.encode(serialized).byteLength>16*1024) {
+  ctx.addIssue({code:"custom",message:"payload must not exceed 16 KB"});
+ }
 });
 export const integrationSourceSchema = z.object({
  code:z.string().trim().min(2).max(60).regex(/^[A-Z][A-Z0-9_]*$/),
