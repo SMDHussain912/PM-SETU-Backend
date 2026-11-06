@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database";
 import type { IntegrationSourceInput } from "./integration.schema";
+import type { Prisma } from "../../generated/prisma/client";
 export function list(filters: { enabled?: boolean; system?: string }) {
   return prisma.integrationSource.findMany({ where: { ...(filters.enabled === undefined ? {} : { enabled: filters.enabled }), ...(filters.system ? { system: filters.system } : {}) }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, createdAt: true, updatedAt: true } });
 }
@@ -35,7 +36,7 @@ type ScheduledRunInput = { status: string; recordsRead: number; recordsCreated: 
  * that commits scheduler output. A reclaiming worker must wait for this lock,
  * and a stale token cannot write after ownership changes.
  */
-async function lockValidSourceClaim(tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0], sourceId: number, claimToken: string): Promise<void> {
+async function lockValidSourceClaim(tx: Prisma.TransactionClient, sourceId: number, claimToken: string): Promise<void> {
   const owned = await tx.$queryRaw<Array<{ id: number }>>`
     SELECT "id"
     FROM "integration_sources"
