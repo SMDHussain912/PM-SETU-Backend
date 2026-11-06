@@ -145,7 +145,7 @@ export async function updateUserStatus(
     context?: AuditContext,
 ): Promise<UserWithRoles> {
     return prisma.$transaction(async (tx) => {
-        const target = await assertTargetManageable(id, actorId, actorRoles, tx);
+        await assertTargetManageable(id, actorId, actorRoles, tx);
         const previous = await getUserById(id, tx);
         await userRepository.updateStatusPreservingSuperAdmin(id, input.status, tx);
         const updated = await getUserById(id, tx);
