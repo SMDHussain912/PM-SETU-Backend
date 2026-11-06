@@ -1,4 +1,5 @@
 import { ApiError } from "../../utils/response";
+import { prisma } from "../../config/database";
 import * as roleRepository from "./role.repository";
 import type { Permission, Role, RoleWithPermissions } from "./role.types";
 import type { CreateRoleInput, UpdateRoleInput } from "./role.schema";
@@ -20,7 +21,8 @@ export async function listRoles(): Promise<Role[]> {
 }
 
 export async function getRoleById(id: number): Promise<RoleWithPermissions> {
-    const role = await roleRepository.getRoleById(id);
+    return prisma.$transaction(async (tx) => {
+    const role = await roleRepository.getRoleById(id, tx);
     if (!role) {
         throw new ApiError({
             statusCode: 404,
@@ -32,13 +34,14 @@ export async function getRoleById(id: number): Promise<RoleWithPermissions> {
 }
 
 export async function createRole(input: CreateRoleInput, actorId: string, context?: AuditContext): Promise<RoleWithPermissions> {
+    return prisma.$transaction(async (tx) => {
     const roleId = await roleRepository.createRole({
         code: input.code,
         name: input.name,
         description: input.description ?? null,
         permission_ids: input.permission_ids,
-    });
-    const role = await roleRepository.getRoleById(roleId);
+    }, tx);
+    const role = await roleRepository.getRoleById(roleId, tx);
     if (!role) {
         throw new ApiError({
             statusCode: 500,
@@ -46,8 +49,9 @@ export async function createRole(input: CreateRoleInput, actorId: string, contex
             message: "Created role could not be read back",
         });
     }
-    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "ROLE", entityId: role.id, oldValue: null, newValue: toRoleAuditValue(role), approvalStatus: null, context: context ?? { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "ROLE", entityId: role.id, oldValue: null, newValue: toRoleAuditValue(role), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
     return role;
+    });
 }
 
 export async function updateRole(
@@ -56,7 +60,8 @@ export async function updateRole(
     actorId: string,
     context?: AuditContext,
 ): Promise<RoleWithPermissions> {
-    const existing = await roleRepository.getRoleById(id);
+    return prisma.$transaction(async (tx) => {
+    const existing = await roleRepository.getRoleById(id, tx);
     if (!existing) {
         throw new ApiError({
             statusCode: 404,
@@ -68,8 +73,8 @@ export async function updateRole(
         name: input.name,
         description: input.description,
         permission_ids: input.permission_ids,
-    });
-    const role = await roleRepository.getRoleById(id);
+    }, tx);
+    const role = await roleRepository.getRoleById(id, tx);
     if (!role) {
         // Unreachable after the existence check above; guards against a
         // concurrent delete producing a null read-back.
@@ -79,8 +84,9 @@ export async function updateRole(
             message: "Role not found",
         });
     }
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(existing), newValue: toRoleAuditValue(role), approvalStatus: null, context: context ?? { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(existing), newValue: toRoleAuditValue(role), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
     return role;
+    });
 }
 
 export async function deleteRole(id: number, actorId: string, context?: AuditContext): Promise<RoleWithPermissions> {
@@ -99,9 +105,10 @@ export async function deleteRole(id: number, actorId: string, context?: AuditCon
             message: "System roles cannot be deleted",
         });
     }
-    await roleRepository.deleteRole(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(role), newValue: null, approvalStatus: null, context: context ?? { userId: actorId } });
+    await roleRepository.deleteRole(id, tx);
+    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(role), newValue: null, approvalStatus: null, context: context ?? { userId: actorId } }, tx);
     return role;
+    });
 }
 
 export async function listPermissions(): Promise<Permission[]> {
