@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { env } from "../../config/env";
 import { hasStrongJwtAccessSecret } from "../../config/auth-security";
 import { ApiError } from "../../utils/response";
-import { hashPassword, verifyPassword } from "../../utils/password";
+import { hashPassword, needsPasswordRehash, verifyPassword } from "../../utils/password";
 import * as authRepository from "./auth.repository";
 import type { ChangePasswordInput, LoginInput } from "./auth.schema";
 import type { AuthUserProfile, LoginResponse, LoginUserRow, RoleAssignment } from "./auth.types";
@@ -127,6 +127,13 @@ export async function login(input: LoginInput): Promise<LoginResponse> {
             new Date(Date.now() + env.accountLock.lockMinutes * 60_000),
         );
         throw invalidCredentials();
+    }
+
+    // Seamlessly upgrade legacy bcrypt hashes when the submitted password
+    // fits bcrypt's historical 72-byte input limit. Longer legacy passwords
+    // remain verifiable and can be upgraded through the change-password flow.
+    if (needsPasswordRehash(user.password_hash) && Buffer.byteLength(input.password, "utf8") <= 72) {
+        await authRepository.updatePasswordHash(user.id, await hashPassword(input.password));
     }
 
     await authRepository.resetFailedLogins(user.id);
