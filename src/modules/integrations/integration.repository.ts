@@ -4,8 +4,8 @@ import type { Prisma } from "../../generated/prisma/client";
 export function list(filters: { enabled?: boolean; system?: string }) {
   return prisma.integrationSource.findMany({ where: { ...(filters.enabled === undefined ? {} : { enabled: filters.enabled }), ...(filters.system ? { system: filters.system } : {}) }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, createdAt: true, updatedAt: true } });
 }
-export function create(input: IntegrationSourceInput) {
-  return prisma.$transaction(async (tx) => {
+export function create(input: IntegrationSourceInput, client: typeof prisma = prisma) {
+  return client.$transaction(async (tx) => {
     const source = await tx.integrationSource.create({
       data: {
         code: input.code,
