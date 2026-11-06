@@ -85,6 +85,10 @@ test("PostgreSQL scheduler leases prevent concurrent claims and recover expired 
       integrationRepository.createScheduledRun(source.id, staleToken, runInput),
       /SCHEDULER_LEASE_LOST/,
     );
+    await assert.rejects(
+      integrationRepository.ingestBatch(source.id, [], { claimToken: staleToken }),
+      /SCHEDULER_LEASE_LOST/,
+    );
     const committed = await integrationRepository.createScheduledRun(
       source.id,
       recovered[0].claim_token,
