@@ -22,13 +22,12 @@ async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueS
   heartbeat.unref();
 
   try {
-    await runScheduledSource(source);
+    await runScheduledSource(source, source.claimToken);
   } catch {
     logger.error("Scheduled integration sync failed", { sourceCode: source.code });
     try {
       const committed = await repo.listCommittedRuns(source.id, 1);
-      await repo.createRun({
-        sourceId: source.id,
+      await repo.createScheduledRun(source.id, source.claimToken, {
         status: "FAILED",
         recordsRead: 0,
         recordsCreated: 0,
