@@ -14,7 +14,7 @@ test("accepts and preserves opaque bounded continuation cursors", () => {
 });
 
 test("rejects missing, null, empty, and whitespace continuation cursors", () => {
-  for (const nextCursor of [undefined, null, "", "   ", "\\t\\n"]) {
+  for (const nextCursor of [undefined, null, "", "   ", "\t\n"]) {
     assert.equal(integrationAdapterPageSchema.safeParse({ records: [], hasMore: true, nextCursor }).success, false);
   }
 });
