@@ -27,6 +27,41 @@ function source() {
   } as unknown as NonNullable<Awaited<ReturnType<typeof repositoryModule.get>>>;
 }
 
+test("missing adapter persists failure through the injected repository", async () => {
+  const missingSource = {
+    ...source(),
+    code: "SCHEDULED_ADAPTER_MISSING_TEST",
+  };
+  let savedRun: Parameters<typeof repositoryModule.createScheduledRun>[2] | undefined;
+  let runWrites = 0;
+  const repository = {
+    async listCommittedRuns() {
+      throw new Error("missing adapter must not read a checkpoint");
+    },
+    async createScheduledRun(
+      sourceId: number,
+      token: string,
+      input: Parameters<typeof repositoryModule.createScheduledRun>[2],
+    ) {
+      assert.equal(sourceId, missingSource.id);
+      assert.equal(token, claimToken);
+      savedRun = input;
+      runWrites += 1;
+      return { id: 1 };
+    },
+    async ingestBatch() {
+      throw new Error("missing adapter must not ingest");
+    },
+  } as unknown as Parameters<typeof runScheduledSource>[2];
+
+  await runScheduledSource(missingSource, claimToken, repository);
+
+  assert.equal(runWrites, 1);
+  assert.equal(savedRun?.status, "FAILED");
+  assert.equal(savedRun?.errorCode, "ADAPTER_NOT_CONFIGURED");
+  assert.equal(savedRun?.cursor, null);
+});
+
 test("scheduled retry exhaustion persists a sanitized failure and preserves the committed checkpoint", async () => {
   const contexts: IntegrationAdapterContext[] = [];
   const checkpoint = {
