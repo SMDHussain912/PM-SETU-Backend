@@ -10,6 +10,7 @@ import {
     getClusterSummaries,
 } from "../../src/modules/dashboard/dashboard.repository";
 
+const databaseTest = env.databaseUrl ? test : test.skip;
 const pool = new Pool({ connectionString: env.databaseUrl });
 let setupComplete = false;
 
@@ -115,7 +116,7 @@ test.after(async () => {
     }
 });
 
-test("REG-01 to REG-05 cluster aggregation excludes sample rows and does not invent an active filter", async () => {
+databaseTest("REG-01 to REG-05 cluster aggregation excludes sample rows and does not invent an active filter", async () => {
     const summaries = await getClusterSummaries();
     const summary = summaries.find((item) => item.id === clusterId);
 
@@ -130,7 +131,7 @@ test("REG-01 to REG-05 cluster aggregation excludes sample rows and does not inv
     assert.equal(sampleCluster, null);
 });
 
-test("cluster drill-down excludes sample ITI and AIP records", async () => {
+databaseTest("cluster drill-down excludes sample ITI and AIP records", async () => {
     const itis = await getClusterItis(clusterId);
     const aips = await getClusterAips(clusterId);
 
