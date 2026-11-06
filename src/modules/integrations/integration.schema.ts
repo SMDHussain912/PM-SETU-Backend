@@ -34,11 +34,24 @@ export const integrationAdapterPageSchema = z.object({
   ctx.addIssue({code:"custom",path:["nextCursor"],message:"a non-empty continuation cursor is required when hasMore is true"});
  }
 });
-export const integrationIngestSchema=z.object({records:z.array(z.object({
+const integrationIngestRecordsSchema = z.array(z.object({
  source_record_id:z.string().trim().min(1).max(200),
  source_version:z.string().trim().max(100).nullable().optional(),
  occurred_at:z.string().datetime({offset:true}).nullable().optional(),
  payload,
-}).strict()).min(1).max(500)}).strict();
+}).strict()).min(1).max(500).superRefine((records,ctx)=>{
+ const seen = new Set<string>();
+ records.forEach((record,index)=>{
+  if(seen.has(record.source_record_id)){
+   ctx.addIssue({
+    code:"custom",
+    path:[index,"source_record_id"],
+    message:"source_record_id must be unique within an ingestion batch",
+   });
+  }
+  seen.add(record.source_record_id);
+ });
+});
+export const integrationIngestSchema=z.object({records:integrationIngestRecordsSchema}).strict();
 export type IntegrationSourceInput=z.infer<typeof integrationSourceSchema>;
 export type IntegrationIngestInput=z.infer<typeof integrationIngestSchema>;
