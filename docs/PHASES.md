@@ -56,7 +56,7 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 | 8 | Integrations & public portal | <strong>Foundation implemented; provider contracts and integrations pending</strong> |
 | 9 | Security, testing & production readiness | <strong>In progress — CI dependency gate and upload-signature hardening</strong> |
 
-**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 has started with a source inventory and reporting-contract baseline; metric implementation remains dependent on approved sources and definitions. Phase 8 has an existing generic ingestion/scheduler foundation, but provider-specific integrations remain blocked on approved contracts. Phase 9 remains.
+**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 has started with a source inventory and reporting-contract baseline; metric implementation remains dependent on approved sources and definitions. Phase 8 has an existing generic ingestion/scheduler foundation, but provider-specific integrations remain blocked on approved contracts. Phase 9 has started with dependency auditing and upload-content validation; the broader security review remains open.
 
 A phase marked implementation-complete is not automatically government-approved, production-accepted, or operationally verified.
 
@@ -326,10 +326,10 @@ Completion evidence should include:
 ## 5. Milestone log
 
 | Date | Phase | Milestone | Evidence / note |
-|---|---|---||
+|---|---|---|---|
 | 2026-11-06 | 9 | Added dependency vulnerability gate and verified image-upload signatures | Initial scan found 11 advisories; semver-compatible lockfile remediation reduced npm audit to zero. Image validation tests added. GitHub Actions commit `060a5b83b36f4929dac6f375a9b0950b2d4cf00e` passed audit, migrations, typecheck, 321 tests and build. Full Phase 9 review remains open. |
 | 2026-11-06 | 8 | Added testable graceful scheduler shutdown coordination and regression coverage | Lifecycle controller coalesces overlapping ticks, blocks new work after stop, and waits for active work; server awaits it before Prisma disconnect. Local verification pending. |
-| 2026-11-06 | 8 | Audited existing integration foundation and documented provider readiness gates | Commit `64ec4adabaecee83f522be34c7d4d25b2fdbab90`; no provider endpoints, credentials, mappings or approvals invented. |---|
+| 2026-11-06 | 8 | Audited existing integration foundation and documented provider readiness gates | Commit `64ec4adabaecee83f522be34c7d4d25b2fdbab90`; no provider endpoints, credentials, mappings or approvals invented. |
 | 2026-11-06 | 7 | Added versioned dashboard reporting contract endpoint and metric catalogue | Commits `c61f988b`, `a598ffa1`, `44a48863`, `b655ba77`, `eab15c61`, `5e018100`, `efa9e90d`, `f32f1ed1`, `54c514b8`, `2fa5e5f4`, and `3383c525`. Contract/OpenAPI tests added; local verification pending. |
 | 2026-11-06 | 7 | Started dashboard source inventory and reporting-contract baseline | Commit `e8d059f6`; records existing endpoint sources and data gaps without inventing KPI formulas or claiming production completeness. |
 | 2026-11-06 | 6 | Bound finance import idempotency keys to the complete immutable request, not only file hash and record kind | Commits `386e1a12`, `16bc2690`, and `02597409`. Identical retries return the canonical batch; altered metadata or row diagnostics now conflict. User verification required. |
