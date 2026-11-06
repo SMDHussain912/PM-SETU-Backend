@@ -166,3 +166,11 @@ Added service-level tests in `tests/integration-scheduled-source-service.test.ts
 
 The repository dependency is optional and defaults to the production repository module; the test seam does not change runtime behaviour. These tests validate service orchestration and repository calls, not PostgreSQL transaction or lease fencing (covered separately by opt-in PostgreSQL tests).
 
+
+
+## 14. Serialized scheduler heartbeat and release ordering
+
+Extracted lease heartbeat coordination into `integration.scheduler.heartbeat.ts`. A source execution now coalesces overlapping renewal attempts, records lease loss when renewal returns false or throws, and waits for an in-flight renewal to settle before releasing its claim token. Stopping the heartbeat prevents any subsequent renewal attempt. The scheduler still uses the existing 60-second heartbeat interval and repository token/expiry predicates.
+
+Focused tests in `tests/integration-scheduler-heartbeat.test.ts` cover renewal coalescing, stop waiting for an active renewal, lost-lease handling, renewal errors, and no renewal after stop. These are deterministic lifecycle tests; real PostgreSQL ownership/fencing remains covered by the separate opt-in lease test.
+
