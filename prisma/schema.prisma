@@ -646,6 +646,7 @@ model IntegrationSource {
 /// Append-only operational history for connector executions.
 model IntegrationSyncRun {
   id             Int      @id @default(autoincrement())
+  runOrigin      String   @default("MANUAL") @map("run_origin") @db.VarChar(20)
   sourceId       Int      @map("source_id")
   status         String   @db.VarChar(20)
   recordsRead    Int      @default(0) @map("records_read")
