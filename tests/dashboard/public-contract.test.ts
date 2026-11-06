@@ -103,3 +103,13 @@ test("new training reporting endpoints remain public and read-only", () => {
     assert.ok(itiOperation?.responses?.["404"]);
     assert.ok(itiOperation?.responses?.["422"]);
 });
+
+test("dashboard contract OpenAPI schema advertises the current additive version", () => {
+    const schemas = openApiSpec.components.schemas as unknown as Record<string, {
+        properties?: Record<string, { example?: string }>;
+    }>;
+    assert.equal(
+        schemas.DashboardContractResponse?.properties?.contract_version?.example,
+        "1.1.0",
+    );
+});

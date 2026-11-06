@@ -701,7 +701,7 @@ export const openApiSpec = {
                 type: "object",
                 required: ["contract_version", "generated_at", "reporting_context", "metrics"],
                 properties: {
-                    contract_version: { type: "string", example: "1.0.0" },
+                    contract_version: { type: "string", example: "1.1.0" },
                     generated_at: { type: "string", format: "date-time" },
                     reporting_context: {
                         type: "object",
