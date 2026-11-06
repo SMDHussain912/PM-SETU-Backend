@@ -24,16 +24,18 @@ jobs:
         env:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
-          POSTGRES_DB: pm_setu_ci
+          POSTGRES_DB: pm_setu_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ci -d pm_setu_ci"
+          --health-cmd "pg_isready -U ci -d pm_setu_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/pm_setu_ci?schema=public
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/pm_setu_test?schema=public
+      TEST_DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/pm_setu_test?schema=public
+      PM_SETU_TEST_DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/pm_setu_test?schema=public
       NODE_ENV: test
       PORT: 3000
     steps:
