@@ -748,3 +748,12 @@ Commits: `2f35b90` (helper), `ffc383f` (application wiring), `b1dd35c` (tests).
 Commits: `bf1ab33` (helper), `3efc716` (service wiring), `b69114f` (tests).
 
 **Next:** continue generic integration boundary hardening; provider-specific work remains gated on an approved source-owner contract.
+
+
+### Phase 8 continuation — authenticate webhook bytes before payload validation
+
+Changed the webhook request flow so the service verifies the SHA-256 HMAC over the retained raw request bytes before running the ingestion Zod schema against the parsed JSON payload. The controller now passes the parsed body as untrusted input; payload validation and the existing 422 response happen only after signature verification succeeds. Invalid or missing signatures are rejected with 401 before payload-schema work. The Express JSON parser's existing 1 MB request limit and exact raw-body capture remain unchanged. This does not change the webhook header format or introduce provider-specific replay semantics.
+
+Commits: `491f850` (service verification/validation order), `c1d0d4f` (controller passes untrusted payload).
+
+**Verification required:** run typecheck, full tests and build. Include the existing webhook raw-body and signature tests. Provider-specific replay/timestamp rules remain blocked on an approved source-owner contract.
