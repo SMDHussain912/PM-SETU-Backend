@@ -542,3 +542,14 @@ Added optional Prisma-client injection to `createScheduledRun()` and `ingestBatc
 **Verification required:** run typecheck, the full suite and build with `PM_SETU_TEST_DATABASE_URL` configured. Confirm the new PostgreSQL test ran rather than skipped.
 
 **Current active work:** continue Phase 8 reliability work from the next verified scheduler boundary. Provider-specific adapter implementation remains blocked until an approved source-owner contract is supplied.
+
+
+### Phase 8 continuation — PostgreSQL scheduler row-lock contention
+
+Added opt-in test `tests/integration-scheduler-row-lock-postgres.test.ts`. It claims and expires a source, holds that source row locked in one PostgreSQL transaction, verifies a second scheduler worker skips the locked expired source through `FOR UPDATE SKIP LOCKED`, then verifies the second worker can reclaim it after the lock is released. The test uses two independent Prisma clients, a unique fixture source, exact-ID cleanup, and the dedicated `PM_SETU_TEST_DATABASE_URL` guard.
+
+This closes a distinct verification gap: the prior write-fencing test covered stale writes after lease reclamation; this test covers claim selection while a source row is concurrently locked by an active transaction.
+
+**Verification required:** run typecheck, the full test suite and build with `PM_SETU_TEST_DATABASE_URL` configured, and confirm this PostgreSQL test ran rather than skipped.
+
+**Current active work:** continue Phase 8 reliability review after verification. Provider-specific adapters remain blocked until an approved source-owner contract is supplied.
