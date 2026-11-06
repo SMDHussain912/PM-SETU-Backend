@@ -2606,7 +2606,7 @@ export const openApiSpec = {
                 summary: "Single cluster dashboard",
                 description: "Dashboard for a single cluster (RoadMap.md §16).",
                 security: [],
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 }, description: "Cluster id" }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1, maximum: 9007199254740991 }, description: "Positive safe integer cluster id" }],
                 responses: {
                     "200": { description: "Cluster dashboard", content: { "application/json": { schema: { type: "object", properties: {
                         success: { type: "boolean", example: true },
@@ -2657,7 +2657,7 @@ export const openApiSpec = {
                 summary: "ITI-level training capacity reporting",
                 description: "Returns the source-backed student_strength capacity for one non-sample ITI. A null capacity is NOT_AVAILABLE, not zero. Reporting period and data freshness remain untracked.",
                 security: [],
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1 }, description: "ITI id" }],
+                parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer", minimum: 1, maximum: 9007199254740991 }, description: "Positive safe integer ITI id" }],
                 responses: {
                     "200": { description: "ITI capacity reporting context and value", content: { "application/json": { schema: { type: "object" } } } },
                     "404": { description: "ITI not found" },
