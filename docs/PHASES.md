@@ -461,4 +461,4 @@ Added strict runtime validation for scheduled adapter page envelopes. The schedu
 
 Changed due-source claiming to select at most 10 rows in due-time/source-ID order using `FOR UPDATE SKIP LOCKED`, then update the claim tokens atomically. The scheduler processes each bounded batch concurrently rather than sequentially, preventing later claimed sources from waiting behind slow earlier syncs with leases aging unused. Sources beyond the batch remain due for a later tick. Existing lease renewal and fencing semantics are unchanged.
 
-**Current active work:** add focused PostgreSQL coverage for bounded multi-worker batch claiming and continue reviewing graceful scheduler shutdown/lease lifecycle. Provider-specific retry, pagination and version semantics remain contract-dependent.
+**Current active work:** add focused PostgreSQL coverage for bounded multi-worker batch claiming and verify graceful scheduler shutdown with the full test/typecheck/build suite. The scheduler now stops polling and waits for its active tick and claim releases before Prisma disconnect. Provider-specific retry, pagination and version semantics remain contract-dependent.
