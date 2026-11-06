@@ -55,15 +55,12 @@ aipAdminRouter.post(
 aipAdminRouter.patch(
     "/:id",
     requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
-    validate({ params: aipIdParamsSchema, body: updateAipSchema }),
-    preventClusterAdminReassignment,
-    requireResourceScope("AIP"),
+    requireResourceScope("AIP"), preventClusterAdminReassignment, validate({ params: aipIdParamsSchema, body: updateAipSchema }),
     aipController.updateAip,
 );
 aipAdminRouter.delete(
     "/:id",
     requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
-    validate({ params: aipIdParamsSchema }),
-    requireResourceScope("AIP"),
+    requireResourceScope("AIP"), validate({ params: aipIdParamsSchema }),
     aipController.deleteAip,
 );
