@@ -50,10 +50,10 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 | 5 | Industry & employment | <strong>Implementation complete</strong> |
 | 6 | Finance | <strong>Engineering implementation complete; operational acceptance pending</strong> |
 | 7 | State PMU dashboard & analytics | <strong>In progress — reporting contract, capacity aggregation, physical source-readiness audit</strong> |
-| 8 | Integrations & public portal | <strong>Not started</strong> |
+| 8 | Integrations & public portal | <strong>Foundation implemented; provider contracts and integrations pending</strong> |
 | 9 | Security, testing & production readiness | <strong>Not started</strong> |
 
-**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 has started with a source inventory and reporting-contract baseline; metric implementation remains dependent on approved sources and definitions. Phases 8–9 remain.
+**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 has started with a source inventory and reporting-contract baseline; metric implementation remains dependent on approved sources and definitions. Phase 8 has an existing generic ingestion/scheduler foundation, but provider-specific integrations remain blocked on approved contracts. Phase 9 remains.
 
 A phase marked implementation-complete is not automatically government-approved, production-accepted, or operationally verified.
 
@@ -261,7 +261,7 @@ Dependencies:
 - Do not invent KPI formulas or imply source completeness.
 
 ### Phase 8 — Integrations & public portal
-**Status: NOT STARTED**
+**Status: FOUNDATION IMPLEMENTED; PROVIDER-SPECIFIC INTEGRATIONS PENDING**
 
 Purpose:
 - Implement approved external system integrations and data exchange.
@@ -269,9 +269,14 @@ Purpose:
 - Use the existing integration architecture and ingestion records.
 - Apply authentication, validation, idempotency, error handling, observability, and source-specific mapping.
 
+Existing foundation includes source registration, an in-memory reviewed-adapter registry, scheduled sync with lease/fencing safeguards, committed checkpoints, generic record ingestion, CSV ingestion, HMAC-SHA256 webhook verification, and run history. No provider-specific adapter is registered by the current repository audit.
+
+Readiness audit: `docs/phase-8/INTEGRATION_READINESS_AUDIT.md`. It records current capabilities, generic-ingestion limitations, provider-contract requirements, and the safe implementation sequence. No provider is connected or enabled by this audit.
+
 Dependencies:
 - Confirm system owners, API/file contracts, credentials/secrets handling, sync frequency, retry policy, and data retention.
 - Confirm which records/fields are approved for public visibility.
+- Define provider-specific identity/version ordering, pagination/checkpoint semantics, replay/correction behaviour, mapping and reconciliation before implementing an adapter.
 - Do not connect directly to external production databases where the agreed architecture requires an integration/ETL boundary.
 
 ### Phase 9 — Security, testing & production readiness
@@ -309,7 +314,8 @@ Completion evidence should include:
 ## 5. Milestone log
 
 | Date | Phase | Milestone | Evidence / note |
-|---|---|---|---|
+|---|---|---|
+| 2026-11-06 | 8 | Audited existing integration foundation and documented provider readiness gates | Commit `64ec4adabaecee83f522be34c7d4d25b2fdbab90`; no provider endpoints, credentials, mappings or approvals invented. |---|
 | 2026-11-06 | 7 | Added versioned dashboard reporting contract endpoint and metric catalogue | Commits `c61f988b`, `a598ffa1`, `44a48863`, `b655ba77`, `eab15c61`, `5e018100`, `efa9e90d`, `f32f1ed1`, `54c514b8`, `2fa5e5f4`, and `3383c525`. Contract/OpenAPI tests added; local verification pending. |
 | 2026-11-06 | 7 | Started dashboard source inventory and reporting-contract baseline | Commit `e8d059f6`; records existing endpoint sources and data gaps without inventing KPI formulas or claiming production completeness. |
 | 2026-11-06 | 6 | Bound finance import idempotency keys to the complete immutable request, not only file hash and record kind | Commits `386e1a12`, `16bc2690`, and `02597409`. Identical retries return the canonical batch; altered metadata or row diagnostics now conflict. User verification required. |
@@ -434,3 +440,10 @@ Added `tests/dashboard/training-reporting-postgres.integration.test.ts` and `doc
 The opt-in test exercises the real reporting repository SQL against a dedicated migrated PostgreSQL test database. It verifies state/cluster reconciliation, null versus numeric-zero capacity, sample ITI and sample-cluster exclusion, unassigned ITIs, and a cluster with no populated capacity. Fixtures use unique identifiers, compare before/after aggregates to tolerate pre-existing test data, and clean up only rows created by the test. No migration or production data change is required.
 
 **Next:** obtain authoritative source-owner decisions for the capacity field's reporting period/as-of semantics before adding period filters or freshness claims. Continue the Phase 7 KPI approval backlog only where a source definition and acceptance rule are approved; keep PHY, ACD, IND, and FIN official outcome measures blocked until their respective gates are satisfied.
+
+
+### Phase 8 continuation — integration readiness audit
+
+The current integration module provides generic source registration, reviewed adapter registration, scheduled execution with lease/fencing safeguards, committed checkpoints, generic record upserts, bounded CSV ingestion, HMAC-SHA256 webhook verification and sync-run history. The adapter registry is empty in the repository; no provider-specific integration is ready to activate. The audit is recorded in `docs/phase-8/INTEGRATION_READINESS_AUDIT.md`.
+
+**Current active work:** obtain one approved external-source contract (owner, endpoint/transport, authentication, schema, stable identity/versioning, pagination, replay/correction, permitted fields, retention, sandbox fixtures and operational owner). Then implement and test only that provider adapter. Until then, do not register speculative adapters or enable scheduled production feeds.
