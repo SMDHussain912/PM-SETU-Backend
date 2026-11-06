@@ -1,4 +1,5 @@
 import test from "node:test";
+import { assertDedicatedTestDatabaseUrl } from "../helpers/test-database";
 import assert from "node:assert/strict";
 import { Pool } from "pg";
 import { env } from "../../src/config/env";
@@ -44,6 +45,7 @@ let sampleSpvId: number;
 
 test.before(async () => {
     if (!env.databaseUrl) return;
+    assertDedicatedTestDatabaseUrl(env.databaseUrl);
     assertDedicatedTestDatabase();
     await prisma.$connect();
     const suffix = `${process.pid}-${Date.now()}`;
