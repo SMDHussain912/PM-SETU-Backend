@@ -78,19 +78,30 @@ export async function ingestBatch(sourceId: number, records: Array<{ source_reco
 
 /** Atomically claims due schedules or reclaims leases abandoned by crashed workers. */
 export async function claimDueSources() {
+  // Claim a bounded batch in due-time order. SKIP LOCKED lets other
+  // application instances claim different rows without waiting on this batch.
   const claimed = await prisma.$queryRaw<Array<{ id: number; claim_token: string }>>`
-    UPDATE "integration_sources"
+    WITH due_sources AS (
+      SELECT "id"
+      FROM "integration_sources"
+      WHERE "enabled" = TRUE
+        AND "sync_interval_seconds" IS NOT NULL
+        AND (
+          ("claim_token" IS NULL AND ("next_sync_at" IS NULL OR "next_sync_at" <= NOW()))
+          OR ("claim_token" IS NOT NULL AND ("claim_expires_at" IS NULL OR "claim_expires_at" <= NOW()))
+        )
+      ORDER BY "next_sync_at" ASC NULLS FIRST, "id" ASC
+      FOR UPDATE SKIP LOCKED
+      LIMIT 10
+    )
+    UPDATE "integration_sources" AS source
     SET
       "claim_token" = gen_random_uuid(),
       "claim_expires_at" = NOW() + INTERVAL '15 minutes',
-      "next_sync_at" = NOW() + ("sync_interval_seconds" * INTERVAL '1 second')
-    WHERE "enabled" = TRUE
-      AND "sync_interval_seconds" IS NOT NULL
-      AND (
-        ("claim_token" IS NULL AND ("next_sync_at" IS NULL OR "next_sync_at" <= NOW()))
-        OR ("claim_token" IS NOT NULL AND ("claim_expires_at" IS NULL OR "claim_expires_at" <= NOW()))
-      )
-    RETURNING "id", "claim_token"
+      "next_sync_at" = NOW() + (source."sync_interval_seconds" * INTERVAL '1 second')
+    FROM due_sources
+    WHERE source."id" = due_sources."id"
+    RETURNING source."id", source."claim_token"
   `;
   if (!claimed.length) return [];
   const sources = await prisma.integrationSource.findMany({
