@@ -63,6 +63,7 @@ test("heartbeat marks a lost lease and stops issuing further renewals", async ()
   assert.equal(renewals, 1);
   assert.equal(lost, 1);
   assert.equal(heartbeat.leaseLost, true);
+  assert.equal(heartbeat.ownershipUncertain, true);
   await heartbeat.stop();
 });
 
@@ -77,7 +78,8 @@ test("heartbeat records renewal errors as lease loss without rejecting stop", as
 
   heartbeat.start();
   await heartbeat.pulse();
-  assert.equal(heartbeat.leaseLost, true);
+  assert.equal(heartbeat.leaseLost, false, "a renewal exception does not prove another worker owns the lease");
+  assert.equal(heartbeat.ownershipUncertain, true);
   assert.equal(errors, 1);
   await assert.doesNotReject(() => heartbeat.stop());
 });
