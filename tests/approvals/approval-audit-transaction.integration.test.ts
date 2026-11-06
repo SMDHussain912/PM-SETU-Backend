@@ -1,4 +1,5 @@
 import test from "node:test";
+import { assertDedicatedTestDatabaseUrl } from "../helpers/test-database";
 import assert from "node:assert/strict";
 import { Pool } from "pg";
 import { prisma, disconnectPrisma } from "../../src/config/database";
@@ -20,6 +21,7 @@ async function createPendingApproval(): Promise<number> {
 
 test.before(async () => {
     if (!databaseUrl) return;
+    assertDedicatedTestDatabaseUrl(databaseUrl);
     await prisma.$connect();
     successfulApprovalId = await createPendingApproval();
     failingApprovalId = await createPendingApproval();
