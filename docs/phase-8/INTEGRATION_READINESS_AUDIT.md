@@ -311,3 +311,9 @@ Regression coverage in `tests/integration-webhook-raw-body.test.ts` now exercise
 The HMAC-SHA256 comparison is now isolated in `integration.webhook.signature.ts`. The helper validates the existing `sha256=<64 hex characters>` signature shape, computes the digest over the exact raw request bytes, checks digest length, and uses Node's `timingSafeEqual` for comparison. Secret lookup, minimum secret length, transport selection, and HTTP error mapping remain in the service layer; the wire contract is unchanged.
 
 Regression coverage in `tests/integration-webhook-signature.test.ts` verifies valid signatures, body tampering, wrong secrets, malformed encodings, and the existing case-insensitive hexadecimal behaviour. This is unit-level cryptographic verification coverage, not provider replay protection or a provider acceptance test.
+
+## 29. Non-advancing continuation cursor rejection
+
+Scheduled adapter execution now rejects a page that declares `hasMore: true` while returning the exact cursor used to request that page. The service raises HTTP 502 `ADAPTER_CURSOR_NOT_ADVANCING` before either the empty-page checkpoint path or record-ingestion path can persist anything. This prevents a misbehaving adapter from repeatedly committing the same continuation position and causing an endless scheduled replay loop.
+
+Regression coverage in `tests/integration-scheduled-source-service.test.ts` verifies that the repeated cursor produces the expected error and that neither a run/checkpoint write nor record ingestion occurs. Cursor contents remain opaque; the generic layer only enforces forward progress when the adapter explicitly claims another page exists. Provider-specific ordering, snapshot and cursor semantics remain part of the approved source contract.
