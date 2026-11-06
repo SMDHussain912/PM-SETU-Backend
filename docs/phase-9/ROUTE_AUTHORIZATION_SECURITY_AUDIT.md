@@ -22,7 +22,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 - Resource-scoped mutation routes for clusters, ITIs, AIPs, SPVs and SIPs use `requireResourceScope` where the route design requires an individual resource check.
 - Integration webhooks are not protected by a user JWT; they use the separate HMAC signature flow. The webhook service verifies the raw request bytes before validating the parsed payload.
 - Banner/gallery image upload signature checks and document upload signature validation have dedicated implementation and regression tests.
-- The latest CI run on the baseline commit passed dependency audit, all 19 migrations, typecheck, 321 tests with zero skips, and production build. CI sets `PM_SETU_TEST_DATABASE_URL`, so the opt-in PostgreSQL tests are enabled in that run.
+- CI run #67 on commit `2bf29fd29726a5a69a7ebe881a850f30e65e4dba` passed dependency audit, Prisma generation, all migrations against the isolated CI PostgreSQL database, typecheck, 334 tests with zero skips, and production build. The workflow sets `PM_SETU_TEST_DATABASE_URL`, so opt-in PostgreSQL tests ran in CI. CI sets `PM_SETU_TEST_DATABASE_URL`, so the opt-in PostgreSQL tests are enabled in that run.
 
 ## 3. Findings and open controls
 
@@ -66,7 +66,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Operational requirement:** Set `CORS_ORIGIN` to the actual frontend origins in every production environment before deployment. The repository cannot determine the deployment's authoritative domains.
 
-**Disposition:** Code hardening implemented and verified by successful CI run #64 (commit `02a0ff12e969bafb0dc904cfdaf33694a35ee761`). Production deployment must still set `CORS_ORIGIN` to the actual frontend allowlist.
+**Disposition:** Code hardening implemented and verified by successful CI run #67 (commit `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`). Production deployment must still set `CORS_ORIGIN` to the actual frontend allowlist.
 
 ### SEC-ROUTE-05 — Upload storage is local filesystem storage
 
@@ -167,7 +167,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Remediation on `main` (2026-11-07):** Added shared Multer bounds: maximum 2 files, 10 text fields, 12 total parts, 64 KiB per field, 100-byte field names and 2,000 header pairs. The existing environment-configured per-file size limit and route-specific `.single()` / `.array()` limits remain in force. Added `tests/upload-multipart-limits.test.ts` to protect the shared bounds and ensure the two-image banner upload fits within the parser budget.
 
-**Disposition:** Code hardening committed; CI run #66 is pending verification.
+**Disposition:** Code hardening committed and verified by successful CI run #67 (commit `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`).
 
 ## 4. Additional verification required before sign-off
 
