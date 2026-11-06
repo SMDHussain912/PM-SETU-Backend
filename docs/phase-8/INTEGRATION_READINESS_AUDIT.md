@@ -15,7 +15,7 @@ The following capabilities are present in `src/modules/integrations/`:
 | Area | Existing capability | Boundary |
 |---|---|---|
 | Source registry | Create/list integration sources, enable/disable, configure sync interval | Source registration does not establish that a provider contract or production credential is approved |
-| Adapter registry | In-memory registry keyed by validated source code; adapter system must match source system | No provider adapter is registered in the repository by this audit |
+| Adapter registry | In-memory registry keyed by validated source code; registration validates supported system and fetchPage, rejects duplicates, and snapshots the registered method/system | No provider adapter is registered in the repository by this audit |
 | Scheduled sync | Due-source claiming, 15-minute lease, heartbeat renewal, token-guarded commit/release, retry of adapter page fetch | Scheduler is opt-in through `INTEGRATION_SCHEDULER_ENABLED=true`; no provider is connected merely by enabling it |
 | Checkpoints | Uses the latest committed SUCCEEDED/PARTIAL run; failed runs do not advance the cursor | Provider-specific cursor semantics still need definition |
 | Record ingestion | Transactional upsert keyed by (sourceId, sourceRecordId), source version and occurred-at fields | Generic payload persistence is not yet a domain-specific validated fact or KPI qualification |
@@ -79,6 +79,12 @@ For each external source, record and approve:
 - No arbitrary URL fetch, direct external database access, or public exposure of raw integration payloads is authorised.
 - No change to existing source, run, record or dashboard API contracts is made by this audit.
 
-## 6. Exit condition
+## 6. Adapter registration hardening completed
+
+The adapter registry now rejects malformed source codes, duplicate registrations, unsupported systems and adapters without a callable `fetchPage`. It stores a frozen registration snapshot and binds the registered method to its original adapter instance so replacing the caller's method or system property after registration cannot silently swap the registered implementation. Focused regression coverage is in `tests/integration-adapters.test.ts`.
+
+This is a registry integrity safeguard, not provider certification. It does not validate upstream endpoint safety, provider authentication, schema semantics or source-owner approval; those remain provider-contract gates.
+
+## 7. Exit condition
 
 Phase 8 provider implementation can begin when at least one named source owner supplies an approved technical/data contract, permitted data scope, test access and operational acceptance criteria. Until then, retain the existing integration foundation without registering speculative adapters.
