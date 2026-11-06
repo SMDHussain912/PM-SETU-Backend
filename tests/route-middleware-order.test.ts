@@ -65,7 +65,7 @@ const scopedRouteFiles = [
 test("resource-scope authorization runs before request validation", () => {
     for (const file of scopedRouteFiles) {
         const source = readFileSync(resolve(process.cwd(), file.path), "utf8");
-        const routeCalls = [...source.matchAll(/\\b[A-Za-z_$][\\w$]*\\.(?:get|post|patch|put|delete)\\([\\s\\S]*?\\);/g)];
+        const routeCalls = [...source.matchAll(/\b[A-Za-z_$][\w$]*\.(?:get|post|patch|put|delete)\([\s\S]*?\);/g)];
 
         assert.equal(
             routeCalls.length,
