@@ -178,9 +178,52 @@ export async function updateUser(
         WHERE id = ${id}`);
 }
 
-export async function updateStatus(id: number, status: UserStatus): Promise<void> {
-    await prisma.$executeRaw(Prisma.sql`
-        UPDATE users SET status = ${status}, updated_at = now() WHERE id = ${id}`);
+const SUPER_ADMIN_GUARD_LOCK_ID = 73190421;
+
+async function lockSuperAdminInvariant(tx: Prisma.TransactionClient): Promise<void> {
+    // Every status/role mutation that can remove an active Super Admin takes
+    // this same transaction-scoped lock before checking the invariant.
+    await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(${SUPER_ADMIN_GUARD_LOCK_ID})`);
+}
+
+async function countActiveSuperAdmins(tx: Prisma.TransactionClient): Promise<number> {
+    const rows = await tx.$queryRaw<{ total: number }[]>(Prisma.sql`
+        SELECT COUNT(DISTINCT u.id)::int AS total
+        FROM users u
+        JOIN user_roles ur ON ur.user_id = u.id
+        JOIN roles r ON r.id = ur.role_id
+        WHERE u.status = 'ACTIVE' AND r.code = 'SUPER_ADMIN'
+    `);
+    return rows[0]?.total ?? 0;
+}
+
+/** Atomically updates status without allowing concurrent removal of the last active Super Admin. */
+export async function updateStatusPreservingSuperAdmin(
+    id: number,
+    status: UserStatus,
+): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+        await lockSuperAdminInvariant(tx);
+        const target = await tx.$queryRaw<{ is_active_super_admin: boolean }[]>(Prisma.sql`
+            SELECT (u.status = 'ACTIVE' AND EXISTS (
+                SELECT 1 FROM user_roles ur
+                JOIN roles r ON r.id = ur.role_id
+                WHERE ur.user_id = u.id AND r.code = 'SUPER_ADMIN'
+            )) AS is_active_super_admin
+            FROM users u WHERE u.id = ${id} FOR UPDATE
+        `);
+        if (status === "INACTIVE" && target[0]?.is_active_super_admin) {
+            if (await countActiveSuperAdmins(tx) <= 1) {
+                throw new ApiError({
+                    statusCode: 409,
+                    code: "LAST_SUPER_ADMIN",
+                    message: "The last active Super Administrator cannot be deactivated",
+                });
+            }
+        }
+        await tx.$executeRaw(Prisma.sql`
+            UPDATE users SET status = ${status}, updated_at = now() WHERE id = ${id}`);
+    });
 }
 
 /** Resolve role codes before assigning roles; unknown IDs must never be silently ignored. */
@@ -206,6 +249,30 @@ export async function countActiveUsersWithRole(roleCode: string): Promise<number
 
 export async function replaceUserRoles(userId: number, roleIds: number[]): Promise<void> {
     await prisma.$transaction(async (tx) => {
+        await lockSuperAdminInvariant(tx);
+        const target = await tx.$queryRaw<{ is_active_super_admin: boolean }[]>(Prisma.sql`
+            SELECT (u.status = 'ACTIVE' AND EXISTS (
+                SELECT 1 FROM user_roles ur
+                JOIN roles r ON r.id = ur.role_id
+                WHERE ur.user_id = u.id AND r.code = 'SUPER_ADMIN'
+            )) AS is_active_super_admin
+            FROM users u WHERE u.id = ${userId} FOR UPDATE
+        `);
+        const selectedRoles = await tx.$queryRaw<{ is_super_admin: boolean }[]>(Prisma.sql`
+            SELECT EXISTS (
+                SELECT 1 FROM roles WHERE id IN (${Prisma.join(roleIds.length ? roleIds : [-1])})
+                AND code = 'SUPER_ADMIN'
+            ) AS is_super_admin
+        `);
+        if (target[0]?.is_active_super_admin && !selectedRoles[0]?.is_super_admin) {
+            if (await countActiveSuperAdmins(tx) <= 1) {
+                throw new ApiError({
+                    statusCode: 409,
+                    code: "LAST_SUPER_ADMIN",
+                    message: "The last active Super Administrator cannot lose the Super Admin role",
+                });
+            }
+        }
         await tx.$executeRaw(Prisma.sql`DELETE FROM user_roles WHERE user_id = ${userId}`);
         for (const roleId of roleIds) {
             await tx.$executeRaw(Prisma.sql`
