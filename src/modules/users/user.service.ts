@@ -53,7 +53,7 @@ async function assertPrivilegedTargetRequiresSuperAdmin(targetId: number, actorR
     }
 }
 
-async function assertTargetManageable(targetId: number, actorId: string, actorRoles: string[], context?: AuditContext): Promise<UserWithRoles> {
+async function assertTargetManageable(targetId: number, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
     if (String(targetId) === actorId) {
         forbid("You cannot change your own administrative status or role assignments");
     }

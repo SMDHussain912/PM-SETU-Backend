@@ -56,7 +56,7 @@ export async function updateUserStatus(
     res: Response,
 ): Promise<Response> {
     const { body, params } = getValidated<UpdateUserStatusInput, unknown, UserIdParams>(res);
-    const user = await userService.updateUserStatus(params.id, body, req.user?.id ?? '', req.user?.roles ?? []);
+    const user = await userService.updateUserStatus(params.id, body, req.user?.id ?? '', req.user?.roles ?? [], getAuditContext(req));
     return sendSuccess(res, user);
 }
 
