@@ -145,6 +145,19 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Disposition:** Open security/acceptance finding; implementation depends on audit policy confirmation.
 
+
+### SEC-ROUTE-13 — Public document APIs exposed internal filesystem paths
+
+**Evidence:** The public document list/detail/version queries selected and serialized `file_path`; document version responses also exposed the internal `created_by` identifier. These values are storage and internal-account metadata, not required to download a published document (the public download endpoint resolves the stored path server-side).
+
+**Impact:** Public API consumers could learn server filesystem layout and opaque internal user identifiers. The paths do not grant filesystem access by themselves, but their disclosure is unnecessary and increases information exposure.
+
+**Remediation on `main` (2026-11-07):** Added explicit public document projections. Public list/detail responses omit `file_path`; public version-history responses omit both `file_path` and `created_by`. Admin mutation responses and server-side download resolution remain unchanged.
+
+**Regression coverage:** `tests/documents/public-projection.test.ts` asserts that filesystem paths and internal creator IDs are absent while public document metadata remains available.
+
+**Disposition:** Code remediation committed; CI verification pending. This does not constitute the broader field-level publication approval required for all public document metadata.
+
 ## 4. Additional verification required before sign-off
 
 - Protected resource-specific mutation and workflow routes in AIP, Cluster, ITI, SIP and SPV use resource-scope middleware; PostgreSQL integration coverage exists for inherited and direct assignment cases. Public registry GET routes are intentionally unguarded in the current route design. Still inspect every public list/search/summary/export response against the approved publication policy; route-level mutation guards do not prove public-field disclosure is safe.
