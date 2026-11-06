@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env";
+import { hasStrongJwtAccessSecret } from "../../config/auth-security";
 import { ApiError } from "../../utils/response";
 import { hashPassword, verifyPassword } from "../../utils/password";
 import * as authRepository from "./auth.repository";
@@ -56,9 +57,9 @@ function signAccessToken(
     permissions: string[],
 ): string {
     // Same use-time check as the verifying middleware (AUTH_NOT_CONFIGURED).
-    if (!env.jwtAccessSecret) {
+    if (!hasStrongJwtAccessSecret(env.jwtAccessSecret)) {
         throw new ApiError({
-            message: "JWT_ACCESS_SECRET is not configured",
+            message: "JWT_ACCESS_SECRET must be configured with at least 32 bytes",
             statusCode: 500,
             code: "AUTH_NOT_CONFIGURED",
         });
