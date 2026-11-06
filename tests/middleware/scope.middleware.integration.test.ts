@@ -53,6 +53,7 @@ async function invokeScope(
 }
 
 test.before(async () => {
+    if (!databaseUrl) return;
     await prisma.$connect();
 
     const cluster = await pool.query<{ id: number }>(
@@ -110,6 +111,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
+    if (!databaseUrl) return;
     await pool.query("DELETE FROM user_scope_assignments WHERE user_id = ANY($1::int[])", [
         [clusterUserId, unassignedUserId, directItiUserId, directAipUserId].filter(Boolean),
     ]);
