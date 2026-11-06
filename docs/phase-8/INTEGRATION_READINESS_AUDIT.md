@@ -351,3 +351,8 @@ Commits: `22f8755` (service seam), `62274dd` (regression tests). Local typecheck
 
 
 **Verification update (2026-11-06):** The project owner reports that the latest typecheck, complete test suite and production build all passed after this milestone. The five service-level schedule guard tests are included in that verified run. The opt-in PostgreSQL tests remain a separate verification requirement unless the test output confirms they ran with the dedicated database configured.
+
+
+## Scheduler checkpoint isolation — execution origin
+
+Scheduled checkpoint lookup now considers only `SCHEDULED` and compatibility `LEGACY` runs. Manual JSON/CSV/webhook ingestion and manual run-history writes are tagged `MANUAL` and remain visible in public run history, but cannot replace a scheduled adapter cursor or `since` timestamp. The migration marks pre-existing rows `LEGACY` because their origin cannot be reconstructed from stored columns; those rows remain eligible as the initial compatibility checkpoint until a scheduled run supersedes them. New rows default to `MANUAL`; scheduler-owned writes explicitly set `SCHEDULED`.
