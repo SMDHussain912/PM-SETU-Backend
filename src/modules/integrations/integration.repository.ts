@@ -20,6 +20,14 @@ export function listRuns(sourceId: number, take = 20) {
   return prisma.integrationSyncRun.findMany({ where: { sourceId }, orderBy: { startedAt: "desc" }, take });
 }
 
+export function listCommittedRuns(sourceId: number, take = 1) {
+  return prisma.integrationSyncRun.findMany({
+    where: { sourceId, status: { in: ["SUCCEEDED", "PARTIAL"] } },
+    orderBy: { startedAt: "desc" },
+    take,
+  });
+}
+
 export async function ingestBatch(sourceId: number, records: Array<{ source_record_id: string; source_version?: string | null; occurred_at?: string | null; payload: Record<string, unknown> }>, options: { cursor?: string | null; status?: "SUCCEEDED" | "PARTIAL"; startedAt?: Date } = {}) {
   return prisma.$transaction(async (tx) => {
     let created = 0; let updated = 0;
