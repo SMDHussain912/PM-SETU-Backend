@@ -21,8 +21,18 @@ export function updateEnabled(id: number, enabled: boolean, client: typeof prism
     select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
   });
 }
-export function updateSchedule(id: number, seconds: number | null) {
-  return prisma.integrationSource.update({ where: { id }, data: { syncIntervalSeconds: seconds, nextSyncAt: seconds === null ? null : new Date() }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true } });
+export function updateSchedule(id: number, seconds: number | null, client: typeof prisma = prisma) {
+  return client.integrationSource.update({
+    where: { id },
+    data: {
+      syncIntervalSeconds: seconds,
+      nextSyncAt: seconds === null ? null : new Date(),
+      // Removing the schedule revokes any scheduler worker currently holding
+      // a lease; manual ingestion remains available while the source is enabled.
+      ...(seconds === null ? { claimToken: null, claimExpiresAt: null } : {}),
+    },
+    select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
+  });
 }
 export function createRun(input: { sourceId: number; status: string; recordsRead: number; recordsCreated: number; recordsUpdated: number; recordsRejected: number; cursor: string | null; errorCode: string | null; errorSummary: string | null; startedAt: Date; completedAt: Date }) {
   return prisma.integrationSyncRun.create({ data: input });
