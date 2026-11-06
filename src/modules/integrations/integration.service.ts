@@ -100,17 +100,21 @@ export async function ingestCsv(id: number, records: import("./integration.schem
   return ingestEnabledSource(id, records);
 }
 
-export async function ingestWebhook(id: number, rawBody: Buffer, signature: string | undefined, records: import("./integration.schema").IntegrationIngestInput["records"]) {
+export async function ingestWebhook(id: number, rawBody: Buffer, signature: string | undefined, payload: unknown) {
   const source = await enabledSource(id);
   if (source.transport !== "WEBHOOK") throw new ApiError({ statusCode: 409, code: "INTEGRATION_TRANSPORT_MISMATCH", message: "This source is not configured for webhooks" });
   if (!source.credentialRef) throw new ApiError({ statusCode: 503, code: "WEBHOOK_SECRET_NOT_CONFIGURED", message: "Webhook secret reference is not configured" });
   const secret = process.env[source.credentialRef];
   if (!secret || Buffer.byteLength(secret) < 32) throw new ApiError({ statusCode: 503, code: "WEBHOOK_SECRET_UNAVAILABLE", message: "Webhook deployment secret is unavailable or too short" });
-  if (!signature?.match(/^sha256=[a-f0-9]{64}$/i)) {
-    throw new ApiError({ statusCode: 401, code: "WEBHOOK_SIGNATURE_INVALID", message: "A valid X-PMSETU-Signature header is required" });
-  }
-  if (!verifyIntegrationWebhookSignature(rawBody, signature, secret)) {
+  if (!signature?.match(/^sha256=[a-f0-9]{64}$/i) || !verifyIntegrationWebhookSignature(rawBody, signature, secret)) {
     throw new ApiError({ statusCode: 401, code: "WEBHOOK_SIGNATURE_INVALID", message: "Webhook signature verification failed" });
   }
-  return ingestEnabledSource(id, records);
+
+  // Authenticate the exact bytes before spending work validating an untrusted
+  // JSON payload. The JSON parser still enforces the request-size limit.
+  const parsed = integrationIngestSchema.safeParse(payload);
+  if (!parsed.success) {
+    throw new ApiError({ statusCode: 422, code: "VALIDATION_ERROR", message: "Webhook payload failed validation", details: parsed.error.flatten() });
+  }
+  return ingestEnabledSource(id, parsed.data.records);
 }
