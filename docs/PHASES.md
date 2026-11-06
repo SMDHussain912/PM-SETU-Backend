@@ -849,4 +849,14 @@ Commits:
 
 Added `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` on 2026-11-07. The static review covers route mounts, authentication, RBAC, resource scopes, contact CAPTCHA, authentication lifecycle, CORS defaults, local file storage, malware scanning, rate-limit topology, privileged-user MFA, public dashboard disclosure and middleware ordering. It distinguishes code facts from approval-dependent decisions and does not claim VAPT or production acceptance.
 
-**Current active work:** address safe, testable security findings and obtain the external decisions required for CAPTCHA, role matrix, session lifecycle, public dashboard disclosure and production storage. Continue route-by-route scope and audit-event verification. Do not infer policy or provider contracts.
+#### Remediation milestone — protected route authorization order
+
+**Implemented on `main`; CI verification pending.**
+
+- Reordered all 27 protected route declarations in Academics, Approvals, Industry Outcomes and Integrations to enforce Authentication → RBAC → Validation → Controller.
+- The integration CSV endpoint now performs its admin role check before parsing the CSV body.
+- The integration webhook remains on its separate HMAC verification path; it is not a user-session route and was intentionally excluded from RBAC.
+- Added `tests/route-middleware-order.test.ts` to assert the protected route inventory and middleware order. This is structural regression coverage, not a substitute for full HTTP-level authorization tests.
+- Updated `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` with the evidence and remaining verification status.
+
+**Current active work:** inspect list/search/summary/export scope enforcement and privileged mutation audit coverage. Continue with safe security fixes while obtaining the external decisions required for CAPTCHA, approved role matrix, session lifecycle, public dashboard disclosure, storage and malware scanning. Do not infer policy or provider contracts.
