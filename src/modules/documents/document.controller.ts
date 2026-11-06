@@ -10,6 +10,7 @@ import type {
 } from "./document.schema";
 import * as documentService from "./document.service";
 import { toPublicDocument, toPublicDocumentVersion } from "./document.public";
+import { applyDocumentDownloadSecurityHeaders } from "./document.download";
 import type { DocumentAuditContext } from "./document.service";
 
 function getDocumentAuditContext(req: Request): DocumentAuditContext {
@@ -52,6 +53,7 @@ export async function getDocumentById(_req: Request, res: Response): Promise<Res
 export async function downloadDocument(_req: Request, res: Response): Promise<void> {
     const { params } = getValidated<unknown, unknown, DocumentIdParams>(res);
     const { filePath, fileName } = await documentService.getDocumentFile(params.id);
+    applyDocumentDownloadSecurityHeaders(res);
     res.download(filePath, fileName);
 }
 
