@@ -618,3 +618,26 @@ npm test
 npm run build
 ```
 Confirm both opt-in PostgreSQL scheduler tests ran rather than skipped using the dedicated `PM_SETU_TEST_DATABASE_URL`.
+
+
+### Phase 8 continuation — database-clock initial source scheduling
+
+**Implemented on `main`; verification pending.**
+
+- Source creation now initializes `next_sync_at` with PostgreSQL `NOW()` in the same transaction.
+- Disabled sources and sources without a sync interval keep `next_sync_at` null.
+- Added `tests/integration-scheduler-create-postgres.test.ts` for database-clock alignment and both null cases.
+
+Commits:
+- `2bc869c` — initialize scheduled source due time with database clock.
+- `382f4c4` — inject Prisma client for isolated PostgreSQL test.
+- `c9f8f95` — add PostgreSQL source-creation test.
+
+Verification:
+```bash
+git pull origin main
+npm run typecheck
+npm test
+npm run build
+```
+Confirm the new PostgreSQL test ran rather than skipped using the dedicated `PM_SETU_TEST_DATABASE_URL`.
