@@ -80,10 +80,10 @@ export function updateSchedule(id: number, seconds: number | null, client: typeo
     await tx.$executeRaw`
       UPDATE "integration_sources"
       SET
-        "sync_interval_seconds" = ${seconds},
-        "next_sync_at" = CASE WHEN ${seconds} IS NULL THEN NULL ELSE NOW() END,
-        "claim_token" = CASE WHEN ${seconds} IS NULL THEN NULL ELSE "claim_token" END,
-        "claim_expires_at" = CASE WHEN ${seconds} IS NULL THEN NULL ELSE "claim_expires_at" END,
+        "sync_interval_seconds" = ${seconds}::integer,
+        "next_sync_at" = CASE WHEN ${seconds}::integer IS NULL THEN NULL ELSE NOW() END,
+        "claim_token" = CASE WHEN ${seconds}::integer IS NULL THEN NULL ELSE "claim_token" END,
+        "claim_expires_at" = CASE WHEN ${seconds}::integer IS NULL THEN NULL ELSE "claim_expires_at" END,
         "updated_at" = NOW()
       WHERE "id" = ${id}
     `;
