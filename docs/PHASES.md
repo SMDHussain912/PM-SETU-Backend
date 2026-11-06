@@ -791,3 +791,10 @@ Commits:
 - `752cb62` — test the public run-history projection.
 
 Verification required: run typecheck, full tests and build after pulling `main`.
+
+
+### Phase 8 continuation — service-level schedule guard coverage
+
+Added an injectable repository dependency to `setSchedule()` and `tests/integration-schedule-service.test.ts`. Coverage proves CSV_UPLOAD and WEBHOOK are rejected before persistence, REST intervals and SFTP unscheduling remain permitted, and a missing source does not trigger an update.
+
+Commits: `22f8755` (service seam) and `62274dd` (tests). User verification required: run typecheck, full tests and build after pulling `main`.
