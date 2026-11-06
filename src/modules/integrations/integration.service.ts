@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { verifyIntegrationWebhookSignature } from "./integration.webhook.signature";
 import { ApiError } from "../../utils/response";
 import { integrationAdapterRegistry } from "./integration.adapters";
 import { selectCommittedCheckpoint } from "./integration.checkpoint";
@@ -106,11 +106,10 @@ export async function ingestWebhook(id: number, rawBody: Buffer, signature: stri
   if (!source.credentialRef) throw new ApiError({ statusCode: 503, code: "WEBHOOK_SECRET_NOT_CONFIGURED", message: "Webhook secret reference is not configured" });
   const secret = process.env[source.credentialRef];
   if (!secret || Buffer.byteLength(secret) < 32) throw new ApiError({ statusCode: 503, code: "WEBHOOK_SECRET_UNAVAILABLE", message: "Webhook deployment secret is unavailable or too short" });
-  const supplied = signature?.match(/^sha256=([a-f0-9]{64})$/i)?.[1];
-  if (!supplied) throw new ApiError({ statusCode: 401, code: "WEBHOOK_SIGNATURE_INVALID", message: "A valid X-PMSETU-Signature header is required" });
-  const expected = createHmac("sha256", secret).update(rawBody).digest();
-  const received = Buffer.from(supplied, "hex");
-  if (received.length !== expected.length || !timingSafeEqual(received, expected)) {
+  if (!signature?.match(/^sha256=[a-f0-9]{64}$/i)) {
+    throw new ApiError({ statusCode: 401, code: "WEBHOOK_SIGNATURE_INVALID", message: "A valid X-PMSETU-Signature header is required" });
+  }
+  if (!verifyIntegrationWebhookSignature(rawBody, signature, secret)) {
     throw new ApiError({ statusCode: 401, code: "WEBHOOK_SIGNATURE_INVALID", message: "Webhook signature verification failed" });
   }
   return ingestEnabledSource(id, records);
