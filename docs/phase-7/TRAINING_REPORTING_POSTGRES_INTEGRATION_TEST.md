@@ -29,7 +29,7 @@ Use only the dedicated test database:
 NODE_ENV=test \
 TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/pm_setu_test?schema=public" \
 PM_SETU_TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/pm_setu_test?schema=public" \
-node --test --import tsx tests/dashboard/training-reporting-postgres.integration.test.ts
+npx tsx --test tests/dashboard/training-reporting-postgres.integration.test.ts
 ```
 
 The test skips when `PM_SETU_TEST_DATABASE_URL` is absent. A skipped test is not PostgreSQL verification. It checks that both test URL variables point to the same dedicated test database and deletes only fixture IDs created by that test.
