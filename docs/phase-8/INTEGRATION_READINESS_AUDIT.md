@@ -244,3 +244,12 @@ Setting an integration source's sync interval to `null` now clears its scheduler
 Restoring a non-null interval schedules the source immediately. Added opt-in PostgreSQL coverage in `tests/integration-scheduler-unschedule-postgres.test.ts` using two independent clients. It verifies lease clearing, continued enabled state, stale commit rejection, no sync-run row, and immediate reclaim after schedule restoration.
 
 The test requires the dedicated `PM_SETU_TEST_DATABASE_URL`; confirm it ran rather than skipped.
+
+
+## 21. Database-clock scheduler configuration
+
+Administrative enable/disable and schedule-update operations now set `next_sync_at` using PostgreSQL `NOW()`, matching the database clock already used by due-source claims, lease renewal and write fencing. This avoids application-server clock drift making a newly enabled or scheduled source appear prematurely due or unexpectedly delayed.
+
+Disabling a source still clears its lease; re-enabling makes it immediately eligible. Removing a schedule still clears its lease; restoring a schedule makes it immediately eligible. Changing a non-null interval preserves an active lease so an already-running execution can finish under its current ownership.
+
+The opt-in PostgreSQL disable and unschedule tests now compare the resulting due timestamp with database time. They require the dedicated `PM_SETU_TEST_DATABASE_URL` and must be confirmed as executed rather than skipped.
