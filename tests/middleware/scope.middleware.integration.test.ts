@@ -9,6 +9,7 @@ import { requireResourceScope, type ScopedResource } from "../../src/middleware/
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const databaseTest = databaseUrl ? test : test.skip;
 const pool = new Pool({ connectionString: databaseUrl });
+let setupStarted = false;
 
 type TestUser = { id: number; roles?: string[] };
 
@@ -56,6 +57,7 @@ async function invokeScope(
 test.before(async () => {
     if (!databaseUrl) return;
     assertDedicatedTestDatabaseUrl(databaseUrl);
+    setupStarted = true;
     await prisma.$connect();
 
     const cluster = await pool.query<{ id: number }>(
@@ -113,7 +115,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
-    if (!databaseUrl) return;
+    if (!setupStarted) return;
     await pool.query("DELETE FROM user_scope_assignments WHERE user_id = ANY($1::int[])", [
         [clusterUserId, unassignedUserId, directItiUserId, directAipUserId].filter(Boolean),
     ]);
