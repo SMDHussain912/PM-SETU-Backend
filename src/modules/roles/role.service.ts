@@ -4,6 +4,7 @@ import type { Permission, Role, RoleWithPermissions } from "./role.types";
 import type { CreateRoleInput, UpdateRoleInput } from "./role.schema";
 import * as auditService from "../audit/audit.service";
 import { toRoleAuditValue } from "./role.audit";
+import type { AuditContext } from "../audit/audit.types";
 
 /**
  * Roles module — service layer.
@@ -30,7 +31,7 @@ export async function getRoleById(id: number): Promise<RoleWithPermissions> {
     return role;
 }
 
-export async function createRole(input: CreateRoleInput, actorId: string): Promise<RoleWithPermissions> {
+export async function createRole(input: CreateRoleInput, actorId: string, context?: AuditContext): Promise<RoleWithPermissions> {
     const roleId = await roleRepository.createRole({
         code: input.code,
         name: input.name,
@@ -45,7 +46,7 @@ export async function createRole(input: CreateRoleInput, actorId: string): Promi
             message: "Created role could not be read back",
         });
     }
-    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "ROLE", entityId: role.id, oldValue: null, newValue: toRoleAuditValue(role), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "ROLE", entityId: role.id, oldValue: null, newValue: toRoleAuditValue(role), approvalStatus: null, context: context ?? { userId: actorId } });
     return role;
 }
 
@@ -53,6 +54,7 @@ export async function updateRole(
     id: number,
     input: UpdateRoleInput,
     actorId: string,
+    context?: AuditContext,
 ): Promise<RoleWithPermissions> {
     const existing = await roleRepository.getRoleById(id);
     if (!existing) {
@@ -77,11 +79,11 @@ export async function updateRole(
             message: "Role not found",
         });
     }
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(existing), newValue: toRoleAuditValue(role), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(existing), newValue: toRoleAuditValue(role), approvalStatus: null, context: context ?? { userId: actorId } });
     return role;
 }
 
-export async function deleteRole(id: number, actorId: string): Promise<RoleWithPermissions> {
+export async function deleteRole(id: number, actorId: string, context?: AuditContext): Promise<RoleWithPermissions> {
     const role = await roleRepository.getRoleById(id);
     if (!role) {
         throw new ApiError({
@@ -98,7 +100,7 @@ export async function deleteRole(id: number, actorId: string): Promise<RoleWithP
         });
     }
     await roleRepository.deleteRole(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(role), newValue: null, approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "ROLE", entityId: id, oldValue: toRoleAuditValue(role), newValue: null, approvalStatus: null, context: context ?? { userId: actorId } });
     return role;
 }
 

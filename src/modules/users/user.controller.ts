@@ -11,6 +11,7 @@ import type {
     UserScopesInput,
 } from "./user.schema";
 import * as userService from "./user.service";
+import { getAuditContext } from "../audit/audit.context";
 
 /**
  * Users module — controller layer (RoadMap.md §19).
@@ -38,14 +39,14 @@ export async function getUserById(_req: Request, res: Response): Promise<Respons
 /** POST /api/v1/admin/users — administrative user creation (no self-reg). */
 export async function createUser(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<CreateUserInput>(res);
-    const user = await userService.createUser(body, req.user?.id ?? '', req.user?.roles ?? []);
+    const user = await userService.createUser(body, req.user?.id ?? '', req.user?.roles ?? [], getAuditContext(req));
     return sendCreated(res, user);
 }
 
 /** PATCH /api/v1/admin/users/:id — profile update only. */
 export async function updateUser(req: Request, res: Response): Promise<Response> {
     const { body, params } = getValidated<UpdateUserInput, unknown, UserIdParams>(res);
-    const user = await userService.updateUser(params.id, body, req.user?.id ?? '', req.user?.roles ?? []);
+    const user = await userService.updateUser(params.id, body, req.user?.id ?? '', req.user?.roles ?? [], getAuditContext(req));
     return sendSuccess(res, user);
 }
 
@@ -89,6 +90,7 @@ export async function replaceUserScopes(req: Request, res: Response): Promise<Re
         body,
         req.user?.id ?? "",
         req.user?.roles ?? [],
+        getAuditContext(req),
     );
     return sendSuccess(res, scopes);
 }

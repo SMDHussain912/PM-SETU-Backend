@@ -7,6 +7,7 @@ import * as authRepository from "./auth.repository";
 import type { ChangePasswordInput, LoginInput } from "./auth.schema";
 import type { AuthUserProfile, LoginResponse, LoginUserRow, RoleAssignment } from "./auth.types";
 import * as auditService from "../audit/audit.service";
+import type { AuditContext } from "../audit/audit.types";
 
 /**
  * Auth module — service layer (RoadMap.md §18).
@@ -187,6 +188,7 @@ export async function getMe(userId: number): Promise<AuthUserProfile> {
 export async function changePassword(
     userId: number,
     input: ChangePasswordInput,
+    context?: AuditContext,
 ): Promise<{ updated: true }> {
     const user = await authRepository.findUserById(userId);
     if (!user) {
@@ -214,7 +216,7 @@ export async function changePassword(
         oldValue: { password_hash_version: needsPasswordRehash(user.password_hash) ? "legacy_bcrypt" : "sha256_bcrypt_v1" },
         newValue: { password_hash_version: "sha256_bcrypt_v1" },
         approvalStatus: null,
-        context: { userId: String(userId) },
+        context: context ?? { userId: String(userId) },
     });
     return { updated: true };
 }

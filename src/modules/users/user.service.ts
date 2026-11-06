@@ -14,6 +14,7 @@ import type { UserStatus, UserWithRoles } from "./user.types";
 import { ROLE_CODES } from "../roles/role.constants";
 import * as auditService from "../audit/audit.service";
 import { toUserAuditValue } from "./user.audit";
+import type { AuditContext } from "../audit/audit.types";
 
 /**
  * Users module — service layer (RoadMap.md §19).
@@ -52,7 +53,7 @@ async function assertPrivilegedTargetRequiresSuperAdmin(targetId: number, actorR
     }
 }
 
-async function assertTargetManageable(targetId: number, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
+async function assertTargetManageable(targetId: number, actorId: string, actorRoles: string[], context?: AuditContext): Promise<UserWithRoles> {
     if (String(targetId) === actorId) {
         forbid("You cannot change your own administrative status or role assignments");
     }
@@ -117,7 +118,7 @@ export async function createUser(input: CreateUserInput, actorId: string, actorR
             message: "Created user could not be read back",
         });
     }
-    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "USER", entityId: user.id, oldValue: null, newValue: toUserAuditValue(user), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "USER", entityId: user.id, oldValue: null, newValue: toUserAuditValue(user), approvalStatus: null, context: context ?? { userId: actorId } });
     return user;
 }
 
@@ -126,6 +127,7 @@ export async function updateUser(
     input: UpdateUserInput,
     actorId: string,
     actorRoles: string[],
+    context?: AuditContext,
 ): Promise<UserWithRoles> {
     // Profile changes to privileged administrator accounts are Super Admin only.
     const previous = await getUserById(id);
@@ -135,7 +137,7 @@ export async function updateUser(
         email: input.email,
     });
     const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } });
     return updated;
 }
 
@@ -144,6 +146,7 @@ export async function updateUserStatus(
     input: UpdateUserStatusInput,
     actorId: string,
     actorRoles: string[],
+    context?: AuditContext,
 ): Promise<UserWithRoles> {
     const target = await assertTargetManageable(id, actorId, actorRoles);
     if (input.status === "INACTIVE" && target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN)) {
@@ -152,7 +155,7 @@ export async function updateUserStatus(
     }
     await userRepository.updateStatusPreservingSuperAdmin(id, input.status);
     const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } });
     return updated;
 }
 
@@ -161,6 +164,7 @@ export async function updateUserRoles(
     input: UpdateUserRolesInput,
     actorId: string,
     actorRoles: string[],
+    context?: AuditContext,
 ): Promise<UserWithRoles> {
     const target = await assertTargetManageable(id, actorId, actorRoles);
     const assignedCodes = await userRepository.getRoleCodesByIds([...new Set(input.role_ids)]);
@@ -174,7 +178,7 @@ export async function updateUserRoles(
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
     await userRepository.replaceUserRoles(id, input.role_ids);
     const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } });
     return updated;
 }
 
@@ -183,7 +187,7 @@ export async function updateUserRoles(
  * TO CONFIRM; soft keeps historical approval/audit references resolving
  * (RoadMap §21/§22). See sql/users/user_queries.sql #9.
  */
-export async function deactivateUser(id: number, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
+export async function deactivateUser(id: number, actorId: string, actorRoles: string[], context?: AuditContext): Promise<UserWithRoles> {
     const target = await assertTargetManageable(id, actorId, actorRoles);
     if (target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN)) {
         const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
@@ -191,7 +195,7 @@ export async function deactivateUser(id: number, actorId: string, actorRoles: st
     }
     await userRepository.updateStatusPreservingSuperAdmin(id, "INACTIVE");
     const updated = await getUserById(id);
-    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: { userId: actorId } });
+    await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "USER", entityId: id, oldValue: toUserAuditValue(target), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } });
     return updated;
 }
 
@@ -214,6 +218,7 @@ export async function replaceUserScopes(
     input: UserScopesInput,
     actorId: string,
     actorRoles: string[],
+    context?: AuditContext,
 ) {
     if (String(id) === actorId) forbid("You cannot change your own organisation scope assignments");
     if (!actorRoles.some((role) => [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN].includes(role as typeof ROLE_CODES.SUPER_ADMIN | typeof ROLE_CODES.STATE_PMU_ADMIN))) {
@@ -305,7 +310,7 @@ export async function replaceUserScopes(
         oldValue: { scopes: previousScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
         newValue: { scopes: updatedScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
         approvalStatus: null,
-        context: { userId: actorId },
+        context: context ?? { userId: actorId },
     });
     return updatedScopes;
 }

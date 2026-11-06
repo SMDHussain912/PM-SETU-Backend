@@ -3,6 +3,7 @@ import { getValidated } from "../../middleware/validate.middleware";
 import { sendCreated, sendSuccess } from "../../utils/response";
 import type { CreateRoleInput, RoleIdParams, UpdateRoleInput } from "./role.schema";
 import * as roleService from "./role.service";
+import { getAuditContext } from "../audit/audit.context";
 
 /**
  * Roles module — controller layer (RoadMap.md §20).
@@ -29,7 +30,7 @@ export async function getRoleById(_req: Request, res: Response): Promise<Respons
 /** POST /api/v1/admin/roles */
 export async function createRole(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<CreateRoleInput>(res);
-    const role = await roleService.createRole(body, req.user?.id ?? '');
+    const role = await roleService.createRole(body, req.user?.id ?? '', getAuditContext(req));
     return sendCreated(res, role);
 }
 
