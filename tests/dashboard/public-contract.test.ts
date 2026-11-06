@@ -68,6 +68,20 @@ test("cluster dashboard contract validates a positive integer path parameter", (
     assert.ok(operation?.responses?.["422"], "cluster detail must document invalid identifiers");
 });
 
+test("dashboard aggregate item schemas require every emitted field", () => {
+    const schemas = openApiSpec.components.schemas as unknown as Record<string, {
+        properties?: Record<string, { items?: { required?: string[] } }>;
+    }>;
+    assert.deepEqual(
+        schemas.FinanceMetrics?.properties?.by_cluster?.items?.required,
+        ["cluster_id", "cluster_name", "investment", "sip_proposed"],
+    );
+    assert.deepEqual(
+        schemas.TrainingMetrics?.properties?.by_cluster?.items?.required,
+        ["cluster_id", "cluster_name", "student_capacity", "iti_count"],
+    );
+});
+
 test("dashboard OpenAPI schemas mark every emitted top-level field as required", () => {
     const schemas = openApiSpec.components.schemas as unknown as Record<string, { required?: string[] }>;
     const expected: Record<string, string[]> = {
