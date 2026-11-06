@@ -88,3 +88,17 @@ This is a registry integrity safeguard, not provider certification. It does not 
 ## 7. Exit condition
 
 Phase 8 provider implementation can begin when at least one named source owner supplies an approved technical/data contract, permitted data scope, test access and operational acceptance criteria. Until then, retain the existing integration foundation without registering speculative adapters.
+
+## 8. Adapter page-envelope validation completed
+
+Scheduled adapter output is validated as an untrusted runtime envelope before any checkpoint or record write:
+
+- `records` must be an array containing no more than 500 entries.
+- `hasMore` must be a boolean.
+- `nextCursor`, when supplied, must fit the existing 2,000-character persisted cursor limit.
+- A page declaring `hasMore: true` must include a non-empty, non-whitespace continuation cursor.
+- Unexpected top-level properties are rejected.
+- The cursor remains opaque: no provider-specific syntax, ordering, or version semantics are imposed.
+- Individual records still pass through the existing generic ingestion schema before persistence.
+
+Regression coverage is in `tests/integration-adapter-page.test.ts`. Invalid page envelopes fail before empty-page checkpoint commits or non-empty record ingestion. This hardens the generic adapter boundary; it does not replace provider pagination/snapshot contracts.
