@@ -67,11 +67,12 @@ test("heartbeat marks a lost lease and stops issuing further renewals", async ()
   await heartbeat.stop();
 });
 
-test("heartbeat records renewal errors as lease loss without rejecting stop", async () => {
+test("heartbeat marks renewal errors as uncertain ownership and stops retrying without rejecting stop", async () => {
+  let renewals = 0;
   let errors = 0;
   const heartbeat = createLeaseHeartbeat({
     intervalMs: 60_000,
-    renew: async () => { throw new Error("database unavailable"); },
+    renew: async () => { renewals += 1; throw new Error("database unavailable"); },
     onLost: () => undefined,
     onError: () => { errors += 1; },
   });
@@ -81,5 +82,7 @@ test("heartbeat records renewal errors as lease loss without rejecting stop", as
   assert.equal(heartbeat.leaseLost, false, "a renewal exception does not prove another worker owns the lease");
   assert.equal(heartbeat.ownershipUncertain, true);
   assert.equal(errors, 1);
+  await heartbeat.pulse();
+  assert.equal(renewals, 1, "heartbeat must not retry while ownership remains uncertain");
   await assert.doesNotReject(() => heartbeat.stop());
 });
