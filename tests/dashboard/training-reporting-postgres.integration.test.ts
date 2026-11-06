@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { prisma } from "../src/config/database";
-import { getTrainingCapacityReporting } from "../src/modules/dashboard/dashboard.service";
-import { assertDedicatedTestDatabaseUrl } from "./helpers/test-database";
+import { prisma } from "../../src/config/database";
+import { getTrainingCapacityReporting } from "../../src/modules/dashboard/dashboard.service";
+import { assertDedicatedTestDatabaseUrl } from "../helpers/test-database";
 
 const databaseUrl = process.env.PM_SETU_TEST_DATABASE_URL;
 
