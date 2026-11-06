@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { getValidated } from "../../middleware/validate.middleware";
 import { ApiError, sendCreated, sendSuccess } from "../../utils/response";
 import * as service from "./integration.service";
-import type { IntegrationSourceInput } from "./integration.schema";
+import { integrationIngestSchema, type IntegrationSourceInput } from "./integration.schema";
 function actor(req: Request) { const id = Number(req.user?.id); if (!Number.isSafeInteger(id) || id <= 0) throw new ApiError({ statusCode: 401, code: "UNAUTHENTICATED", message: "Authentication required" }); return id; }
 export async function list(req: Request, res: Response) { actor(req); const { query } = getValidated<unknown, { enabled?: string; system?: string }>(res); return sendSuccess(res, await service.list({ enabled: query.enabled === undefined ? undefined : query.enabled === "true", system: query.system })); }
 export async function create(req: Request, res: Response) { actor(req); const { body } = getValidated<IntegrationSourceInput>(res); return sendCreated(res, await service.create(body)); }
