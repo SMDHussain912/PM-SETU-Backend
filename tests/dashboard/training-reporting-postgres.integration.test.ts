@@ -29,6 +29,10 @@ test("PostgreSQL training reporting reconciles real, sample, unassigned and null
             data: { name: `REPORT_TEST_B_${suffix}`, district: "TEST", sector: "TEST" },
         });
         createdClusterIds.push(clusterB.id);
+        const emptyCluster = await prisma.cluster.create({
+            data: { name: `REPORT_TEST_EMPTY_${suffix}`, district: "TEST", sector: "TEST" },
+        });
+        createdClusterIds.push(emptyCluster.id);
         const sampleCluster = await prisma.cluster.create({
             data: { name: `REPORT_TEST_SAMPLE_${suffix}`, district: "TEST", sector: "TEST", isSample: true },
         });
@@ -72,6 +76,12 @@ test("PostgreSQL training reporting reconciles real, sample, unassigned and null
             total_itis: 1,
             itis_with_capacity: 0,
             itis_without_capacity: 1,
+        });
+        assert.equal(byId.get(emptyCluster.id)?.student_capacity, null);
+        assert.deepEqual(byId.get(emptyCluster.id)?.coverage, {
+            total_itis: 0,
+            itis_with_capacity: 0,
+            itis_without_capacity: 0,
         });
         assert.equal(byId.has(sampleCluster.id), false);
         assert.equal(report.without_reportable_cluster.student_capacity, (baseline.without_reportable_cluster.student_capacity ?? 0) + 12);
