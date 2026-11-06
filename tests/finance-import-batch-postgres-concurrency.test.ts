@@ -1,4 +1,5 @@
 import test from "node:test";
+import { assertDedicatedTestDatabaseUrl } from "../helpers/test-database";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -13,6 +14,7 @@ test("PostgreSQL concurrent same-key submissions persist one canonical batch", {
     skip: !databaseUrl ? "Set PM_SETU_TEST_DATABASE_URL to a dedicated migrated test database" : false,
 }, async () => {
     if (!databaseUrl) return;
+    assertDedicatedTestDatabaseUrl(databaseUrl, "PM_SETU_TEST_DATABASE_URL");
 
     const client = new PrismaClient({
         adapter: new PrismaPg({ connectionString: databaseUrl }),
