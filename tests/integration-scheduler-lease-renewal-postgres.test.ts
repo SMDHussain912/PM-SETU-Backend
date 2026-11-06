@@ -44,10 +44,11 @@ test("PostgreSQL scheduler lease renewal is owner- and expiry-guarded; release i
     assert.equal(await renewSourceClaim(source.id, wrongToken, firstClient), false);
 
     // Shorten the still-valid fixture lease so renewal must move its expiry forward.
-    await firstClient.integrationSource.update({
-      where: { id: source.id },
-      data: { claimExpiresAt: new Date(Date.now() + 60_000) },
-    });
+    await firstClient.$executeRaw`
+      UPDATE "integration_sources"
+      SET "claim_expires_at" = NOW() + INTERVAL '60 seconds'
+      WHERE "id" = ${source.id}
+    `;
     const beforeRenewal = await firstClient.integrationSource.findUniqueOrThrow({
       where: { id: source.id },
       select: { claimExpiresAt: true },
