@@ -6,6 +6,7 @@ import { executeWithRetry } from "./integration.retry";
 import { integrationAdapterPageSchema, integrationIngestSchema } from "./integration.schema";
 import * as repo from "./integration.repository";
 import type { IntegrationSourceInput } from "./integration.schema";
+import { isIntegrationPullTransport } from "./integration.types";
 export async function list(filters: { enabled?: boolean; system?: string }) { return repo.list(filters); }
 export async function create(input: IntegrationSourceInput) {
   try { return await repo.create(input); }
@@ -19,7 +20,7 @@ export async function setEnabled(id: number, enabled: boolean) {
 export async function setSchedule(id: number, seconds: number | null) {
   const source = await repo.get(id);
   if (!source) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
-  if (seconds !== null && (source.transport === "CSV_UPLOAD" || source.transport === "WEBHOOK")) {
+  if (seconds !== null && !isIntegrationPullTransport(source.transport)) {
     throw new ApiError({ statusCode: 409, code: "INTEGRATION_TRANSPORT_NOT_SCHEDULABLE", message: "CSV upload and webhook sources cannot use scheduled polling" });
   }
   return repo.updateSchedule(id, seconds);
@@ -62,6 +63,9 @@ export async function runScheduledSource(
   repository: ScheduledSourceRepository = repo,
 ) {
   const startedAt = new Date();
+  if (!isIntegrationPullTransport(source.transport)) {
+    throw new ApiError({ statusCode: 409, code: "INTEGRATION_TRANSPORT_NOT_SCHEDULABLE", message: "This integration transport does not support scheduled polling" });
+  }
   const adapter = integrationAdapterRegistry.get(source.code);
   if (!adapter || adapter.system !== source.system) {
     return repo.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: null, errorCode: adapter ? "ADAPTER_SYSTEM_MISMATCH" : "ADAPTER_NOT_CONFIGURED", errorSummary: adapter ? "Adapter system does not match source system" : "No reviewed adapter is registered for this source", startedAt, completedAt: new Date() });
