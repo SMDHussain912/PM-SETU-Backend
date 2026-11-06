@@ -20,6 +20,7 @@ test("PostgreSQL scheduler skips an expired source while another transaction hol
   let sourceId: number | undefined;
   let releaseLock: (() => void) | undefined;
   let signalLockHeld: (() => void) | undefined;
+  let lockingTransaction: Promise<void> | undefined;
   const lockHeld = new Promise<void>((resolve) => { signalLockHeld = resolve; });
   const holdTransaction = new Promise<void>((resolve) => { releaseLock = resolve; });
 
@@ -49,7 +50,7 @@ test("PostgreSQL scheduler skips an expired source while another transaction hol
       data: { claimExpiresAt: new Date(Date.now() - 1_000) },
     });
 
-    const lockingTransaction = firstClient.$transaction(async (tx) => {
+    lockingTransaction = firstClient.$transaction(async (tx) => {
       await tx.$queryRaw<Array<{ id: number }>>`
         SELECT "id" FROM "integration_sources" WHERE "id" = ${source.id} FOR UPDATE
       `;
@@ -63,6 +64,7 @@ test("PostgreSQL scheduler skips an expired source while another transaction hol
 
     releaseLock();
     await lockingTransaction;
+    lockingTransaction = undefined;
 
     const afterCommit = await claimDueSources(secondClient, [source.id]);
     assert.equal(afterCommit.length, 1, "the source should become claimable after the lock is released");
@@ -70,6 +72,7 @@ test("PostgreSQL scheduler skips an expired source while another transaction hol
     assert.notEqual(afterCommit[0].claimToken, initialClaim.claimToken);
   } finally {
     releaseLock?.();
+    await lockingTransaction?.catch(() => undefined);
     if (sourceId !== undefined) {
       await firstClient.integrationSource.deleteMany({ where: { id: sourceId } }).catch(() => undefined);
     }
