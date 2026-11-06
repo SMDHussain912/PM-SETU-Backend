@@ -143,7 +143,7 @@ export async function updateUserStatus(
         const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
         if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
     }
-    await userRepository.updateStatus(id, input.status);
+    await userRepository.updateStatusPreservingSuperAdmin(id, input.status);
     return getUserById(id);
 }
 
@@ -178,7 +178,7 @@ export async function deactivateUser(id: number, actorId: string, actorRoles: st
         const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
         if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
     }
-    await userRepository.updateStatus(id, "INACTIVE");
+    await userRepository.updateStatusPreservingSuperAdmin(id, "INACTIVE");
     return getUserById(id);
 }
 
