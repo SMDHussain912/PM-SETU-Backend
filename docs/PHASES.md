@@ -425,3 +425,12 @@ Reviewed the public read-only `GET /api/v1/dashboard/training/reporting` and `GE
 The existing repository tests already cover sample-row exclusion and nullable aggregate SQL; the existing reporting-contract tests cover unavailable measures and finance approval gates. The new service tests still require local typecheck/test/build verification on their commit. Do not add date boundaries or freshness claims until source owners approve the period/as-of contract.
 
 **Next:** after local verification, continue the Phase 7 KPI source-owner decision register and implement only metrics with an approved authoritative source contract.
+
+
+### Phase 7.2 continuation — PostgreSQL-backed training reporting verification
+
+Added `tests/dashboard/training-reporting-postgres.integration.test.ts` and `docs/phase-7/TRAINING_REPORTING_POSTGRES_INTEGRATION_TEST.md`.
+
+The opt-in test exercises the real reporting repository SQL against a dedicated migrated PostgreSQL test database. It verifies state/cluster reconciliation, null versus numeric-zero capacity, sample ITI and sample-cluster exclusion, unassigned ITIs, and a cluster with no populated capacity. Fixtures use unique identifiers, compare before/after aggregates to tolerate pre-existing test data, and clean up only rows created by the test. No migration or production data change is required.
+
+**Next:** obtain authoritative source-owner decisions for the capacity field's reporting period/as-of semantics before adding period filters or freshness claims. Continue the Phase 7 KPI approval backlog only where a source definition and acceptance rule are approved; keep PHY, ACD, IND, and FIN official outcome measures blocked until their respective gates are satisfied.
