@@ -328,3 +328,9 @@ Scheduled polling is now restricted to pull transports:
 - REST and SFTP scheduling remain supported; CSV and webhook sources remain valid when unscheduled and continue to use their existing delivery paths.
 
 Regression coverage in `tests/integration-transport-schedule.test.ts` verifies accepted pull transports, rejected push-transport schedules, and valid unscheduled push sources. The database claim predicate is a defense-in-depth guard for existing rows. Provider-specific SFTP connection, authentication and file semantics remain blocked on an approved source-owner contract.
+
+## 31. Service-level pull-transport enforcement
+
+Transport eligibility is now enforced at three independent boundaries: source validation, schedule-update service validation, and the PostgreSQL scheduler claim predicate. The scheduled execution service also checks the source transport before adapter lookup, checkpoint reads, retries or writes. This protects direct service invocations and test/maintenance call paths even if they bypass the scheduler query.
+
+The pull-transport predicate is centralized in `integration.types.ts` as `isIntegrationPullTransport()` / `INTEGRATION_PULL_TRANSPORTS`. Regression coverage in `tests/integration-scheduled-source-service.test.ts` verifies a WEBHOOK source is rejected before adapter execution, checkpoint lookup or run persistence. CSV_UPLOAD remains covered by the shared transport rule. This is generic transport enforcement, not provider certification.
