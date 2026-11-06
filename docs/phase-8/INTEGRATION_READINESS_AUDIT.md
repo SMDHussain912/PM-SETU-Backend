@@ -235,3 +235,12 @@ Disabling an integration source now clears its claim token and lease expiry whil
 Re-enabling the source schedules it immediately; because disable cleared the old lease, it does not have to wait for the previous 15-minute lease expiry. Added opt-in PostgreSQL coverage in `tests/integration-scheduler-disable-postgres.test.ts` using two independent clients. It verifies lease clearing, stale commit rejection, no run row written, and immediate claimability after re-enable.
 
 The test requires the dedicated `PM_SETU_TEST_DATABASE_URL`; confirm it ran rather than skipped.
+
+
+## 20. Immediate lease revocation when removing a schedule
+
+Setting an integration source's sync interval to `null` now clears its scheduler claim token and lease expiry, in addition to clearing `next_sync_at`. A worker already running under the removed schedule can no longer pass the transaction-scoped claim fence and commit scheduler output. The source's `enabled` flag is intentionally unchanged, so separately authorised manual ingestion remains available.
+
+Restoring a non-null interval schedules the source immediately. Added opt-in PostgreSQL coverage in `tests/integration-scheduler-unschedule-postgres.test.ts` using two independent clients. It verifies lease clearing, continued enabled state, stale commit rejection, no sync-run row, and immediate reclaim after schedule restoration.
+
+The test requires the dedicated `PM_SETU_TEST_DATABASE_URL`; confirm it ran rather than skipped.
