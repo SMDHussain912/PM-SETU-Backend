@@ -297,3 +297,10 @@ Regression coverage in `tests/integration-csv.test.ts` includes quoted JSON with
 The application JSON parser now retains a raw-body copy only for the mounted `/api/v1/integrations/webhooks/:id` endpoint, where HMAC verification requires the exact request bytes. Other JSON API requests no longer allocate and retain an additional raw-body buffer on the request object. The parser's existing 1 MB limit and webhook signature verification remain unchanged.
 
 The path matcher is isolated in `integration.webhook.raw-body.ts` and covered by `tests/integration-webhook-raw-body.test.ts` for valid webhook paths, query strings, trailing slashes and non-webhook paths. This is a memory-allocation reduction; it does not alter webhook authentication, replay semantics or provider contracts.
+
+
+## 27. Isolated webhook raw-body capture policy
+
+The JSON-parser verification callback now delegates to `captureIntegrationWebhookRawBody()` in `integration.webhook.raw-body.ts`. The helper accepts the Node request URL as optional and safely does nothing when it is absent or does not match the exact webhook route. For matching requests it copies the parser buffer, so later mutation of the parser's input buffer cannot alter the bytes used for HMAC verification.
+
+Regression coverage in `tests/integration-webhook-raw-body.test.ts` now exercises the capture operation itself: exact byte preservation, independent buffer ownership, ordinary-route exclusion, and missing-URL handling. This remains a transport-level safeguard only; it does not add replay protection or define provider-specific signature headers.
