@@ -109,6 +109,18 @@ async function lockValidSourceClaim(tx: Prisma.TransactionClient, sourceId: numb
   if (owned.length !== 1) throw new Error("SCHEDULER_LEASE_LOST");
 }
 
+/** Serialize manual ingestion against source disable/delete operations. */
+async function lockEnabledSource(tx: Prisma.TransactionClient, sourceId: number): Promise<void> {
+  const enabled = await tx.$queryRaw<Array<{ id: number }>>`
+    SELECT "id"
+    FROM "integration_sources"
+    WHERE "id" = ${sourceId}
+      AND "enabled" = TRUE
+    FOR UPDATE
+  `;
+  if (enabled.length !== 1) throw new Error("INTEGRATION_SOURCE_NOT_ENABLED");
+}
+
 export async function createScheduledRun(sourceId: number, claimToken: string, input: ScheduledRunInput, client: typeof prisma = prisma) {
   return client.$transaction(async (tx) => {
     await lockValidSourceClaim(tx, sourceId, claimToken);
@@ -119,6 +131,7 @@ export async function createScheduledRun(sourceId: number, claimToken: string, i
 export async function ingestBatch(sourceId: number, records: Array<{ source_record_id: string; source_version?: string | null; occurred_at?: string | null; payload: Record<string, unknown> }>, options: { cursor?: string | null; status?: "SUCCEEDED" | "PARTIAL"; startedAt?: Date; claimToken?: string } = {}, client: typeof prisma = prisma) {
   return client.$transaction(async (tx) => {
     if (options.claimToken) await lockValidSourceClaim(tx, sourceId, options.claimToken);
+    else await lockEnabledSource(tx, sourceId);
     let created = 0; let updated = 0;
     for (const record of records) {
       const existing = await tx.integrationRecord.findUnique({ where: { sourceId_sourceRecordId: { sourceId, sourceRecordId: record.source_record_id } }, select: { id: true, sourceVersion: true, payload: true } });
