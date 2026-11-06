@@ -26,7 +26,7 @@ const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 function shutdown(signal: string): void {
     logger.info(`${signal} received, shutting down...`);
-    stopIntegrationScheduler();
+    const schedulerShutdown = stopIntegrationScheduler();
 
     const forceExitTimer = setTimeout(() => {
         logger.error("Forcing shutdown: connections did not close in time.");
@@ -41,6 +41,8 @@ function shutdown(signal: string): void {
     server.close(async () => {
         clearTimeout(forceExitTimer);
         try {
+            // The scheduler may still be using Prisma for an in-flight sync or lease release.
+            await schedulerShutdown;
             await disconnectPrisma();
             logger.info("Shutdown complete.");
             process.exit(0);
