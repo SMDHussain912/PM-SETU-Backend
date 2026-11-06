@@ -579,3 +579,16 @@ Commits: `8273942` (lease revocation), `87a5ebd` (PostgreSQL test), plus the aud
 **Verification required:** run typecheck, full tests and build with `PM_SETU_TEST_DATABASE_URL` configured; confirm the new PostgreSQL test ran rather than skipped.
 
 **Current active work:** continue Phase 8 scheduler reliability review after verification. Provider-specific adapter work remains gated on an approved source-owner contract.
+
+
+### Phase 8 continuation — immediate lease revocation when removing a schedule
+
+Updated `updateSchedule()` so setting `sync_interval_seconds` to `null` clears `next_sync_at`, the claim token and lease expiry. In-flight scheduler workers can no longer commit under a schedule that has been removed. The source remains enabled, preserving separately authorised manual ingestion. Restoring a non-null interval makes it immediately eligible for a new claim.
+
+Added opt-in PostgreSQL test `tests/integration-scheduler-unschedule-postgres.test.ts` with two independent clients. It verifies the lease is cleared, the source remains enabled, the old token cannot write a run, and a restored schedule can be claimed with a new token.
+
+Commits: `9068fce` (schedule removal revocation), `8639276` (PostgreSQL test), plus the audit update.
+
+**Verification required:** run typecheck, full tests and build with `PM_SETU_TEST_DATABASE_URL` configured; confirm the new PostgreSQL test ran rather than skipped.
+
+**Current active work:** continue Phase 8 scheduler reliability review after verification. Provider-specific adapter work remains gated on an approved source-owner contract.
