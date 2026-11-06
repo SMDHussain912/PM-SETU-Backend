@@ -8,6 +8,7 @@ import type {
     UpdateBannerBody,
 } from "./banner.schema";
 import * as bannerService from "./banner.service";
+import { discardImageUploads, validateImageUploads } from "../../middleware/image-file-validation";
 
 /**
  * Banner Management module — controller layer (RoadMap.md §15 "BANNER APIs").
@@ -72,11 +73,17 @@ export async function uploadBannerImagesController(req: Request, res: Response):
             message: "At least one image file is required",
         });
     }
-    const [first, second] = files;
-    const banner = await bannerService.updateBannerImages(params.id, {
-        desktop_image_url: first ? `/uploads/banners/${first.filename}` : undefined,
-        mobile_image_url: second ? `/uploads/banners/${second.filename}` : undefined,
-    });
-    return sendSuccess(res, banner);
+    try {
+        await validateImageUploads(files);
+        const [first, second] = files;
+        const banner = await bannerService.updateBannerImages(params.id, {
+            desktop_image_url: first ? `/uploads/banners/${first.filename}` : undefined,
+            mobile_image_url: second ? `/uploads/banners/${second.filename}` : undefined,
+        });
+        return sendSuccess(res, banner);
+    } catch (error) {
+        await discardImageUploads(files);
+        throw error;
+    }
 }
 
