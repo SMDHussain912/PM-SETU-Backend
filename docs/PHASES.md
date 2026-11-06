@@ -36,7 +36,7 @@
 
 ---
 
-## 2. Overall project status
+| 2026-11-06 | 8 | Fence manual integration run-history writes against source disable races | Commits `d8b96dd`, `cda0649`, and `62fbb11`; service regression tests added; local verification pending. |\n\n## 2. Overall project status
 
 This repository uses an **extended 10-phase implementation roadmap (Phases 0–9)** maintained during project delivery. The original NIC-oriented `RoadMap.md` also contains an earlier backend sequencing proposal (Phases 1–7). These are different planning views; do not confuse their phase numbers. This file is the current delivery status tracker.
 
