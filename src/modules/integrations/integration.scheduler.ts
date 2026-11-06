@@ -1,11 +1,10 @@
 import { logger } from "../../utils/logger";
 import * as repo from "./integration.repository";
 import { runScheduledSource } from "./integration.service";
+import { createSchedulerLifecycle } from "./integration.scheduler.lifecycle";
 
 const LEASE_HEARTBEAT_MS = 60_000;
 let timer: NodeJS.Timeout | undefined;
-let stopped = false;
-let activeTick: Promise<void> | undefined;
 
 async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueSources>>[number]): Promise<void> {
   let leaseLost = false;
@@ -67,21 +66,16 @@ async function tick(): Promise<void> {
   }
 }
 
-function triggerTick(): void {
-  if (stopped || activeTick) return;
-  activeTick = tick().finally(() => {
-    activeTick = undefined;
-  });
-}
+const lifecycle = createSchedulerLifecycle(tick);
 
 export function startIntegrationScheduler(): void {
   if (process.env.INTEGRATION_SCHEDULER_ENABLED !== "true" || timer) return;
-  stopped = false;
+  lifecycle.start();
   const configured = Number(process.env.INTEGRATION_SCHEDULER_POLL_SECONDS ?? "30");
   const seconds = Number.isInteger(configured) && configured >= 5 && configured <= 300 ? configured : 30;
   logger.info(`Integration scheduler enabled; polling every ${seconds}s`);
-  triggerTick();
-  timer = setInterval(triggerTick, seconds * 1000);
+  lifecycle.trigger();
+  timer = setInterval(() => lifecycle.trigger(), seconds * 1000);
   timer.unref();
 }
 
@@ -90,8 +84,7 @@ export function startIntegrationScheduler(): void {
  * source's lease release, before the caller disconnects shared dependencies.
  */
 export async function stopIntegrationScheduler(): Promise<void> {
-  stopped = true;
   if (timer) clearInterval(timer);
   timer = undefined;
-  await activeTick;
+  await lifecycle.stop();
 }
