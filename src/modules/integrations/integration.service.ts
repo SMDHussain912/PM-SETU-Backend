@@ -39,13 +39,19 @@ export async function ingest(id: number, records: import("./integration.schema")
   return repo.ingestBatch(id, records);
 }
 
-export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<typeof repo.get>>>, claimToken: string) {
+type ScheduledSourceRepository = Pick<typeof repo, "listCommittedRuns" | "createScheduledRun" | "ingestBatch">;
+
+export async function runScheduledSource(
+  source: NonNullable<Awaited<ReturnType<typeof repo.get>>>,
+  claimToken: string,
+  repository: ScheduledSourceRepository = repo,
+) {
   const startedAt = new Date();
   const adapter = integrationAdapterRegistry.get(source.code);
   if (!adapter || adapter.system !== source.system) {
     return repo.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: null, errorCode: adapter ? "ADAPTER_SYSTEM_MISMATCH" : "ADAPTER_NOT_CONFIGURED", errorSummary: adapter ? "Adapter system does not match source system" : "No reviewed adapter is registered for this source", startedAt, completedAt: new Date() });
   }
-  const history = await repo.listCommittedRuns(source.id, 1);
+  const history = await repository.listCommittedRuns(source.id, 1);
   const previous = selectCommittedCheckpoint(history);
   // Preserve the last committed cursor across failed runs so transient adapter
   // failures do not restart a large source from its beginning.
@@ -57,16 +63,16 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
   if (retry.exhausted || retry.value === undefined) {
     // Do not persist upstream exception text: providers sometimes include URLs,
     // response fragments, or credentials in error messages.
-    return repo.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: "Adapter request failed after four attempts", startedAt, completedAt: new Date() });
+    return repository.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: "Adapter request failed after four attempts", startedAt, completedAt: new Date() });
   }
   const page = retry.value;
   const pageResult = integrationAdapterPageSchema.safeParse(page);
   if (!pageResult.success) throw new ApiError({ statusCode: 502, code: "ADAPTER_RESPONSE_INVALID", message: "Adapter returned an invalid page envelope" });
   const validPage = pageResult.data;
-  if (validPage.records.length === 0) return repo.createScheduledRun(source.id, claimToken, { status: validPage.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: validPage.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
+  if (validPage.records.length === 0) return repository.createScheduledRun(source.id, claimToken, { status: validPage.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: validPage.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
   const parsed = integrationIngestSchema.safeParse({ records: validPage.records });
   if (!parsed.success) throw new ApiError({ statusCode: 422, code: "ADAPTER_RECORDS_INVALID", message: "Adapter records failed ingestion validation", details: parsed.error.flatten() });
-  return repo.ingestBatch(source.id, parsed.data.records, { cursor: validPage.nextCursor ?? null, status: validPage.hasMore ? "PARTIAL" : "SUCCEEDED", startedAt, claimToken });
+  return repository.ingestBatch(source.id, parsed.data.records, { cursor: validPage.nextCursor ?? null, status: validPage.hasMore ? "PARTIAL" : "SUCCEEDED", startedAt, claimToken });
 }
 
 
