@@ -152,9 +152,9 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Impact:** Public API consumers could learn server filesystem layout and opaque internal user identifiers. The paths do not grant filesystem access by themselves, but their disclosure is unnecessary and increases information exposure.
 
-**Remediation on `main` (2026-11-07):** Added explicit public document projections. Public list/detail responses omit `file_path`; public version-history responses omit both `file_path` and `created_by`. Admin mutation responses and server-side download resolution remain unchanged.
+**Remediation on `main` (2026-11-07):** Added explicit public document projections. Public document list/detail responses omit `file_path`; public version-history responses omit both `file_path` and `created_by`. Public news detail responses now omit nested attachment `file_path` values. Admin mutation responses and server-side download resolution remain unchanged.
 
-**Regression coverage:** `tests/documents/public-projection.test.ts` asserts that filesystem paths and internal creator IDs are absent while public document metadata remains available.
+**Regression coverage:** `tests/documents/public-projection.test.ts` and `tests/news/public-projection.test.ts` assert that filesystem paths and internal creator IDs are absent while public metadata remains available.
 
 **Disposition:** Code remediation committed; CI verification pending. This does not constitute the broader field-level publication approval required for all public document metadata.
 
