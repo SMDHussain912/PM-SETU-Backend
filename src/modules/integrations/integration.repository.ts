@@ -96,8 +96,26 @@ export function updateSchedule(id: number, seconds: number | null, client: typeo
 export function createRun(input: { sourceId: number; status: string; recordsRead: number; recordsCreated: number; recordsUpdated: number; recordsRejected: number; cursor: string | null; errorCode: string | null; errorSummary: string | null; startedAt: Date; completedAt: Date }) {
   return prisma.integrationSyncRun.create({ data: input });
 }
+/**
+ * Public run-history projection. Provider cursors are opaque checkpoint state
+ * and must remain available only through listCommittedRuns() internally.
+ */
+export const integrationRunPublicSelect = {
+  id: true,
+  sourceId: true,
+  status: true,
+  recordsRead: true,
+  recordsCreated: true,
+  recordsUpdated: true,
+  recordsRejected: true,
+  errorCode: true,
+  errorSummary: true,
+  startedAt: true,
+  completedAt: true,
+} as const;
+
 export function listRuns(sourceId: number, take = 20) {
-  return prisma.integrationSyncRun.findMany({ where: { sourceId }, orderBy: { startedAt: "desc" }, take });
+  return prisma.integrationSyncRun.findMany({ where: { sourceId }, orderBy: { startedAt: "desc" }, take, select: integrationRunPublicSelect });
 }
 
 export function listCommittedRuns(sourceId: number, take = 1) {
