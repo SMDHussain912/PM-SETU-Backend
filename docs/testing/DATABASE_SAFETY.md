@@ -18,12 +18,12 @@ DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu?schema=public"
 TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public"
 ```
 
-The dashboard registry integration test additionally refuses to run unless:
+All destructive PostgreSQL integration tests refuse to run unless:
 - `NODE_ENV=test` is active;
-- `TEST_DATABASE_URL` is configured and is a valid PostgreSQL URL; and
+- `TEST_DATABASE_URL` (or `PM_SETU_TEST_DATABASE_URL` for opt-in concurrency tests) is configured and is a valid PostgreSQL URL; and
 - the database name ends in `_test` or `-test`.
 
-The integration test inserts fixture rows and deletes those exact rows during cleanup.
+Integration tests insert fixture rows and delete those exact rows during cleanup. Setup and cleanup hooks are guarded so tests do not open a connection when the dedicated URL is absent.
 Do not use a shared development, staging, or production database for this purpose.
 Create and migrate the test database separately before running `npm test`. The
 database-backed integration tests run only when `TEST_DATABASE_URL` is present;
