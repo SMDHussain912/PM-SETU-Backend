@@ -801,3 +801,6 @@ Commits: `22f8755` (service seam) and `62274dd` (tests). User verification requi
 
 
 **Verification update (2026-11-06):** The project owner confirms typecheck, full test suite and build passed after the schedule service guard coverage was added. The opt-in PostgreSQL tests remain unverified unless explicitly run with `PM_SETU_TEST_DATABASE_URL`.
+
+
+| 2026-11-06 | 8 | Isolate scheduler checkpoints from manual integration history | Added internal run origin (`SCHEDULED`, `MANUAL`, `LEGACY`), filtered checkpoint lookup, and migration preserving ambiguous pre-existing history as `LEGACY`; local verification pending. |
