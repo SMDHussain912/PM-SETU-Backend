@@ -134,6 +134,17 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Disposition:** Code remediation and structural regression tests committed; the latest CI run must be checked for final verification. Public read-field disclosure and exhaustive list/search/summary/export policy review remain open.
 
+
+### SEC-ROUTE-12 — Privileged user and role mutations have incomplete audit coverage
+
+**Evidence:** `src/modules/users/user.service.ts` writes an audit entry for organisation-scope replacement, but the inspected create-user, profile-update, status-change, role-replacement and deactivation service paths do not call the audit service. `src/modules/roles/role.service.ts` create/update/delete paths also do not write audit entries. The repository exposes an append-only audit-create hook, and `RoadMap.md` §21 explicitly describes transaction audit metadata for approval transactions; the RoadMap does not define a complete audit-event matrix for user/role administration.
+
+**Impact:** Changes to privileged accounts and role definitions may not have an attributable before/after audit record. This is especially important because role and permission assignments directly affect access.
+
+**Required action:** Confirm the required audit event matrix for user creation, profile changes, activation/deactivation, role assignment/removal, role/permission changes and scope replacement. Confirm whether audit-write failure must roll back the business transaction or be handled by another approved delivery mechanism. Then add actor, target, action, before/after values and request metadata with regression tests. Do not choose fail-open/fail-closed semantics by assumption; the audit service currently documents that policy as TO CONFIRM.
+
+**Disposition:** Open security/acceptance finding; implementation depends on audit policy confirmation.
+
 ## 4. Additional verification required before sign-off
 
 - Protected resource-specific mutation and workflow routes in AIP, Cluster, ITI, SIP and SPV use resource-scope middleware; PostgreSQL integration coverage exists for inherited and direct assignment cases. Public registry GET routes are intentionally unguarded in the current route design. Still inspect every public list/search/summary/export response against the approved publication policy; route-level mutation guards do not prove public-field disclosure is safe.
