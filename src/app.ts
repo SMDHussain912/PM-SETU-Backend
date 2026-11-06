@@ -37,7 +37,7 @@ app.use("/api/v1/admin", adminLimiter);
 app.use(express.json({
     limit: "1mb",
     verify: (req, _res, buffer) => {
-        if (isIntegrationWebhookRequestPath(req.url)) {
+        if (isIntegrationWebhookRequestPath(req.originalUrl)) {
             req.rawBody = Buffer.from(buffer);
         }
     },
