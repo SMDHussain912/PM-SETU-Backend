@@ -40,8 +40,8 @@ test("PostgreSQL scheduler workers claim bounded, disjoint batches and drain rem
     sourceIds.push(...created.map((source) => source.id));
 
     const [firstBatch, secondBatch] = await Promise.all([
-      claimDueSources(firstClient),
-      claimDueSources(secondClient),
+      claimDueSources(firstClient, sourceIds),
+      claimDueSources(secondClient, sourceIds),
     ]);
 
     assert.ok(firstBatch.length <= 10, `first worker claimed ${firstBatch.length} rows`);
