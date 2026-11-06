@@ -804,3 +804,12 @@ Commits: `22f8755` (service seam) and `62274dd` (tests). User verification requi
 
 
 | 2026-11-06 | 8 | Isolate scheduler checkpoints from manual integration history | Added internal run origin (`SCHEDULED`, `MANUAL`, `LEGACY`), filtered checkpoint lookup, and migration preserving ambiguous pre-existing history as `LEGACY`; local verification pending. |
+
+
+### Phase 8 continuation — consistent repository injection for missing adapters
+
+The scheduled-source service's early failure path for an unregistered adapter or adapter/system mismatch now uses the injected repository dependency instead of bypassing it through the module-level repository. Production behaviour is unchanged because the default dependency remains the production repository. Added a regression test proving a missing adapter persists one FAILED run through the injected repository without checkpoint reads or ingestion.
+
+Commits: `e6ebbf2` (service fix) and `5ad1598` (regression test).
+
+**Current active work:** continue generic integration reliability review only where it does not invent provider contracts. Provider-specific adapters remain blocked until an approved source-owner contract is supplied.
