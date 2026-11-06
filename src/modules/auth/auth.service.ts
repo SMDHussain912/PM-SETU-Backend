@@ -120,15 +120,11 @@ export async function login(input: LoginInput): Promise<LoginResponse> {
 
     const valid = await verifyPassword(input.password, user.password_hash);
     if (!valid) {
-        const attempts = user.failed_login_attempts + 1;
-        if (attempts >= env.accountLock.maxAttempts) {
-            await authRepository.applyLockout(
-                user.id,
-                new Date(now + env.accountLock.lockMinutes * 60_000),
-            );
-        } else {
-            await authRepository.recordFailedLogin(user.id, attempts);
-        }
+        await authRepository.recordFailedLogin(
+            user.id,
+            env.accountLock.maxAttempts,
+            new Date(Date.now() + env.accountLock.lockMinutes * 60_000),
+        );
         throw invalidCredentials();
     }
 

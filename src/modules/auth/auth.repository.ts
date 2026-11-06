@@ -107,20 +107,32 @@ export async function findPermissionCodesByUserId(userId: number): Promise<strin
     return rows.map((row) => row.code);
 }
 
-/** sql/auth #7 — record an additional failed login attempt. */
-export async function recordFailedLogin(id: number, attempts: number): Promise<void> {
+/**
+ * Atomically records a failed login and applies lockout at the threshold.
+ *
+ * A single UPDATE prevents concurrent failed logins from overwriting one
+ * another's counter. Once the row is locked, in-flight requests cannot keep
+ * incrementing the counter until the lock expires.
+ */
+export async function recordFailedLogin(
+    id: number,
+    maxAttempts: number,
+    lockedUntil: Date,
+): Promise<void> {
     await prisma.$executeRaw(Prisma.sql`
         UPDATE users
-        SET failed_login_attempts = ${attempts}, updated_at = now()
-        WHERE id = ${id}`);
-}
-
-/** sql/auth #8 — lock the account (and reset the counter for the next cycle). */
-export async function applyLockout(id: number, lockedUntil: Date): Promise<void> {
-    await prisma.$executeRaw(Prisma.sql`
-        UPDATE users
-        SET failed_login_attempts = 0, locked_until = ${lockedUntil}, updated_at = now()
-        WHERE id = ${id}`);
+        SET
+            failed_login_attempts = CASE
+                WHEN failed_login_attempts + 1 >= ${maxAttempts} THEN 0
+                ELSE failed_login_attempts + 1
+            END,
+            locked_until = CASE
+                WHEN failed_login_attempts + 1 >= ${maxAttempts} THEN ${lockedUntil}
+                ELSE locked_until
+            END,
+            updated_at = now()
+        WHERE id = ${id}
+          AND (locked_until IS NULL OR locked_until <= now())`);
 }
 
 /** sql/auth #9 — successful login: clear lockout, record last_login_at. */
