@@ -59,7 +59,7 @@ The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt
 
 The following items are not certified by the checks above and remain open:
 - The initial source-level route authorization and organisation-scope audit is documented in `ROUTE_AUTHORIZATION_SECURITY_AUDIT.md`; exhaustive live HTTP tests and formal role-policy approval remain open.
-- Security review of file storage, download headers, retention, malware scanning and production object storage.
+- Security review of local-file storage durability, retention/deletion, malware scanning/quarantine, approved production object storage and document-download cache policy.
 - Review of CORS, trusted proxy, rate-limit storage and deployment-specific configuration.
 - Privileged-account controls, MFA availability and account recovery policy.
 - Security logging, alerting, secret rotation and incident response runbook.

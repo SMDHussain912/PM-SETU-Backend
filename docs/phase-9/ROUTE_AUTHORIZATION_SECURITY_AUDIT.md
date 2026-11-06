@@ -134,7 +134,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Regression coverage:** `tests/route-middleware-order.test.ts` now checks role-before-scope, scope-before-validation, and reassignment-guard-before-validation across the nine affected route files, in addition to the original four route families. The PostgreSQL scope integration test covers cluster inheritance to child resources, direct ITI/AIP assignments, unassigned denial, cross-cluster denial, global admin bypass, and invalid/unauthenticated requests.
 
-**Disposition:** Code remediation and structural regression tests committed and verified by successful CI run #64 (commit `02a0ff12e969bafb0dc904cfdaf33694a35ee761`). Public read-field disclosure and exhaustive list/search/summary/export policy review remain open.
+**Disposition:** Code remediation and structural regression tests committed and verified by successful CI run #74 (commit `94d6205dfc2bff7a38361037f4e15025a91d77e9`). Public read-field disclosure and exhaustive list/search/summary/export policy review remain open.
 
 
 ### SEC-ROUTE-12 — Privileged user and role mutations have incomplete audit coverage
@@ -158,7 +158,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Regression coverage:** `tests/documents/public-projection.test.ts` and `tests/news/public-projection.test.ts` assert that filesystem paths and internal creator IDs are absent while public metadata remains available.
 
-**Disposition:** Code remediation committed and verified by successful CI run #64 (commit `02a0ff12e969bafb0dc904cfdaf33694a35ee761`). This does not constitute the broader field-level publication approval required for all public document metadata.
+**Disposition:** Code remediation committed and verified by successful CI run #74 (commit `94d6205dfc2bff7a38361037f4e15025a91d77e9`). This does not constitute the broader field-level publication approval required for all public document metadata.
 
 
 ### SEC-ROUTE-14 — Multipart upload parser lacked field and aggregate-part bounds
