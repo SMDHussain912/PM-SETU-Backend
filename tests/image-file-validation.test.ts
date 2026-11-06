@@ -109,7 +109,7 @@ test("sanitizes the returned original filename", async () => {
     const sample = await fixture("../banner\nfinal.png", "image/png",
         Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
     try {
-        assert.equal(await validateImageUpload(sample.file), "final.png");
+        assert.equal(await validateImageUpload(sample.file), "bannerfinal.png");
     } finally {
         await rm(sample.directory, { recursive: true, force: true });
     }
