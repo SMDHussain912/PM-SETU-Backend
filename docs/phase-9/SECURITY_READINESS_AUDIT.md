@@ -1,9 +1,9 @@
 # Phase 9 — Security Readiness Audit
 
-**Status:** In progress; initial engineering hardening increment verified on 2026-11-06.  
+**Status:** In progress; latest engineering hardening verified by CI on 2026-11-07.  
 **Repository:** `smdgamekingindo-TN/PM-SETU-Backend`  
 **Branch:** `main`  
-**Verified commit:** `060a5b83b36f4929dac6f375a9b0950b2d4cf00e`
+**Verified commit:** `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`
 
 ## 1. Verified changes
 
@@ -33,24 +33,28 @@ The existing document upload path already had a separate signature validator and
 
 Regression tests cover valid signatures, spoofed bytes, mismatched MIME declarations, empty/unsupported files, filename sanitisation, batch cleanup and safe repeated cleanup.
 
+### Multipart parser resource bounds
+
+The shared Multer wrapper now limits each multipart request to 2 files, 10 text fields and 12 total parts; individual fields are limited to 64 KiB, field names to 100 bytes and header pairs to 2,000. Route-level `.single()` / `.array()` limits and the environment-configured per-file byte limit remain in force. Regression coverage is in `tests/upload-multipart-limits.test.ts`.
+
 ## 2. GitHub Actions evidence
 
-Commit: `060a5b83b36f4929dac6f375a9b0950b2d4cf00e`
+Commit: `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`
 
-The completed workflow **Install, migrate, typecheck, test and build** passed:
+The completed workflow **Install, migrate, typecheck, test and build** (#67) passed:
 - npm dependency audit
 - Prisma client generation
 - Migrations against the isolated CI PostgreSQL database
 - TypeScript typecheck
-- Test suite: 321 passed, 0 failed, 0 skipped
+- Test suite: 334 passed, 0 failed, 0 skipped
 - Production build
 
-Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42254605607
+The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42293460253
 
 ## 3. Remaining Phase 9 work
 
 The following items are not certified by the checks above and remain open:
-- Full route-by-route authentication, role, permission and organisation-scope audit.
+- The initial source-level route authorization and organisation-scope audit is documented in `ROUTE_AUTHORIZATION_SECURITY_AUDIT.md`; exhaustive live HTTP tests and formal role-policy approval remain open.
 - Security review of file storage, download headers, retention, malware scanning and production object storage.
 - Review of CORS, trusted proxy, rate-limit storage and deployment-specific configuration.
 - Privileged-account controls, MFA availability and account recovery policy.
