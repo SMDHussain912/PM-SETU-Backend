@@ -12,14 +12,14 @@ test("user mutations and audit inserts share one transaction", () => {
         assert.notEqual(start, -1, `Missing ${mutation} service`);
         const next = service.indexOf("\nexport async function ", start + 1);
         const body = service.slice(start, next === -1 ? service.length : next);
-        assert.match(body, /prisma\\.\\$transaction\\(async \\(tx\\) =>/);
-        assert.match(body, /recordAuditEntry\\([\\s\\S]*?\\}, tx\\)/);
+        assert.match(body, /prisma\.\$transaction\(async \(tx\) =>/);
+        assert.match(body, /recordAuditEntry\([\\s\\S]*?\\}, tx\)/);
     }
 
-    assert.match(repository, /createUser\\([\\s\\S]*?db\\?: Prisma\\.TransactionClient/);
-    assert.match(repository, /updateUser\\([\\s\\S]*?db: Prisma\\.TransactionClient \\| typeof prisma/);
-    assert.match(repository, /updateStatusPreservingSuperAdmin\\([\\s\\S]*?db\\?: Prisma\\.TransactionClient/);
-    assert.match(repository, /replaceUserRoles\\(userId: number, roleIds: number\\[\\], db\\?: Prisma\\.TransactionClient/);
-    assert.match(repository, /replaceUserScopes\\([\\s\\S]*?db\\?: Prisma\\.TransactionClient/);
-    assert.match(repository, /getUserById\\(id: number, db: Prisma\\.TransactionClient/);
+    assert.match(repository, /createUser\([\\s\\S]*?db\\?: Prisma\.TransactionClient/);
+    assert.match(repository, /updateUser\([\\s\\S]*?db: Prisma\.TransactionClient \| typeof prisma/);
+    assert.match(repository, /updateStatusPreservingSuperAdmin\([\\s\\S]*?db\\?: Prisma\.TransactionClient/);
+    assert.match(repository, /replaceUserRoles\(userId: number, roleIds: number\[\], db\\?: Prisma\.TransactionClient/);
+    assert.match(repository, /replaceUserScopes\([\\s\\S]*?db\\?: Prisma\.TransactionClient/);
+    assert.match(repository, /getUserById\(id: number, db: Prisma\.TransactionClient/);
 });
