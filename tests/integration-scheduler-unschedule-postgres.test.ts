@@ -73,6 +73,12 @@ test("PostgreSQL removing a source schedule revokes its lease without disabling 
     assert.equal(await firstClient.integrationSyncRun.count({ where: { sourceId: source.id } }), 0);
 
     await updateSchedule(source.id, 300, secondClient);
+    const scheduleClock = await secondClient.$queryRaw<Array<{ seconds_until_due: number }>>`
+      SELECT EXTRACT(EPOCH FROM ("next_sync_at" - NOW()))::float8 AS seconds_until_due
+      FROM "integration_sources"
+      WHERE "id" = ${source.id}
+    `;
+    assert.ok(Math.abs(scheduleClock[0].seconds_until_due) < 2, "restored schedule should use PostgreSQL time");
     const [reclaimed] = await claimDueSources(secondClient, [source.id]);
     assert.ok(reclaimed, "restoring a schedule should make the source immediately claimable");
     assert.notEqual(reclaimed.claimToken, claim.claimToken);
