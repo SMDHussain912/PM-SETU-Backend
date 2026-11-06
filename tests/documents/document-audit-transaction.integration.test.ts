@@ -19,6 +19,7 @@ async function createDocument(title: string): Promise<number> {
 }
 
 test.before(async () => {
+    if (!databaseUrl) return;
     await prisma.$connect();
     rollbackDocumentId = await createDocument("CI document before failed audit");
     successDocumentId = await createDocument("CI document before successful audit");
@@ -41,6 +42,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
+    if (!databaseUrl) return;
     await pool.query("DROP TRIGGER IF EXISTS ci_reject_document_audit ON audit_logs");
     await pool.query("DROP FUNCTION IF EXISTS ci_reject_document_audit()");
     await pool.query(
