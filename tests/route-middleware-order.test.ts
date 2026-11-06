@@ -75,9 +75,17 @@ test("resource-scope authorization runs before request validation", () => {
 
         for (const [index, match] of routeCalls.entries()) {
             const route = match[0];
+            const authorizationIndex = route.indexOf("requireRoles(");
             const scopeIndex = route.indexOf("requireResourceScope(");
             const validationIndex = route.indexOf("validate(");
-            const reassignmentIndex = route.indexOf("preventClusterAdminReassignment(");
+            const reassignmentIndex = route.indexOf("preventClusterAdminReassignment");
+
+            if (scopeIndex !== -1 && authorizationIndex !== -1) {
+                assert.ok(
+                    authorizationIndex < scopeIndex,
+                    `${file.path} route #${index + 1} checks resource scope before role authorization`,
+                );
+            }
 
             if (scopeIndex !== -1 && validationIndex !== -1) {
                 assert.ok(
