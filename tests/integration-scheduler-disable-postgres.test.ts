@@ -72,6 +72,12 @@ test("PostgreSQL disabling an integration source revokes its lease and blocks st
     assert.equal(await firstClient.integrationSyncRun.count({ where: { sourceId: source.id } }), 0);
 
     await updateEnabled(source.id, true, secondClient);
+    const enabledClock = await secondClient.$queryRaw<Array<{ seconds_until_due: number }>>`
+      SELECT EXTRACT(EPOCH FROM ("next_sync_at" - NOW()))::float8 AS seconds_until_due
+      FROM "integration_sources"
+      WHERE "id" = ${source.id}
+    `;
+    assert.ok(Math.abs(enabledClock[0].seconds_until_due) < 2, "re-enabled schedule should use PostgreSQL time");
     const [reclaimed] = await claimDueSources(secondClient, [source.id]);
     assert.ok(reclaimed, "re-enabled source should be immediately claimable");
     assert.notEqual(reclaimed.claimToken, claim.claimToken);
