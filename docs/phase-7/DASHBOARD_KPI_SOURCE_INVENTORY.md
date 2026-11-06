@@ -1,6 +1,6 @@
 # Phase 7 — Dashboard KPI and source inventory
 
-**Status:** Initial source inventory; implementation contract not yet approved  
+**Status:** Source inventory and versioned readiness catalogue implemented; KPI definitions and source approvals remain pending  
 **Working branch:** `main`  
 **Purpose:** Establish an evidence-based dashboard baseline before adding new aggregations or public response fields.
 
@@ -164,3 +164,17 @@ The repository evidence and implementation gates are recorded in `docs/phase-7/A
 - The existing academic summary and industry outcome summary are intake workflow counts, not official KPI aggregations.
 - ACD KPI source/definition gaps and IND counting-grain, identity, evidence, period and placement-rate denominator gaps remain unresolved.
 - No academic or industry KPI dashboard aggregation was added. Capacity remains separate from academic outcomes; placement percentage remains blocked on approved numerator/denominator and cohort rules.
+
+
+## 9. Version 1.1.0 — KPI readiness catalogue
+
+The public descriptive contract now enumerates the internal readiness identifiers for all source families tracked by Phase 7:
+
+- Physical progress: PHY-01..PHY-04.
+- Academic outcomes: ACD-01..ACD-05.
+- Industry and employment: IND-01..IND-06.
+- Finance: FIN-01..FIN-05 (the only entries carrying the `official_kpi_code` field).
+
+The PHY/ACD/IND identifiers are engineering backlog identifiers, not approved official Government KPI codes. Their catalogue entries have no source and no aggregation levels until the accountable source owner and programme authority approve the definition, source, hierarchy, reporting period, evidence, privacy, and publication policy. Their availability values describe the current blocker only; they are not metric values and must not be rendered as zero.
+
+This is an additive catalogue change from contract version 1.0.0 to 1.1.0. Existing dashboard value endpoints and response shapes are unchanged. The registry, planning, and student-capacity measures retain their existing semantics.

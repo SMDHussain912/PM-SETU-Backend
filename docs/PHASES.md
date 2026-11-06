@@ -243,9 +243,9 @@ Related documentation:
 - `docs/phase-7/DASHBOARD_KPI_SOURCE_INVENTORY.md`
 
 ### Phase 7 — State PMU dashboard & analytics
-**Status: IN PROGRESS — REPORTING CONTRACT AND SOURCE-BACKED CAPACITY AGGREGATION IMPLEMENTED**
+**Status: IN PROGRESS — SOURCE-BACKED CAPACITY REPORTING VERIFIED; KPI READINESS CATALOGUE IMPLEMENTED**
 
-Implemented milestone 7.2 increment: added public read-only `GET /api/v1/dashboard/training/itis/:id` for the source-backed ITI student-capacity measure. It preserves null capacity as `NOT_AVAILABLE`, excludes sample ITIs, returns 404 for absent/sample IDs, and explicitly leaves reporting period and source freshness untracked. API schema, OpenAPI, source inventory, and identifier validation tests were added. Local typecheck/test/build verification for the ITI reporting increment was confirmed by the project owner. Added `GET /api/v1/dashboard/training/reporting` with state/cluster capacity aggregates, explicit coverage counts, sample exclusion, reportable-cluster coverage, an unassigned-capacity reconciliation breakdown, and null-versus-zero semantics. The existing training endpoints remain unchanged. Local typecheck/test/build verification for this aggregation increment is pending.
+Implemented milestone 7.2 increment: added public read-only `GET /api/v1/dashboard/training/itis/:id` for the source-backed ITI student-capacity measure. It preserves null capacity as `NOT_AVAILABLE`, excludes sample ITIs, returns 404 for absent/sample IDs, and explicitly leaves reporting period and source freshness untracked. API schema, OpenAPI, source inventory, and identifier validation tests were added. Local typecheck/test/build verification for the ITI reporting increment was confirmed by the project owner. Added `GET /api/v1/dashboard/training/reporting` with state/cluster capacity aggregates, explicit coverage counts, sample exclusion, reportable-cluster coverage, an unassigned-capacity reconciliation breakdown, and null-versus-zero semantics. GitHub Actions run #112 executed the PostgreSQL-backed reconciliation test against its isolated migrated PostgreSQL 16 database; the full suite passed 349/349 with zero skips, followed by a successful production build. Added version 1.1.0 descriptive readiness catalogue entries for PHY-01..04, ACD-01..05, and IND-01..06. These are internal readiness identifiers only; their source and aggregation fields remain null/empty pending formal decisions. The existing dashboard value endpoints and response shapes remain unchanged.
 
 Purpose:
 - Build state-level PMU dashboard and analytical reporting on top of validated source modules.
@@ -908,3 +908,6 @@ CI #93 passed dependency audit, Prisma generation, all migrations against isolat
 - GitHub Actions run #106 was started for the resulting main-branch commit; final verification must be read from the run before this milestone is marked verified.
 
 **Still open in Phase 9:** authenticated/unauthenticated HTTP authorization coverage across route families; comprehensive public list/search/summary/export disclosure review; approval-dependent CAPTCHA/session/MFA/storage/malware-scanning controls; production topology/configuration evidence; backup/restore and incident readiness; independent VAPT and formal security sign-off. These must be completed or explicitly recorded as release blockers with evidence; they are not waived by CI success.
+
+
+| 2026-11-07 | 7 | Additive Phase 7 KPI readiness catalogue v1.1.0 | Enumerates PHY-01..04, ACD-01..05 and IND-01..06 as internal readiness identifiers with explicit source/definition blockers; no KPI values or aggregation rules invented. Tests assert no source, no aggregation levels, and no official-code claim. CI verification pending. |

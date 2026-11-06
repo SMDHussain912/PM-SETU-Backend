@@ -206,7 +206,7 @@ export interface DashboardMetricContract {
 }
 
 export interface DashboardContractResponse {
-    contract_version: "1.0.0";
+    contract_version: "1.1.0";
     generated_at: string;
     reporting_context: {
         /** Null means source data does not currently publish an as-of timestamp. */
