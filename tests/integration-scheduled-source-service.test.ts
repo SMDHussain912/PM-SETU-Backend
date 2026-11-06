@@ -228,7 +228,7 @@ test("scheduled execution rejects push-based sources before adapter or repositor
 
   try {
     await assert.rejects(
-      runScheduledSource({ ...source(), transport: "WEBHOOK" } as typeof source extends (...args: never[]) => infer R ? R : never, claimToken, repository),
+      runScheduledSource({ ...source(), transport: "WEBHOOK" } as NonNullable<Awaited<ReturnType<typeof repositoryModule.get>>>, claimToken, repository),
       (error: unknown) =>
         error instanceof Error &&
         "code" in error &&
