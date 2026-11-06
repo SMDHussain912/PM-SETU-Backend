@@ -404,3 +404,15 @@ Created `docs/phase-7/KPI_DECISION_RECORD_AND_ACCEPTANCE_CRITERIA_TEMPLATE.md` (
 - The template is explicitly a draft. No KPI approval, source decision, API change or database change is implied.
 
 **Current active work:** Use the template to record the first real KPI decision only when the accountable source owner/DET supplies the decision and evidence. Until then, continue with evidence-based source investigation and contract preparation; do not fill unknown fields with assumptions.
+
+### Test runner correction — 2026-11-06
+
+The user's full test run exposed a test bootstrap defect: database-backed modules were imported by unit tests without a configured `TEST_DATABASE_URL`, causing the Prisma module to throw before mocked tests could execute. The test harness has been corrected on `main`:
+
+- Test-mode Prisma initialization uses an unreachable loopback URL only when `TEST_DATABASE_URL` is absent, allowing database-independent tests to import and mock repositories without ever falling back to `DATABASE_URL`.
+- PostgreSQL integration tests for approvals, documents, dashboard registry, and resource-scope middleware now run only with `TEST_DATABASE_URL`; their setup/cleanup hooks are also guarded.
+- The audit atomicity integration test now checks `TEST_DATABASE_URL`, not the development `DATABASE_URL`.
+- Dashboard registry fixtures now validate the dedicated test database name before writing and mark setup complete only after all fixtures are inserted.
+- `docs/testing/DATABASE_SAFETY.md` documents the no-database unit-test path and explicit integration-test opt-in.
+
+This fixes the import-time crash path. It does not claim PostgreSQL integration coverage when the dedicated test URL is absent; those tests must be reported as skipped. Local typecheck, test, and build results are pending the user's pull and verification.
