@@ -13,9 +13,10 @@ export function createLeaseHeartbeat(options: LeaseHeartbeatOptions) {
   let timer: ReturnType<typeof setInterval> | undefined;
   let renewal: Promise<void> | undefined;
   let leaseLost = false;
+  let stopped = true;
 
   async function renew(): Promise<void> {
-    if (leaseLost || renewal) return;
+    if (stopped || leaseLost || renewal) return;
     renewal = Promise.resolve()
       .then(options.renew)
       .then((renewed) => {
