@@ -6,6 +6,7 @@ import routes from "./routes";
 import { adminLimiter, apiLimiter } from "./middleware/rateLimit.middleware";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 import { logger } from "./utils/logger";
+import { isIntegrationWebhookRequestPath } from "./modules/integrations/integration.webhook.raw-body";
 
 const app = express();
 
@@ -35,7 +36,11 @@ app.use("/api/v1/admin", adminLimiter);
 // 4. Body parsing
 app.use(express.json({
     limit: "1mb",
-    verify: (req, _res, buffer) => { req.rawBody = Buffer.from(buffer); },
+    verify: (req, _res, buffer) => {
+        if (isIntegrationWebhookRequestPath(req.url)) {
+            req.rawBody = Buffer.from(buffer);
+        }
+    },
 }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
