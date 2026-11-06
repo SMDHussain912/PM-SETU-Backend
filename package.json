@@ -29,7 +29,8 @@
     "db:seed:demo": "tsx prisma/seed.ts",
     "db:seed:wipe": "tsx prisma/seed-wipe.ts",
     "test": "NODE_ENV=test tsx --test --test-concurrency=1 $(find tests -type f -name '*.test.ts' -print)",
-    "db:migrate:deploy": "prisma migrate deploy"
+    "db:migrate:deploy": "prisma migrate deploy",
+    "test:ci": "NODE_ENV=test npm run db:migrate:deploy && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
