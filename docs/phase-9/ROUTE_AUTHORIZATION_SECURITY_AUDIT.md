@@ -25,11 +25,11 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 - Privileged user and role mutations, password changes and legacy password-hash upgrades write append-only audit entries using allowlisted before/after projections; request actor, IP, user agent and route path are captured.
 - Multipart uploads have bounded file, field, part, field-size, field-name and header-pair limits.
 - Public document downloads resolve paths under the managed documents root, use attachment disposition, and set `X-Content-Type-Options: nosniff`.
-- Latest CI run #91 on commit `3160d8cf9d4a6acba63f7af9264c0357837b76e3` passed dependency audit, Prisma generation, all migrations against the isolated CI PostgreSQL database, typecheck, 346 tests with zero skips, and production build. The run includes PostgreSQL lockout concurrency tests, JWT secret/password hashing tests, public projection tests, and privileged audit/request-context coverage. The workflow sets `PM_SETU_TEST_DATABASE_URL`, so opt-in PostgreSQL tests ran in CI. CI sets `PM_SETU_TEST_DATABASE_URL`, so the opt-in PostgreSQL tests are enabled in that run.
+- Latest CI run #93 on commit `996df8985096cb17706cbef9791e96e590bb01fa` passed dependency audit, Prisma generation, all migrations against the isolated CI PostgreSQL database, typecheck, 347 tests with zero skips, and production build. The run includes the public dashboard SQL field-projection regression test. The run includes PostgreSQL lockout concurrency tests, JWT secret/password hashing tests, public projection tests, and privileged audit/request-context coverage. The workflow sets `PM_SETU_TEST_DATABASE_URL`, so opt-in PostgreSQL tests ran in CI. CI sets `PM_SETU_TEST_DATABASE_URL`, so the opt-in PostgreSQL tests are enabled in that run.
 
 ## 3. Findings and open controls
 
-### SEC-ROUTE-01 — Role and permission matrix is not formally approved
+### SEC-ROUTE-01 — Role and permission matrix approval record
 
 **Evidence:** `src/modules/roles/role.constants.ts` explicitly labels several role mappings and permission sets as INFERRED / TO CONFIRM. This includes approval, audit, contact, banner, document, news and gallery guard groups. The file also labels the baseline user/role management role groups as inferred defaults.
 
@@ -37,7 +37,9 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Required action:** Obtain the approved role-to-action matrix, including scope rules and separation of duties. Record the approving authority and version. Update constants and authorization tests only against that decision.
 
-**Disposition:** Acceptance blocker; do not guess replacement roles.
+**Owner-confirmed acceptance (2026-11-07):** Project owner confirms the existing role/permission matrix was discussed with NIC and approved. The existing `role.constants.ts` matrix remains in force; no replacement permissions were inferred during this remediation. The owner confirmation is recorded in `docs/PHASES.md`; a separate signed approval artifact/version was not attached to this repository.
+
+**Disposition:** Accepted based on project-owner confirmation; preserve the current matrix and regression coverage. Reopen only for a formally approved policy change.
 
 ### SEC-ROUTE-02 — Public contact form has no CAPTCHA integration
 
@@ -111,15 +113,17 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Disposition:** Open security/acceptance dependency.
 
-### SEC-ROUTE-09 — Public dashboard exposure requires an approved field-level publication review
+### SEC-ROUTE-09 — Public dashboard field-level publication
 
 **Evidence:** `src/modules/dashboard/dashboard.routes.ts` deliberately exposes read-only GET endpoints without authentication. The route comments state that the public model is a project direction and should not be changed without a policy decision.
 
 **Impact:** Public access is an intentional current design, not proof that every returned field is approved for public disclosure.
 
-**Required action:** Review each public dashboard response and drilldown field against the approved publication policy. Test that restricted personal, operational and financial details cannot leak through aggregates or nested records.
+**Remediation and owner-confirmed acceptance (2026-11-07):** Project owner confirms NIC approval for the current public read-only dashboard response fields. The current public cluster detail query explicitly projects ITI code/name/type/district and AIP name/sector/status/investment amount; other dashboard endpoints expose aggregate registry/planning/capacity values or explicit unavailable states. Official finance values remain null/unavailable rather than exposing transaction-level finance records. Added `tests/dashboard/public-field-projection.test.ts`, which asserts explicit public query projections and rejects private account/contact/bank/storage metadata columns.
 
-**Disposition:** Keep read-only behaviour; obtain field-level publication acceptance.
+The owner confirmation is recorded in `docs/PHASES.md`; a separate signed field-by-field approval artifact/version was not attached to this repository. Future public fields or endpoint additions must be reviewed before exposure.
+
+**Disposition:** Current public read-only dashboard field set accepted based on project-owner confirmation; regression test verified by CI #93.
 
 ### SEC-ROUTE-10 — Authorization ordering is inconsistent with the documented middleware sequence
 

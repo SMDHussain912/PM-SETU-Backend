@@ -875,3 +875,12 @@ Regression coverage verifies user/role audit projections and request metadata. C
 **Remaining work:** audit inserts currently happen after the corresponding business mutation commits. Make privileged mutations and audit writes atomic (or introduce an approved durable outbox), then cover failed transitions and file operations. Continue the public list/search/summary/export field-disclosure review and deployment security verification.
 
 **Owner instruction (2026-11-07):** Project owner confirms NIC discussions/approvals are complete and authorizes continued implementation without pausing for another approval round. Where an approval decision is not yet recorded in a versioned contract or provider connection details are absent, continue the independent engineering work and do not fabricate endpoints, credentials or source mappings.
+
+
+### Phase 9 continuation — public dashboard field projection and owner-confirmed acceptance
+
+Added `tests/dashboard/public-field-projection.test.ts` to verify that the public dashboard repository uses explicit projections and does not select private account credentials, lockout internals, personal contact details, bank-account metadata, filesystem paths or internal creator identifiers. The current public cluster drilldown exposes only the selected ITI and AIP registry fields; official finance transaction details remain unavailable.
+
+The project owner confirms NIC approval of the existing role/permission matrix and current public read-only dashboard field set (2026-11-07). This is recorded as owner-reported acceptance; no separate signed approval artifact/version was attached to the repository. Preserve the current contract and require review for future changes.
+
+CI #93 passed dependency audit, Prisma generation, all migrations against isolated CI PostgreSQL, typecheck, 347 tests with zero skips, and production build.
