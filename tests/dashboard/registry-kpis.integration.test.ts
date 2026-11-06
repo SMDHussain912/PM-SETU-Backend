@@ -43,6 +43,8 @@ let spvId: number;
 let sampleSpvId: number;
 
 test.before(async () => {
+    if (!env.databaseUrl) return;
+    assertDedicatedTestDatabase();
     await prisma.$connect();
     const suffix = `${process.pid}-${Date.now()}`;
 
@@ -102,6 +104,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
+    if (!env.databaseUrl) return;
     try {
         if (setupComplete) {
             const ids = (values: Array<number | undefined>) => values.filter((value): value is number => value !== undefined);
