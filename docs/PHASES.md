@@ -813,3 +813,22 @@ The scheduled-source service's early failure path for an unregistered adapter or
 Commits: `e6ebbf2` (service fix) and `5ad1598` (regression test).
 
 **Current active work:** continue generic integration reliability review only where it does not invent provider contracts. Provider-specific adapters remain blocked until an approved source-owner contract is supplied.
+
+
+### Phase 8 continuation — aggregate ingestion payload bound
+
+**Implemented on the new account's `main`; CI verification pending.**
+
+- Generic ingestion now caps the complete serialized batch at 1 MB, in addition to the existing 16 KB per-payload and 500-record limits.
+- This prevents individually valid records from amplifying into multi-megabyte adapter batches and oversized persistence transactions.
+- Non-serializable object graphs are converted into validation failures instead of escaping as runtime exceptions.
+- Added regression tests for aggregate batch overflow and circular input.
+- Added adapter-system-mismatch coverage to the scheduled-source service test, confirming that mismatch failures use the injected repository and never read checkpoints or ingest.
+
+Commits:
+- `5186efd` — cover adapter/system mismatch failure path.
+- `7a4b070` — enforce aggregate serialized ingestion size.
+- `eaf8b59` — test aggregate payload and serialization limits.
+- `4bdecbd` — document aggregate ingestion bound.
+
+**Verification:** GitHub Actions should run on the push to `main`. Do not treat implementation as verified until the workflow result is inspected. Provider-specific adapters remain blocked on approved source-owner contracts.
