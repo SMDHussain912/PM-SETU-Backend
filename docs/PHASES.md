@@ -480,3 +480,9 @@ Added `tests/integration-scheduler-lease-renewal-postgres.test.ts`. With two ind
 
 **Current active work:** after verification, add deterministic service-level tests for adapter retry exhaustion and checkpoint preservation. Retry count/backoff remain current generic implementation behaviour, not a provider-specific contract.
 
+### Phase 8 verification follow-up — lease renewal fixture correction
+
+The 2026-11-06 local run reported 256 passing tests and one failing PostgreSQL lease-renewal assertion (zero skipped). The failure compared a newly renewed 15-minute expiry with the original 15-minute claim immediately after creation; because renewal was immediate, a strictly later timestamp was not guaranteed. The test fixture now shortens the still-valid lease to one minute before invoking renewal, making the forward-extension assertion deterministic. Commit: `417b12c35b27dd939bd2f84c356523d0a3a6424c`.
+
+**Verification status:** rerun `npm test` after pulling this correction. Do not mark the lease-renewal PostgreSQL test verified until the corrected test passes. The supplied log shows no typecheck/build diagnostics, but the test suite did fail.
+
