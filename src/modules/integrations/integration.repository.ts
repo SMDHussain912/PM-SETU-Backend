@@ -118,9 +118,9 @@ export function listRuns(sourceId: number, take = 20) {
   return prisma.integrationSyncRun.findMany({ where: { sourceId }, orderBy: { startedAt: "desc" }, take, select: integrationRunPublicSelect });
 }
 
-export function listCommittedRuns(sourceId: number, take = 1) {
-  return prisma.integrationSyncRun.findMany({
-    where: { sourceId, status: { in: ["SUCCEEDED", "PARTIAL"] } },
+export function listCommittedRuns(sourceId: number, take = 1, client: typeof prisma = prisma) {
+  return client.integrationSyncRun.findMany({
+    where: { sourceId, runOrigin: { in: ["SCHEDULED", "LEGACY"] }, status: { in: ["SUCCEEDED", "PARTIAL"] } },
     orderBy: { startedAt: "desc" },
     take,
   });
@@ -161,7 +161,7 @@ async function lockEnabledSource(tx: Prisma.TransactionClient, sourceId: number)
 export async function createScheduledRun(sourceId: number, claimToken: string, input: ScheduledRunInput, client: typeof prisma = prisma) {
   return client.$transaction(async (tx) => {
     await lockValidSourceClaim(tx, sourceId, claimToken);
-    return tx.integrationSyncRun.create({ data: { sourceId, ...input } });
+    return tx.integrationSyncRun.create({ data: { sourceId, runOrigin: "SCHEDULED", ...input } });
   });
 }
 
@@ -180,7 +180,7 @@ export async function ingestBatch(sourceId: number, records: Array<{ source_reco
       if (existing) updated++; else created++;
     }
     const now = new Date();
-    const run = await tx.integrationSyncRun.create({ data: { sourceId, status: options.status ?? "SUCCEEDED", recordsRead: records.length, recordsCreated: created, recordsUpdated: updated, recordsRejected: 0, cursor: options.cursor ?? null, startedAt: options.startedAt ?? now, completedAt: now } });
+    const run = await tx.integrationSyncRun.create({ data: { sourceId, status: options.status ?? "SUCCEEDED", recordsRead: records.length, recordsCreated: created, recordsUpdated: updated, recordsRejected: 0, cursor: options.cursor ?? null, runOrigin: options.claimToken ? "SCHEDULED" : "MANUAL", startedAt: options.startedAt ?? now, completedAt: now } });
     return { run, records_read: records.length, records_created: created, records_updated: updated, records_rejected: 0 };
   });
 }
@@ -189,7 +189,7 @@ export async function ingestBatch(sourceId: number, records: Array<{ source_reco
 export async function createManualRun(sourceId: number, input: ScheduledRunInput, client: typeof prisma = prisma) {
   return client.$transaction(async (tx) => {
     await lockEnabledSource(tx, sourceId);
-    return tx.integrationSyncRun.create({ data: { sourceId, ...input } });
+    return tx.integrationSyncRun.create({ data: { sourceId, runOrigin: "MANUAL", ...input } });
   });
 }
 
