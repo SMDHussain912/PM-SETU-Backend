@@ -102,3 +102,10 @@ Scheduled adapter output is validated as an untrusted runtime envelope before an
 - Individual records still pass through the existing generic ingestion schema before persistence.
 
 Regression coverage is in `tests/integration-adapter-page.test.ts`. Invalid page envelopes fail before empty-page checkpoint commits or non-empty record ingestion. This hardens the generic adapter boundary; it does not replace provider pagination/snapshot contracts.
+
+ 
+## 9. Scheduler claim batching and lease utilisation
+
+Due sources are now claimed in batches of at most 10, ordered by next scheduled time and source ID. The claim query uses PostgreSQL row locks with `SKIP LOCKED`, allowing separate application instances to claim different rows without waiting on each other's selected rows. Each bounded batch is processed concurrently, so one slow provider does not leave other already-claimed sources waiting in a sequential queue while their leases age.
+
+This is a throughput/lease-utilisation safeguard, not a provider retry or ordering contract. Sources beyond the batch limit remain due for a subsequent scheduler tick. The existing per-source claim token, lease expiry, heartbeat, and transaction fencing remain in force.
