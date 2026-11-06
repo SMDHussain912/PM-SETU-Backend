@@ -76,7 +76,7 @@ test("dashboard OpenAPI schemas mark every emitted top-level field as required",
         StateMetrics: ["clusters", "hub_itis", "spoke_itis", "aips", "spvs", "sips_submitted", "sips_approved", "investment", "trainees", "industries_engaged"],
         ClusterSummary: ["id", "name", "district", "sector", "hub_itis", "spoke_itis", "aips", "spvs", "investment"],
         ClusterDashboardResponse: ["cluster", "metrics", "itis", "aips"],
-        FinanceMetrics: ["total_investment", "total_sip_proposed", "total_sip_infrastructure", "total_sip_equipment", "total_sip_training", "total_sip_industry", "total_sip_government", "by_cluster"],
+        FinanceMetrics: ["official_financial_progress", "total_investment", "total_sip_proposed", "total_sip_infrastructure", "total_sip_equipment", "total_sip_training", "total_sip_industry", "total_sip_government", "by_cluster"],
         TrainingMetrics: ["total_student_capacity", "by_cluster", "by_iti_type"],
         PlacementMetrics: ["message"],
     };
