@@ -9,29 +9,43 @@ export function create(input: IntegrationSourceInput) {
 }
 export function get(id: number) { return prisma.integrationSource.findUnique({ where: { id } }); }
 export function updateEnabled(id: number, enabled: boolean, client: typeof prisma = prisma) {
-  return client.integrationSource.update({
-    where: { id },
-    data: {
-      enabled,
-      nextSyncAt: enabled ? new Date() : null,
-      // Disabling a source revokes its active lease immediately. A worker
-      // already executing will fail the enabled/token check before committing.
-      ...(enabled ? {} : { claimToken: null, claimExpiresAt: null }),
-    },
-    select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
+  return client.$transaction(async (tx) => {
+    // Use the database clock for scheduler eligibility; claim and lease
+    // predicates also use PostgreSQL NOW().
+    await tx.$executeRaw`
+      UPDATE "integration_sources"
+      SET
+        "enabled" = ${enabled},
+        "next_sync_at" = CASE WHEN ${enabled} THEN NOW() ELSE NULL END,
+        "claim_token" = CASE WHEN ${enabled} THEN "claim_token" ELSE NULL END,
+        "claim_expires_at" = CASE WHEN ${enabled} THEN "claim_expires_at" ELSE NULL END,
+        "updated_at" = NOW()
+      WHERE "id" = ${id}
+    `;
+    return tx.integrationSource.findUniqueOrThrow({
+      where: { id },
+      select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
+    });
   });
 }
 export function updateSchedule(id: number, seconds: number | null, client: typeof prisma = prisma) {
-  return client.integrationSource.update({
-    where: { id },
-    data: {
-      syncIntervalSeconds: seconds,
-      nextSyncAt: seconds === null ? null : new Date(),
-      // Removing the schedule revokes any scheduler worker currently holding
-      // a lease; manual ingestion remains available while the source is enabled.
-      ...(seconds === null ? { claimToken: null, claimExpiresAt: null } : {}),
-    },
-    select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
+  return client.$transaction(async (tx) => {
+    // A schedule change becomes due according to the same database clock used
+    // by claimDueSources(). Removing it also revokes any active scheduler lease.
+    await tx.$executeRaw`
+      UPDATE "integration_sources"
+      SET
+        "sync_interval_seconds" = ${seconds},
+        "next_sync_at" = CASE WHEN ${seconds} IS NULL THEN NULL ELSE NOW() END,
+        "claim_token" = CASE WHEN ${seconds} IS NULL THEN NULL ELSE "claim_token" END,
+        "claim_expires_at" = CASE WHEN ${seconds} IS NULL THEN NULL ELSE "claim_expires_at" END,
+        "updated_at" = NOW()
+      WHERE "id" = ${id}
+    `;
+    return tx.integrationSource.findUniqueOrThrow({
+      where: { id },
+      select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
+    });
   });
 }
 export function createRun(input: { sourceId: number; status: string; recordsRead: number; recordsCreated: number; recordsUpdated: number; recordsRejected: number; cursor: string | null; errorCode: string | null; errorSummary: string | null; startedAt: Date; completedAt: Date }) {
