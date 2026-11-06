@@ -208,3 +208,12 @@ The test claims a source with worker A, expires that fixture lease, and lets wor
 The repository's `createScheduledRun()` and `ingestBatch()` now accept an optional Prisma client for isolated multi-client testing. Production defaults remain the shared Prisma client, and the existing row-lock/token/expiry/enabled predicate remains inside each transaction.
 
 The test requires `PM_SETU_TEST_DATABASE_URL` and the dedicated test database guard. It must be confirmed as executed (not skipped) in the user's local test output.
+
+
+## 17. PostgreSQL verification of scheduler row-lock contention
+
+Added opt-in test `tests/integration-scheduler-row-lock-postgres.test.ts` using two independent PostgreSQL clients and a uniquely keyed source fixture.
+
+The test first claims a source and expires its lease, then holds a PostgreSQL row lock on that already-expired source in one transaction. A competing scheduler claim must skip the locked row rather than reclaim it. After the lock transaction commits, the competing scheduler can claim the source with a new token.
+
+This exercises the actual `FOR UPDATE SKIP LOCKED` contention boundary used by the scheduler. It complements the output-fencing test, which verifies stale writes after a lease has already been reclaimed. The test is opt-in through `PM_SETU_TEST_DATABASE_URL`, validates the dedicated test database name, and cleans up only its fixture source. Confirm that it ran rather than skipped in local test output.
