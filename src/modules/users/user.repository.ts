@@ -183,7 +183,7 @@ const SUPER_ADMIN_GUARD_LOCK_ID = 73190421;
 async function lockSuperAdminInvariant(tx: Prisma.TransactionClient): Promise<void> {
     // Every status/role mutation that can remove an active Super Admin takes
     // this same transaction-scoped lock before checking the invariant.
-    await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(${SUPER_ADMIN_GUARD_LOCK_ID})`);
+    await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(${SUPER_ADMIN_GUARD_LOCK_ID})`);
 }
 
 async function countActiveSuperAdmins(tx: Prisma.TransactionClient): Promise<number> {
