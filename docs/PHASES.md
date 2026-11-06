@@ -325,7 +325,8 @@ Completion evidence should include:
 
 ## 5. Milestone log
 
-| 2026-11-07 | 7 | Expanded training reporting OpenAPI assertions and reconciled dashboard route documentation | Commit `2cf77b7` passed CI run #42307561860: dependency audit, isolated PostgreSQL migrations, typecheck, PostgreSQL integration tests, and production build. |\n| Date | Phase | Milestone | Evidence / note |
+| 2026-11-07 | 7 | Expanded training reporting OpenAPI assertions and reconciled dashboard route documentation | Commit `2cf77b7` passed CI run #42307561860: dependency audit, isolated PostgreSQL migrations, typecheck, PostgreSQL integration tests, and production build. |
+| Date | Phase | Milestone | Evidence / note |
 |---|---|---|---|
 | 2026-11-07 | 9 | Added route authorization and security-control audit | `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md`; static review records verified controls, open policy/provider decisions, and remediation order. CI run for audit commit is pending. |
 | 2026-11-06 | 9 | Added dependency vulnerability gate and verified image-upload signatures | Initial scan found 11 advisories; semver-compatible lockfile remediation reduced npm audit to zero. Image validation tests added. GitHub Actions commit `060a5b83b36f4929dac6f375a9b0950b2d4cf00e` passed audit, migrations, typecheck, 321 tests and build. Full Phase 9 review remains open. |
