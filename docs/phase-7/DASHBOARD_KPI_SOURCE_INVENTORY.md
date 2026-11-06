@@ -23,7 +23,7 @@ These routes are intentionally public and read-only under the current project de
 
 ## 1A. Versioned reporting contract
 
-The additive public endpoint `GET /api/v1/dashboard/contract` returns contract version `1.0.0` and a catalogue of metric identifiers, labels, classifications, units, source descriptions, availability states, supported aggregation levels, notes, and official finance KPI codes where applicable.
+The additive public endpoint `GET /api/v1/dashboard/contract` returns contract version `1.1.0` and a catalogue of metric identifiers, labels, classifications, units, source descriptions, availability states, supported aggregation levels, notes, and official finance KPI codes where applicable.
 
 Important interpretation:
 - `generated_at` is the time the catalogue response was generated; it is **not** a data as-of timestamp.
@@ -32,6 +32,8 @@ Important interpretation:
 - `AVAILABLE` means the backend has a defined current source/query for the measure; it does not certify production completeness or accuracy.
 - `NOT_AVAILABLE`, `SOURCE_NOT_CONNECTED`, and `DEFINITION_PENDING` are not zero values.
 - Technical `metric_id` values are stable implementation identifiers, not new official KPI codes. Only FIN-01 through FIN-05 are marked with official KPI codes.
+
+Version 1.1.0 also enumerates internal readiness identifiers PHY-01..PHY-04, ACD-01..ACD-05, and IND-01..IND-06. These entries deliberately have no authoritative source or aggregation levels and are not represented as official KPI codes. FIN-01..FIN-05 remain the only entries carrying official KPI identifiers.
 
 This catalogue is descriptive. It does not calculate metric values or change the existing dashboard response payloads.
 
@@ -86,6 +88,14 @@ Before adding or changing a dashboard metric, record:
 9. Public/internal visibility decision.
 
 Do not turn missing data into zero unless the source contract explicitly establishes that zero is the correct value. Do not create a formula merely because the dashboard needs a number.
+
+## 4A. Additive reporting routes
+
+The public read-only dashboard surface also includes:
+- `GET /api/v1/dashboard/training/reporting` — state/cluster student-capacity aggregation with coverage and unassigned-ITI reconciliation.
+- `GET /api/v1/dashboard/training/itis/:id` — ITI-level student-capacity view.
+
+Both endpoints are limited to `itis.student_strength`; neither provides an academic outcome measure. Their response context retains null data-as-of and reporting-period fields and `NOT_TRACKED` freshness.
 
 ## 5. Next implementation sequence
 

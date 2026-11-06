@@ -17,7 +17,7 @@ The source is limited to non-sample `itis.student_strength` values:
 
 The endpoint does not apply a reporting-period filter. The source has no approved period or as-of semantics, so its response must retain `data_as_of: null`, `reporting_period: null`, and `source_freshness: NOT_TRACKED`.
 
-The contract endpoint remains a descriptive versioned catalogue. It distinguishes unavailable measures from available measures and does not turn catalogue generation time into a data freshness timestamp.
+The contract endpoint remains a descriptive versioned catalogue (version 1.1.0). It distinguishes unavailable measures from available measures and does not turn catalogue generation time into a data freshness timestamp.
 
 ## Added regression coverage
 
