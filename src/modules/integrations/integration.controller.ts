@@ -14,7 +14,6 @@ export async function ingest(req: Request, res: Response) { actor(req); const { 
 
 
 import { parseIntegrationCsv } from "./integration.csv";
-import { integrationIngestSchema } from "./integration.schema";
 
 export async function ingestCsv(req: Request, res: Response) {
   actor(req);
@@ -29,7 +28,5 @@ export async function ingestCsv(req: Request, res: Response) {
 export async function webhook(req: Request, res: Response) {
   const { params } = getValidated<unknown, unknown, { id: number }>(res);
   if (!req.rawBody) throw new ApiError({ statusCode: 400, code: "WEBHOOK_RAW_BODY_MISSING", message: "Raw webhook body is unavailable for signature verification" });
-  const parsed = integrationIngestSchema.safeParse(req.body);
-  if (!parsed.success) throw new ApiError({ statusCode: 422, code: "VALIDATION_ERROR", message: "Webhook payload failed validation", details: parsed.error.flatten() });
-  return sendSuccess(res, await service.ingestWebhook(params.id, req.rawBody, req.get("X-PMSETU-Signature"), parsed.data.records));
+  return sendSuccess(res, await service.ingestWebhook(params.id, req.rawBody, req.get("X-PMSETU-Signature"), req.body));
 }
