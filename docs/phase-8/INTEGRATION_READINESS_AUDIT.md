@@ -268,3 +268,12 @@ Manual JSON, CSV and webhook ingestion now rechecks source enablement inside the
 The service maps the repository's disabled-source rejection to HTTP 409 `INTEGRATION_DISABLED`, including the race where the source becomes disabled after the initial service-level read.
 
 Added opt-in PostgreSQL coverage in `tests/integration-manual-ingest-disable-postgres.test.ts`. It verifies enabled manual ingestion, rejection after disable with no extra record, and successful ingestion after re-enable. The test requires the dedicated `PM_SETU_TEST_DATABASE_URL` and must be confirmed as executed rather than skipped.
+
+
+## 24. Duplicate source identities rejected within ingestion batches
+
+The shared ingestion schema now rejects repeated `source_record_id` values within one batch after trimming/normalization. This applies uniformly to manual JSON ingestion, CSV uploads, signed webhooks and scheduled adapter pages because each path passes through the same ingestion schema before persistence.
+
+Previously, two entries for the same source identity in one batch could be processed sequentially by the upsert loop. That produced ambiguous last-write-wins behaviour and misleading created/updated counts for a single logical record. The batch is now rejected with a field-level validation issue before any write occurs.
+
+Regression coverage is in `tests/integration-ingest-schema.test.ts`, including distinct IDs, repeated IDs and whitespace-normalized duplicates. This is batch-local identity validation; provider version ordering and cross-delivery replay/correction semantics still require an approved provider contract.
