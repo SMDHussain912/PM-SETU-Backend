@@ -25,12 +25,34 @@ export async function setSchedule(id: number, seconds: number | null) {
   }
   return repo.updateSchedule(id, seconds);
 }
-export async function recordRun(id: number, input: { status: "SUCCEEDED" | "PARTIAL" | "FAILED"; records_read: number; records_created: number; records_updated: number; records_rejected: number; cursor?: string | null; error_code?: string | null; error_summary?: string | null }) {
-  const source = await repo.get(id);
+export async function recordRun(
+  id: number,
+  input: { status: "SUCCEEDED" | "PARTIAL" | "FAILED"; records_read: number; records_created: number; records_updated: number; records_rejected: number; cursor?: string | null; error_code?: string | null; error_summary?: string | null },
+  repository: Pick<typeof repo, "get" | "createManualRun"> = repo,
+) {
+  const source = await repository.get(id);
   if (!source) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
   if (!source.enabled) throw new ApiError({ statusCode: 409, code: "INTEGRATION_DISABLED", message: "Integration source is disabled" });
   const now = new Date();
-  return repo.createRun({ sourceId: id, status: input.status, recordsRead: input.records_read, recordsCreated: input.records_created, recordsUpdated: input.records_updated, recordsRejected: input.records_rejected, cursor: input.cursor ?? null, errorCode: input.error_code ?? null, errorSummary: input.error_summary ?? null, startedAt: now, completedAt: now });
+  try {
+    return await repository.createManualRun(id, {
+      status: input.status,
+      recordsRead: input.records_read,
+      recordsCreated: input.records_created,
+      recordsUpdated: input.records_updated,
+      recordsRejected: input.records_rejected,
+      cursor: input.cursor ?? null,
+      errorCode: input.error_code ?? null,
+      errorSummary: input.error_summary ?? null,
+      startedAt: now,
+      completedAt: now,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "INTEGRATION_SOURCE_NOT_ENABLED") {
+      throw new ApiError({ statusCode: 409, code: "INTEGRATION_DISABLED", message: "Integration source is disabled" });
+    }
+    throw error;
+  }
 }
 export async function runs(id: number) {
   if (!await repo.get(id)) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
