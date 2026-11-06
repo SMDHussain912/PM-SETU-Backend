@@ -757,3 +757,12 @@ Changed the webhook request flow so the service verifies the SHA-256 HMAC over t
 Commits: `491f850` (service verification/validation order), `c1d0d4f` (controller passes untrusted payload).
 
 **Verification required:** run typecheck, full tests and build. Include the existing webhook raw-body and signature tests. Provider-specific replay/timestamp rules remain blocked on an approved source-owner contract.
+
+
+### Phase 8 continuation — keep credential references out of API responses
+
+Removed `credentialRef` from the integration source projections returned by list, create, enable and schedule operations. The environment-variable reference remains stored and available to internal service lookups for webhook secret resolution, but API consumers no longer receive deployment secret-key names. The actual secret was never returned. Internal `get()` and scheduler source reads remain unchanged.
+
+Commit: `ee5e3b4`.
+
+**Verification required:** run typecheck, the full test suite and build. Confirm integration source management and webhook ingestion still work; provider secret values must remain deployment-only.
