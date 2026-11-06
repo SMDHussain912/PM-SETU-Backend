@@ -356,3 +356,10 @@ Commits: `22f8755` (service seam), `62274dd` (regression tests). Local typecheck
 ## Scheduler checkpoint isolation — execution origin
 
 Scheduled checkpoint lookup now considers only `SCHEDULED` and compatibility `LEGACY` runs. Manual JSON/CSV/webhook ingestion and manual run-history writes are tagged `MANUAL` and remain visible in public run history, but cannot replace a scheduled adapter cursor or `since` timestamp. The migration marks pre-existing rows `LEGACY` because their origin cannot be reconstructed from stored columns; those rows remain eligible as the initial compatibility checkpoint until a scheduled run supersedes them. New rows default to `MANUAL`; scheduler-owned writes explicitly set `SCHEDULED`.
+
+
+## 33. Missing-adapter failure uses the injected repository boundary
+
+The scheduled-source service now persists the `ADAPTER_NOT_CONFIGURED` / `ADAPTER_SYSTEM_MISMATCH` failure through the same injected repository boundary used by the other scheduled execution paths. Previously, this early-return branch called the module-level repository directly, bypassing an injected repository supplied by service tests or controlled callers. The runtime default remains the production repository module; the change makes dependency injection consistent and keeps the failure path testable.
+
+Regression coverage in `tests/integration-scheduled-source-service.test.ts` verifies that a missing adapter writes one sanitized FAILED run through the injected repository without reading a checkpoint or attempting ingestion. This does not register or approve a provider adapter.
