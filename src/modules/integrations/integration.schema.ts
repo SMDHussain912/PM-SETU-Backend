@@ -11,7 +11,11 @@ export const integrationSourceSchema = z.object({
  transport:z.enum(["REST","SFTP","CSV_UPLOAD","WEBHOOK"]),enabled:z.boolean().default(false),
  credential_ref:z.string().trim().min(2).max(120).regex(/^[A-Z][A-Z0-9_]*$/).nullable().optional(),
  sync_interval_seconds:z.number().int().min(60).max(86400).nullable().optional(),
-}).strict();
+}).strict().superRefine((source,ctx)=>{
+ if((source.transport==="CSV_UPLOAD"||source.transport==="WEBHOOK")&&source.sync_interval_seconds!=null){
+  ctx.addIssue({code:"custom",path:["sync_interval_seconds"],message:"CSV upload and webhook sources cannot use scheduled polling"});
+ }
+});
 export const integrationScheduleSchema=z.object({sync_interval_seconds:z.number().int().min(60).max(86400).nullable()}).strict();
 export const integrationIdSchema=z.object({id:z.coerce.number().int().positive()});
 export const integrationListSchema=z.object({enabled:z.enum(["true","false"]).optional(),system:z.enum(INTEGRATION_SYSTEMS).optional()});
