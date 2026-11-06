@@ -42,6 +42,7 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 
 | Phase | Workstream | Status |
 |---|---|---|
+| 2026-11-06 | 8 | Add service-level pull-transport guard before adapter/checkpoint work | Commits `94a1a23`, `5974a3b`, `c5523f6`, and `42c4b60`; regression test verifies push sources trigger no adapter or repository work. Local verification pending. |
 | 2026-11-06 | 8 | Restrict scheduled polling to REST/SFTP; reject schedules for CSV_UPLOAD/WEBHOOK | Commits `26a90d3`, `82c0cb3`, `0654228`, and `b28b7e0`; schema regression tests added. Local typecheck/test/build verification pending. |
 | 2026-11-06 | 8 | Reject scheduled adapter pages whose continuation cursor does not advance | Commits `ded6ede` and `75c5ce8`; regression test ensures no run/checkpoint or record write occurs. Local typecheck/test/build verification pending. |
 | 0 | Requirements, source audit & foundation/access baseline | <strong>Complete</strong> |
