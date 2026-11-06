@@ -98,7 +98,7 @@ export async function getUserById(id: number): Promise<UserWithRoles> {
     return user;
 }
 
-export async function createUser(input: CreateUserInput, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
+export async function createUser(input: CreateUserInput, actorId: string, actorRoles: string[], context?: AuditContext): Promise<UserWithRoles> {
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
     // The password is hashed HERE so only the bcrypt hash ever reaches the
     // repository/SQL layer. No plaintext is persisted or returned.
