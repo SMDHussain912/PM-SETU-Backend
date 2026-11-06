@@ -856,7 +856,9 @@ Added `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` on 2026-11-07. The st
 - Reordered all 27 protected route declarations in Academics, Approvals, Industry Outcomes and Integrations to enforce Authentication → RBAC → Validation → Controller.
 - The integration CSV endpoint now performs its admin role check before parsing the CSV body.
 - The integration webhook remains on its separate HMAC verification path; it is not a user-session route and was intentionally excluded from RBAC.
-- Added `tests/route-middleware-order.test.ts` to assert the protected route inventory and middleware order. This is structural regression coverage, not a substitute for full HTTP-level authorization tests.
+- Continued the review into resource-scoped registry/workflow endpoints. Reordered AIP, Cluster, ITI, SIP and SPV scoped routes so RBAC runs before resource-scope checks, and resource-scope checks run before Zod validation. Cluster reassignment restrictions also run before validation.
+- Added/extended `tests/route-middleware-order.test.ts` to assert role-before-validation, role-before-scope, scope-before-validation, and the relevant route inventories. Existing PostgreSQL scope integration coverage verifies direct and inherited scope behaviour. These are structural and database integration tests, not a substitute for full HTTP-level authorization tests.
+- Public registry GET routes remain public under their existing documented design; their field-level publication review is still open.
 - Updated `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` with the evidence and remaining verification status.
 
 **Current active work:** inspect list/search/summary/export scope enforcement and privileged mutation audit coverage. Continue with safe security fixes while obtaining the external decisions required for CAPTCHA, approved role matrix, session lifecycle, public dashboard disclosure, storage and malware scanning. Do not infer policy or provider contracts.
