@@ -290,3 +290,10 @@ The CSV parser now rejects malformed quote placement instead of silently accepti
 - The existing 1 MB request/parser limit and 500-record batch limit remain unchanged.
 
 Regression coverage in `tests/integration-csv.test.ts` includes quoted JSON with commas, a multiline quoted field, unterminated quotes, quotes embedded in unquoted fields, trailing characters after a closing quote, and input above 1 MB. This is syntax hardening for the generic CSV transport; it does not define a provider-specific CSV mapping.
+
+
+## 26. Webhook-only raw-body retention
+
+The application JSON parser now retains a raw-body copy only for the mounted `/api/v1/integrations/webhooks/:id` endpoint, where HMAC verification requires the exact request bytes. Other JSON API requests no longer allocate and retain an additional raw-body buffer on the request object. The parser's existing 1 MB limit and webhook signature verification remain unchanged.
+
+The path matcher is isolated in `integration.webhook.raw-body.ts` and covered by `tests/integration-webhook-raw-body.test.ts` for valid webhook paths, query strings, trailing slashes and non-webhook paths. This is a memory-allocation reduction; it does not alter webhook authentication, replay semantics or provider contracts.
