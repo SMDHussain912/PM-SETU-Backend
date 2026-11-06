@@ -798,3 +798,6 @@ Verification required: run typecheck, full tests and build after pulling `main`.
 Added an injectable repository dependency to `setSchedule()` and `tests/integration-schedule-service.test.ts`. Coverage proves CSV_UPLOAD and WEBHOOK are rejected before persistence, REST intervals and SFTP unscheduling remain permitted, and a missing source does not trigger an update.
 
 Commits: `22f8755` (service seam) and `62274dd` (tests). User verification required: run typecheck, full tests and build after pulling `main`.
+
+
+**Verification update (2026-11-06):** The project owner confirms typecheck, full test suite and build passed after the schedule service guard coverage was added. The opt-in PostgreSQL tests remain unverified unless explicitly run with `PM_SETU_TEST_DATABASE_URL`.
