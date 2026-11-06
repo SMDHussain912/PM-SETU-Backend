@@ -1,9 +1,9 @@
 # Phase 9 — Security Readiness Audit
 
-**Status:** In progress; latest engineering hardening verified by CI #80 on 2026-11-07.  
+**Status:** In progress; latest engineering hardening verified by CI #82 on 2026-11-07.  
 **Repository:** `smdgamekingindo-TN/PM-SETU-Backend`  
 **Branch:** `main`  
-**Verified commit:** `60c0f698c2a476d6ffabbde46c0e196971471430`
+**Verified commit:** `cbf0e4de416ea6d1d470f3a944176993a61a9243`
 
 ## 1. Verified changes
 
@@ -37,6 +37,10 @@ Regression tests cover valid signatures, spoofed bytes, mismatched MIME declarat
 
 Published document downloads continue to resolve the stored path through `realpath` and enforce containment under the managed documents directory. The download controller sends files as attachments and now explicitly sets `X-Content-Type-Options: nosniff`, with regression coverage in `tests/document-download-headers.test.ts`. Cache policy remains a deployment/publication decision.
 
+### JWT signing-key strength
+
+Both JWT signing and verification now reject missing or undersized access secrets. The minimum is 32 UTF-8 bytes; deployment guidance recommends a cryptographically random 48-byte value. Regression coverage is in `tests/auth-secret-validation.test.ts`. Production secret rotation and entropy verification remain deployment responsibilities.
+
 ### Concurrent login lockout
 
 Failed-login counter increments and threshold lockout now occur in one atomic PostgreSQL update. The update prevents lost increments under concurrent failed-password requests and ignores in-flight attempts while an account lock is active. Regression coverage is in `tests/auth-lockout-postgres.test.ts` and ran against the dedicated CI PostgreSQL database.
@@ -47,17 +51,17 @@ The shared Multer wrapper now limits each multipart request to 2 files, 10 text 
 
 ## 2. GitHub Actions evidence
 
-Commit: `60c0f698c2a476d6ffabbde46c0e196971471430`
+Commit: `cbf0e4de416ea6d1d470f3a944176993a61a9243`
 
-The completed workflow **Install, migrate, typecheck, test and build** (#80) passed:
+The completed workflow **Install, migrate, typecheck, test and build** (#82) passed:
 - npm dependency audit
 - Prisma client generation
 - Migrations against the isolated CI PostgreSQL database
 - TypeScript typecheck
-- Test suite: 338 passed, 0 failed, 0 skipped
+- Test suite: 340 passed, 0 failed, 0 skipped
 - Production build
 
-The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42295927773
+The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42296695804
 
 ## 3. Remaining Phase 9 work
 

@@ -195,10 +195,24 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Disposition:** Code remediation and PostgreSQL concurrency regression committed and verified by successful CI run #79 (commit `bdd063e2ba9f71c7f239d5c1bbf34b3ce3e276cf`).
 
+
+### SEC-ROUTE-17 — JWT access tokens accepted undersized signing secrets
+
+**Evidence:** Both JWT signing and verification previously rejected only a missing `JWT_ACCESS_SECRET`; any non-empty value was accepted, including values too short to provide a robust HS256 key.
+
+**Impact:** A weak signing secret materially reduces the security of bearer-token integrity and may be vulnerable to offline guessing.
+
+**Remediation on `main` (2026-11-07):** Added a shared use-time validator requiring at least 32 UTF-8 bytes before either signing or verifying access tokens. The environment example continues to recommend generating 48 cryptographically random bytes. Added `tests/auth-secret-validation.test.ts` covering missing, empty, short, boundary-length and multibyte UTF-8 values.
+
+**Deployment requirement:** Configure a cryptographically random secret of at least 32 bytes (recommended 48 bytes) and rotate any previously weak or exposed secret. A length check alone cannot establish entropy.
+
+**Disposition:** Code hardening and regression tests verified by successful CI run #82 (commit `cbf0e4de416ea6d1d470f3a944176993a61a9243`).
+
 ## 4. Additional verification required before sign-off
 
 - Protected resource-specific mutation and workflow routes in AIP, Cluster, ITI, SIP and SPV use resource-scope middleware; PostgreSQL integration coverage exists for inherited and direct assignment cases. Public registry GET routes are intentionally unguarded in the current route design. Still inspect every public list/search/summary/export response against the approved publication policy; route-level mutation guards do not prove public-field disclosure is safe.
 - Verify the role/permission matrix and permission seeding against the approved access policy.
+- Confirm production uses a cryptographically random JWT signing secret of at least 32 bytes and rotate any prior weak secret.
 - Verify audit event coverage for every privileged mutation, including failed transitions and file operations.
 - Document downloads are published-record-only, path-contained, sent as attachments and protected with `X-Content-Type-Options: nosniff`; confirm the appropriate cache policy with the publication owner.
 - Review production TLS termination, reverse-proxy trust, secrets management/rotation, database least privilege, backup/restore, monitoring and incident response.
