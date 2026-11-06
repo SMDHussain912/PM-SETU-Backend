@@ -158,9 +158,11 @@ The owner confirmation is recorded in `docs/PHASES.md`; a separate signed field-
 
 **Partial remediation on `main` (2026-11-07):** Role create/update/delete now execute role writes, permission mappings, read-back snapshots and audit inserts inside one Prisma transaction. Audit-write failure rolls back these role mutations. `tests/role-audit-atomicity.test.ts` guards this service/repository contract (CI verification pending at the time of this update).
 
-**Remaining limitation:** User create/profile/status/role-replacement/deactivation mutations still commit in their repository calls before the audit insert. Audit-write errors propagate to the request, but do not roll back those already committed user mutations. SEC-ROUTE-12 remains partially open until user mutations receive equivalent transaction coupling and failed-transition tests.
+**Atomicity remediation on `main` (2026-11-07):** User create, profile update, status change, role replacement, soft deactivation and organisation-scope replacement now pass one Prisma transaction client through repository mutation/read-back and the audit insert. An audit-write failure aborts the enclosing transaction and rolls back the corresponding user mutation. Added `tests/user-audit-atomicity.test.ts` to assert transaction propagation for all six paths.
 
-**Disposition:** Event coverage and safe request metadata implemented and verified by CI #91 (commit `3160d8cf9d4a6acba63f7af9264c0357837b76e3`). Atomic coupling remains open.
+**Verification:** GitHub Actions run #106 was initiated for the implementation; inspect its final result before treating the new transaction boundary as verified. The regression test is structural and should be complemented by database-backed failure-injection coverage where the test harness supports it.
+
+**Disposition:** Audit event coverage and transaction coupling implemented on `main`; CI verification pending.
 
 
 ### SEC-ROUTE-13 — Public document APIs exposed internal filesystem paths
