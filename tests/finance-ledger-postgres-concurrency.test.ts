@@ -1,4 +1,5 @@
 import test from "node:test";
+import { assertDedicatedTestDatabaseUrl } from "../helpers/test-database";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Prisma, PrismaClient } from "../src/generated/prisma/client";
@@ -15,6 +16,7 @@ test("PostgreSQL concurrent source-identity ingestion is idempotent for all fina
     skip: !databaseUrl ? "Set PM_SETU_TEST_DATABASE_URL to a dedicated migrated test database" : false,
 }, async () => {
     if (!databaseUrl) return;
+    assertDedicatedTestDatabaseUrl(databaseUrl, "PM_SETU_TEST_DATABASE_URL");
 
     const client = new PrismaClient({
         adapter: new PrismaPg({ connectionString: databaseUrl }),
