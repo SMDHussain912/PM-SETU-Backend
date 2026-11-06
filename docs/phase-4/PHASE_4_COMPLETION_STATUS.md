@@ -18,7 +18,7 @@
 | 4.7 | Academic workstream verification | Readiness report complete |
 | 4.8 | Academic source intake and review workflow | Implemented |
 | 4.9 | Integration source registry, batch ingestion and raw record landing | Implemented |
-| 4.10 | Scheduling, bounded retry, CSV and signed webhook intake | Implemented in source; CI/deployment verification pending |
+| 4.10 | Scheduling, bounded retry, CSV and signed webhook intake | Implemented; CI #67 passed; provider and deployment acceptance pending |
 
 ## Integration API surface
 
@@ -49,10 +49,10 @@ No public KPI may be calculated from profile strength, capacity, raw accepted in
 
 ## Verification status
 
-The repository has a GitHub Actions workflow that runs Prisma generation, migrations, typecheck, tests and production build. A successful run has not been observed for the new commits in this work session. Therefore this document does not claim that the latest changes have passed CI, migrated a live database, or been accepted by the department.
+GitHub Actions run #67 passed on commit `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`: dependency audit, Prisma client generation, all migrations against the isolated CI PostgreSQL database, TypeScript typecheck, 334 tests (0 failures, 0 skips), and production build. This verifies the repository against the CI database only; it does not certify a live government database, approved provider connection, production deployment, or departmental acceptance. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42293460253.
 
 ## Release decision
 
 **Engineering implementation:** the academic intake and integration control plane are implemented, including scheduling framework and inbound CSV/webhook adapters.
 
-**Official Phase 4 production acceptance:** pending the external approvals and CI/deployment checks above. Keep `INTEGRATION_SCHEDULER_ENABLED=false` until reviewed source adapters are registered and their source contracts approved.
+**Official Phase 4 production acceptance:** pending the external approvals, provider contracts and production deployment checks above. Keep `INTEGRATION_SCHEDULER_ENABLED=false` until reviewed source adapters are registered and their source contracts approved.
