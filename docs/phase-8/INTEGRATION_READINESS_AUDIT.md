@@ -138,3 +138,11 @@ The repository claim function accepts an optional Prisma client, defaulting to t
 
 This verifies concurrent disjoint batch claims and batch draining against PostgreSQL; it does not replace provider-specific scheduler acceptance or production load testing.
 
+## 12. PostgreSQL lease renewal and release fencing
+
+Added opt-in test `tests/integration-scheduler-lease-renewal-postgres.test.ts` using two independent Prisma clients and a uniquely keyed source fixture. It verifies that the current owner can renew an unexpired lease, a wrong token cannot renew it, an expired lease cannot be renewed, a second worker can reclaim an expired lease, and the stale owner cannot release the new owner's claim. The current owner can release its own lease, clearing both token and expiry.
+
+Repository `renewSourceClaim()` and `releaseSourceClaim()` accept an optional Prisma client for isolated database testing; their default remains the shared application client. Cleanup is restricted to the fixture source ID. The test requires `PM_SETU_TEST_DATABASE_URL` and the dedicated test database guard.
+
+This exercises lease ownership and expiry predicates against PostgreSQL. It does not simulate a real 60-second scheduler heartbeat interval or establish production latency/load limits.
+
