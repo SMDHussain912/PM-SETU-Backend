@@ -31,7 +31,7 @@ async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueS
         logger.error("Skipped scheduled failure write because lease ownership is unverified", {
           sourceCode: source.code,
           leaseLost: heartbeat.leaseLost,
-        ownershipUncertain: heartbeat.ownershipUncertain,
+          ownershipUncertain: heartbeat.ownershipUncertain,
         });
       }
     } catch {
@@ -45,6 +45,7 @@ async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueS
       logger.error("Could not release integration scheduler lease", {
         sourceCode: source.code,
         leaseLost: heartbeat.leaseLost,
+        ownershipUncertain: heartbeat.ownershipUncertain,
       });
     }
   }
