@@ -777,3 +777,14 @@ The template requires documented ownership and approvals, endpoint and authentic
 No provider endpoint, credential, mapping, replay policy, or KPI definition has been inferred. Provider-specific work remains blocked until the named source owner supplies and approves the contract.
 
 Commit: 30da2a9 — add source-owner contract template.
+
+
+### Phase 8 continuation — protect provider cursors in public run history
+
+Changed the public integration run-history query to use an explicit allowlist projection that omits the opaque provider `cursor`. Internal `listCommittedRuns()` remains unchanged and retains the cursor for scheduler checkpoint continuation. Added regression coverage to the existing public-projection test.
+
+Commits:
+- `4b311b5` — exclude provider cursors from public run history.
+- `752cb62` — test the public run-history projection.
+
+Verification required: run typecheck, full tests and build after pulling `main`.
