@@ -80,6 +80,9 @@ export async function runScheduledSource(
   const pageResult = integrationAdapterPageSchema.safeParse(page);
   if (!pageResult.success) throw new ApiError({ statusCode: 502, code: "ADAPTER_RESPONSE_INVALID", message: "Adapter returned an invalid page envelope" });
   const validPage = pageResult.data;
+  if (validPage.hasMore && validPage.nextCursor === cursor) {
+    throw new ApiError({ statusCode: 502, code: "ADAPTER_CURSOR_NOT_ADVANCING", message: "Adapter continuation cursor did not advance" });
+  }
   if (validPage.records.length === 0) return repository.createScheduledRun(source.id, claimToken, { status: validPage.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: validPage.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
   const parsed = integrationIngestSchema.safeParse({ records: validPage.records });
   if (!parsed.success) throw new ApiError({ statusCode: 422, code: "ADAPTER_RECORDS_INVALID", message: "Adapter records failed ingestion validation", details: parsed.error.flatten() });
