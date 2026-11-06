@@ -192,7 +192,7 @@ async function countActiveSuperAdmins(tx: Prisma.TransactionClient): Promise<num
         FROM users u
         JOIN user_roles ur ON ur.user_id = u.id
         JOIN roles r ON r.id = ur.role_id
-        WHERE u.status = 'ACTIVE' AND r.code = 'SUPER_ADMIN'
+        WHERE u.status = 'ACTIVE' AND r.code = 'super_admin'
     `);
     return rows[0]?.total ?? 0;
 }
@@ -208,7 +208,7 @@ export async function updateStatusPreservingSuperAdmin(
             SELECT (u.status = 'ACTIVE' AND EXISTS (
                 SELECT 1 FROM user_roles ur
                 JOIN roles r ON r.id = ur.role_id
-                WHERE ur.user_id = u.id AND r.code = 'SUPER_ADMIN'
+                WHERE ur.user_id = u.id AND r.code = 'super_admin'
             )) AS is_active_super_admin
             FROM users u WHERE u.id = ${id} FOR UPDATE
         `);
@@ -254,14 +254,14 @@ export async function replaceUserRoles(userId: number, roleIds: number[]): Promi
             SELECT (u.status = 'ACTIVE' AND EXISTS (
                 SELECT 1 FROM user_roles ur
                 JOIN roles r ON r.id = ur.role_id
-                WHERE ur.user_id = u.id AND r.code = 'SUPER_ADMIN'
+                WHERE ur.user_id = u.id AND r.code = 'super_admin'
             )) AS is_active_super_admin
             FROM users u WHERE u.id = ${userId} FOR UPDATE
         `);
         const selectedRoles = await tx.$queryRaw<{ is_super_admin: boolean }[]>(Prisma.sql`
             SELECT EXISTS (
                 SELECT 1 FROM roles WHERE id IN (${Prisma.join(roleIds.length ? roleIds : [-1])})
-                AND code = 'SUPER_ADMIN'
+                AND code = 'super_admin'
             ) AS is_super_admin
         `);
         if (target[0]?.is_active_super_admin && !selectedRoles[0]?.is_super_admin) {
