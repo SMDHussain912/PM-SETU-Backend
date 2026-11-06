@@ -13,6 +13,7 @@ export function createLeaseHeartbeat(options: LeaseHeartbeatOptions) {
   let timer: ReturnType<typeof setInterval> | undefined;
   let renewal: Promise<void> | undefined;
   let leaseLost = false;
+  let ownershipUncertain = false;
   let stopped = true;
 
   async function renew(): Promise<void> {
@@ -22,11 +23,12 @@ export function createLeaseHeartbeat(options: LeaseHeartbeatOptions) {
       .then((renewed) => {
         if (!renewed) {
           leaseLost = true;
+          ownershipUncertain = true;
           options.onLost();
         }
       })
       .catch(() => {
-        leaseLost = true;
+        ownershipUncertain = true;
         options.onError();
       })
       .finally(() => {
@@ -51,6 +53,10 @@ export function createLeaseHeartbeat(options: LeaseHeartbeatOptions) {
     },
     get leaseLost(): boolean {
       return leaseLost;
+    },
+    /** True when ownership was rejected or a renewal error made it unverified. */
+    get ownershipUncertain(): boolean {
+      return ownershipUncertain;
     },
   };
 }
