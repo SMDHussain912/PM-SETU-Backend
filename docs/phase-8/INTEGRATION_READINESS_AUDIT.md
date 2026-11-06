@@ -334,3 +334,10 @@ Regression coverage in `tests/integration-transport-schedule.test.ts` verifies a
 Transport eligibility is now enforced at three independent boundaries: source validation, schedule-update service validation, and the PostgreSQL scheduler claim predicate. The scheduled execution service also checks the source transport before adapter lookup, checkpoint reads, retries or writes. This protects direct service invocations and test/maintenance call paths even if they bypass the scheduler query.
 
 The pull-transport predicate is centralized in `integration.types.ts` as `isIntegrationPullTransport()` / `INTEGRATION_PULL_TRANSPORTS`. Regression coverage in `tests/integration-scheduled-source-service.test.ts` verifies a WEBHOOK source is rejected before adapter execution, checkpoint lookup or run persistence. CSV_UPLOAD remains covered by the shared transport rule. This is generic transport enforcement, not provider certification.
+
+
+## 32. Manual run-history writes fenced against source disable
+
+Manual integration run-history persistence now locks and verifies the source row inside the same PostgreSQL transaction that inserts the run. This closes the race where the service could read an enabled source, the source could then be disabled, and a subsequent run-history insert could still succeed.
+
+The service maps the transaction-level disabled-source rejection to HTTP 409 `INTEGRATION_DISABLED`. Regression coverage in `tests/integration-manual-run-disable.test.ts` verifies both the disable-race mapping and normalized run counters on a successful write. The repository lock uses the same row-lock serialization boundary as manual ingestion; live PostgreSQL race verification remains opt-in and must be run against the dedicated test database.
