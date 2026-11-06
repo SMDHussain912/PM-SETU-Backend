@@ -896,3 +896,15 @@ CI #93 passed dependency audit, Prisma generation, all migrations against isolat
 - CI verification for these commits must be inspected before treating the change as verified.
 
 **Still open in Phase 9:** user account mutations are not yet atomically coupled to their audit writes; route-level live authorization coverage, public list/search/summary/export disclosure review, and deployment/VAPT evidence remain outstanding.
+
+
+### Phase 9 continuation — atomic user mutation audit writes (2026-11-07)
+
+- User repository read/write methods now accept a caller-owned Prisma transaction client where required, while preserving standalone repository transaction behaviour.
+- User create, profile update, status change, role replacement, soft deactivation and organisation-scope replacement now execute their business mutation, read-back snapshot and audit insert in one transaction.
+- Audit insert failure rolls back the corresponding user mutation.
+- Added `tests/user-audit-atomicity.test.ts` to protect transaction propagation for all six mutation paths.
+- Commits: `fa3699ac`, `061ceb15`, `84205ae3`, `4b2a43cc`, `072963b4`, `da26f87a`.
+- GitHub Actions run #106 was started for the resulting main-branch commit; final verification must be read from the run before this milestone is marked verified.
+
+**Still open in Phase 9:** authenticated/unauthenticated HTTP authorization coverage across route families; comprehensive public list/search/summary/export disclosure review; approval-dependent CAPTCHA/session/MFA/storage/malware-scanning controls; production topology/configuration evidence; backup/restore and incident readiness; independent VAPT and formal security sign-off. These must be completed or explicitly recorded as release blockers with evidence; they are not waived by CI success.
