@@ -449,3 +449,9 @@ The current integration module provides generic source registration, reviewed ad
 **Completed next increment — adapter registry integrity:** `registerIntegrationAdapter()` now validates source-code format, supported integration system and callable `fetchPage`; rejects duplicate registrations; and stores a frozen snapshot with the original method bound to its adapter instance. Regression tests cover valid registration, duplicate/invalid registration, runtime-invalid adapters, and mutation after registration. Documentation: `docs/phase-8/INTEGRATION_READINESS_AUDIT.md`. Commits: `49244e94` (implementation), `557e740d` and `d0b391ea` (tests), `4269a6ba` (audit update).
 
 **Current active work:** obtain one approved external-source contract (owner, endpoint/transport, authentication, schema, stable identity/versioning, pagination, replay/correction, permitted fields, retention, sandbox fixtures and operational owner). Then implement and test only that provider adapter. Until then, do not register speculative adapters or enable scheduled production feeds.
+
+### Phase 8 continuation — adapter page-envelope validation
+
+Added strict runtime validation for scheduled adapter page envelopes. The scheduler now rejects malformed page objects, non-array records, batches above 500, non-boolean `hasMore`, unexpected envelope properties, cursors above the persisted 2,000-character limit, and missing/blank continuation cursors when `hasMore` is true. Opaque provider cursor values are preserved without imposing a universal syntax or ordering rule. Focused tests: `tests/integration-adapter-page.test.ts`.
+
+**Current active work:** obtain an approved external-source contract before implementing a provider adapter. Do not invent provider version ordering, snapshot semantics, or source mappings.
