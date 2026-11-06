@@ -531,3 +531,14 @@ Added:
 **Verification required:** pull `main`, then run typecheck, the full test suite and build. This change has not yet been verified locally.
 
 **Current active work:** continue Phase 8 provider-contract readiness only when a named source owner supplies an approved contract; do not invent provider endpoints, mappings, authentication or replay semantics.
+
+
+### Phase 8 continuation — PostgreSQL scheduler output fencing
+
+Added `tests/integration-scheduler-write-fencing-postgres.test.ts` to exercise scheduler writes against PostgreSQL through two independent clients. It verifies that after a source lease is reclaimed, the stale worker cannot create a sync-run record, ingest integration records, or advance a checkpoint; the current owner can still commit. Rejected stale operations leave no partial rows. Fixtures use a unique source code and exact source-ID cleanup.
+
+Added optional Prisma-client injection to `createScheduledRun()` and `ingestBatch()`; production defaults are unchanged and the existing transaction-scoped row lock plus claim-token/expiry/enabled check remains authoritative.
+
+**Verification required:** run typecheck, the full suite and build with `PM_SETU_TEST_DATABASE_URL` configured. Confirm the new PostgreSQL test ran rather than skipped.
+
+**Current active work:** continue Phase 8 reliability work from the next verified scheduler boundary. Provider-specific adapter implementation remains blocked until an approved source-owner contract is supplied.
