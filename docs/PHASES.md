@@ -859,6 +859,7 @@ Added `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` on 2026-11-07. The st
 - Continued the review into resource-scoped registry/workflow endpoints. Reordered AIP, Cluster, ITI, SIP and SPV scoped routes so RBAC runs before resource-scope checks, and resource-scope checks run before Zod validation. Cluster reassignment restrictions also run before validation.
 - Added/extended `tests/route-middleware-order.test.ts` to assert role-before-validation, role-before-scope, scope-before-validation, and the relevant route inventories. Existing PostgreSQL scope integration coverage verifies direct and inherited scope behaviour. These are structural and database integration tests, not a substitute for full HTTP-level authorization tests.
 - Public registry GET routes remain public under their existing documented design; their field-level publication review is still open.
+- Audit review found that user create/profile/status/role/deactivation and role create/update/delete service paths do not currently write audit entries; scope replacement does. Added SEC-ROUTE-12 to the audit. Implementation awaits an approved audit-event matrix and audit-write failure policy, which the existing audit service marks TO CONFIRM.
 - Production CORS now fails closed when `CORS_ORIGIN` is missing, blank or wildcard. Development/test retain the wildcard default. Added `tests/cors-config.test.ts`; production deployments must configure their real frontend origins.
 - Updated `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` with the evidence and remaining verification status.
 
