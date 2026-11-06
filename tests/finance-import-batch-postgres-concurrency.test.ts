@@ -1,5 +1,5 @@
 import test from "node:test";
-import { assertDedicatedTestDatabaseUrl } from "../helpers/test-database";
+import { assertDedicatedTestDatabaseUrl } from "./helpers/test-database";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
