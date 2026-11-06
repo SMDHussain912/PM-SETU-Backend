@@ -77,10 +77,10 @@ export async function ingestBatch(sourceId: number, records: Array<{ source_reco
 
 
 /** Atomically claims due schedules or reclaims leases abandoned by crashed workers. */
-export async function claimDueSources() {
+export async function claimDueSources(client: typeof prisma = prisma) {
   // Claim a bounded batch in due-time order. SKIP LOCKED lets other
   // application instances claim different rows without waiting on this batch.
-  const claimed = await prisma.$queryRaw<Array<{ id: number; claim_token: string }>>`
+  const claimed = await client.$queryRaw<Array<{ id: number; claim_token: string }>>`
     WITH due_sources AS (
       SELECT "id"
       FROM "integration_sources"
@@ -104,7 +104,7 @@ export async function claimDueSources() {
     RETURNING source."id", source."claim_token"
   `;
   if (!claimed.length) return [];
-  const sources = await prisma.integrationSource.findMany({
+  const sources = await client.integrationSource.findMany({
     where: { id: { in: claimed.map((row) => row.id) }, enabled: true },
     orderBy: { id: "asc" },
   });
