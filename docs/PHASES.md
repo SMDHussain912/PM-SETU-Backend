@@ -463,3 +463,12 @@ Added strict runtime validation for scheduled adapter page envelopes. The schedu
 Changed due-source claiming to select at most 10 rows in due-time/source-ID order using `FOR UPDATE SKIP LOCKED`, then update the claim tokens atomically. The scheduler processes each bounded batch concurrently rather than sequentially, preventing later claimed sources from waiting behind slow earlier syncs with leases aging unused. Sources beyond the batch remain due for a later tick. Existing lease renewal and fencing semantics are unchanged.
 
 **Completed next increment — graceful scheduler shutdown lifecycle:** extracted tick coordination into `src/modules/integrations/integration.scheduler.lifecycle.ts`. Regression tests in `tests/integration-scheduler-lifecycle.test.ts` verify that duplicate triggers are coalesced, shutdown blocks later ticks, `stop()` waits for an in-flight tick, and the lifecycle can restart after a completed stop. `src/server.ts` awaits scheduler shutdown before Prisma disconnect. Implementation, tests and audit documentation are committed; local typecheck/test/build verification is pending.\n\n**Current active work:** add focused PostgreSQL coverage for bounded multi-worker batch claiming using the dedicated `PM_SETU_TEST_DATABASE_URL`. Provider-specific retry, pagination and version semantics remain contract-dependent.
+
+### Phase 8 continuation — PostgreSQL bounded multi-worker scheduler verification
+
+Added `tests/integration-scheduler-batch-postgres.test.ts` and an optional Prisma-client injection point on `claimDueSources()` (default remains the application Prisma client). The opt-in PostgreSQL test creates 23 uniquely keyed due sources, claims concurrently through two independent clients, verifies the 10-row cap and disjoint worker claims, then verifies the final three sources are claimed by the next batch. It cleans up only its own fixture IDs.
+
+**Verification required:** pull the commit, migrate the dedicated `pm_setu_test` database if needed, and run the full checks with `PM_SETU_TEST_DATABASE_URL` configured. Do not treat this database-level test as executed unless its output confirms it ran rather than skipped.
+
+**Current active work:** after verification, review scheduler failure/retry and lease-renewal behaviour under real PostgreSQL timing. Provider-specific retry, pagination, version ordering and replay semantics remain contract-dependent.
+
