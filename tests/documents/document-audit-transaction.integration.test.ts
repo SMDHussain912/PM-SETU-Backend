@@ -4,7 +4,9 @@ import { Pool } from "pg";
 import { prisma, disconnectPrisma } from "../../src/config/database";
 import * as documentService from "../../src/modules/documents/document.service";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const databaseUrl = process.env.TEST_DATABASE_URL;
+const databaseTest = databaseUrl ? test : test.skip;
+const pool = new Pool({ connectionString: databaseUrl });
 let rollbackDocumentId: number;
 let successDocumentId: number;
 
@@ -60,7 +62,7 @@ const auditContext = {
     path: "/api/v1/admin/documents",
 };
 
-test("document update rolls back when its audit insert fails", async () => {
+databaseTest("document update rolls back when its audit insert fails", async () => {
     await assert.rejects(
         documentService.updateDocument(
             rollbackDocumentId,
@@ -77,7 +79,7 @@ test("document update rolls back when its audit insert fails", async () => {
     assert.equal(result.rows[0]?.title, "CI document before failed audit");
 });
 
-test("document update and its audit entry commit together", async () => {
+databaseTest("document update and its audit entry commit together", async () => {
     const updated = await documentService.updateDocument(
         successDocumentId,
         { title: "Updated document with audit" },
