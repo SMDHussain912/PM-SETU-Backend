@@ -370,3 +370,10 @@ Regression coverage in `tests/integration-scheduled-source-service.test.ts` veri
 The generic ingestion schema now enforces a 1 MB maximum on the complete serialized record batch, in addition to the existing per-record payload, record-count, nesting-depth and field restrictions. This closes the amplification gap where 500 individually valid 16 KB payloads could otherwise produce a multi-megabyte scheduled adapter batch and a correspondingly large database transaction. Non-serializable object graphs are rejected as validation failures rather than escaping the schema boundary as an exception.
 
 Regression coverage in `tests/integration-ingest-schema.test.ts` verifies aggregate-size rejection and safe handling of circular object input. The HTTP JSON parser limit remains unchanged; this additional bound also protects adapter-originated data before persistence. This is a generic resource bound, not a provider field mapping or source approval.
+
+
+## 35. Bound payload validation work before serialization
+
+Payload validation now applies depth, node-count and cumulative key/value byte budgets while traversing untrusted JSON. The validator rejects excessive structures before calling `JSON.stringify`, preventing a very wide or oversized single value from forcing unbounded traversal before the existing 16 KB per-payload and 1 MB per-batch checks. Non-JSON values and circular structures remain rejected as validation failures.
+
+Regression coverage in `tests/integration-ingest-schema.test.ts` includes excessive node counts and a single oversized string. This is a generic resource-exhaustion safeguard; provider-specific schemas and field contracts remain separate approval requirements.
