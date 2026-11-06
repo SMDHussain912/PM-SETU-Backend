@@ -1,9 +1,9 @@
 # Phase 9 — Security Readiness Audit
 
-**Status:** In progress; latest engineering hardening verified by CI #84 on 2026-11-07.  
+**Status:** In progress; latest engineering hardening verified by CI #91 on 2026-11-07.  
 **Repository:** `smdgamekingindo-TN/PM-SETU-Backend`  
 **Branch:** `main`  
-**Verified commit:** `84a84b8a078367679373a10af070233dd2f1d8a3`
+**Verified commit:** `3160d8cf9d4a6acba63f7af9264c0357837b76e3`
 
 ## 1. Verified changes
 
@@ -53,19 +53,23 @@ Failed-login counter increments and threshold lockout now occur in one atomic Po
 
 The shared Multer wrapper now limits each multipart request to 2 files, 10 text fields and 12 total parts; individual fields are limited to 64 KiB, field names to 100 bytes and header pairs to 2,000. Route-level `.single()` / `.array()` limits and the environment-configured per-file byte limit remain in force. Regression coverage is in `tests/upload-multipart-limits.test.ts`.
 
+### Privileged mutation audit coverage
+
+User creation, profile/status changes, role replacement, deactivation, role create/update/delete, password changes and legacy hash upgrades now write audit entries. Before/after snapshots use allowlisted fields; user credentials and lockout internals are excluded. Audit records capture actor ID, IP address, user agent and route path. Regression tests cover safe projections and request metadata. Audit inserts currently occur after repository mutations; transactional coupling is still open and must be completed before claiming atomic audit guarantees.
+
 ## 2. GitHub Actions evidence
 
-Commit: `84a84b8a078367679373a10af070233dd2f1d8a3`
+Commit: `3160d8cf9d4a6acba63f7af9264c0357837b76e3`
 
-The completed workflow **Install, migrate, typecheck, test and build** (#84) passed:
+The completed workflow **Install, migrate, typecheck, test and build** (#91) passed:
 - npm dependency audit
 - Prisma client generation
 - Migrations against the isolated CI PostgreSQL database
 - TypeScript typecheck
-- Test suite: 342 passed, 0 failed, 0 skipped
+- Test suite: 346 passed, 0 failed, 0 skipped
 - Production build
 
-The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42297443500
+The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42300063574
 
 ## 3. Remaining Phase 9 work
 
@@ -74,6 +78,7 @@ The following items are not certified by the checks above and remain open:
 - Security review of local-file storage durability, retention/deletion, malware scanning/quarantine, approved production object storage and document-download cache policy.
 - Review of CORS, trusted proxy, rate-limit storage and deployment-specific configuration.
 - Privileged-account controls, MFA availability and account recovery policy.
+- Transactional coupling of privileged mutations and audit inserts; audit coverage for failed transitions and file operations.
 - Security logging, alerting, secret rotation and incident response runbook.
 - Backup/restore and disaster-recovery evidence.
 - Dependency update policy and recurring vulnerability review.

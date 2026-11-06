@@ -4,7 +4,7 @@
 >
 > **Repository:** [SMDHussain912/PM-SETU-Backend](https://github.com/SMDHussain912/PM-SETU-Backend)  
 > **Working branch:** `main`  
-> **Last documented:** 2026-11-06
+> **Last documented:** 2026-11-07
 
 ---
 
@@ -864,3 +864,14 @@ Added `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` on 2026-11-07. The st
 - Updated `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` with the evidence and remaining verification status.
 
 **Current active work:** inspect list/search/summary/export scope enforcement and privileged mutation audit coverage. Continue with safe security fixes while obtaining the external decisions required for CAPTCHA, approved role matrix, session lifecycle, public dashboard disclosure, storage and malware scanning. Do not infer policy or provider contracts.
+
+
+### Phase 9 continuation — privileged mutation audit coverage
+
+On 2026-11-07, privileged user and role mutations were connected to the append-only audit service. User create/profile/status/role/deactivation, role create/update/delete, password changes, legacy password-hash upgrades and organisation-scope replacement now record actor and before/after state. Safe projections exclude password hashes and lockout internals. Request IP, user agent and route path are captured through a shared audit-context helper.
+
+Regression coverage verifies user/role audit projections and request metadata. CI #91 passed dependency audit, Prisma generation, all migrations against the isolated PostgreSQL database, typecheck, 346 tests with zero skips, and production build.
+
+**Remaining work:** audit inserts currently happen after the corresponding business mutation commits. Make privileged mutations and audit writes atomic (or introduce an approved durable outbox), then cover failed transitions and file operations. Continue the public list/search/summary/export field-disclosure review and deployment security verification.
+
+**Owner instruction (2026-11-07):** Project owner confirms NIC discussions/approvals are complete and authorizes continued implementation without pausing for another approval round. Where an approval decision is not yet recorded in a versioned contract or provider connection details are absent, continue the independent engineering work and do not fabricate endpoints, credentials or source mappings.

@@ -1,6 +1,6 @@
 # Phase 9 — Route Authorization and Security Control Audit
 
-**Status:** Initial static audit completed; remediation and stakeholder decisions remain open.  
+**Status:** Static audit completed; engineering remediations verified through CI #91; operational deployment verification and VAPT remain open.  
 **Branch:** `main`  
 **Baseline commit:** `fc326ca4859366564d5afbf65eeb6370f1d2be95`  
 **Audit date:** 2026-11-07
@@ -22,9 +22,10 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 - Resource-scoped mutation routes for clusters, ITIs, AIPs, SPVs and SIPs use `requireResourceScope` where the route design requires an individual resource check.
 - Integration webhooks are not protected by a user JWT; they use the separate HMAC signature flow. The webhook service verifies the raw request bytes before validating the parsed payload.
 - Banner/gallery image upload signature checks and document upload signature validation have dedicated implementation and regression tests.
+- Privileged user and role mutations, password changes and legacy password-hash upgrades write append-only audit entries using allowlisted before/after projections; request actor, IP, user agent and route path are captured.
 - Multipart uploads have bounded file, field, part, field-size, field-name and header-pair limits.
 - Public document downloads resolve paths under the managed documents root, use attachment disposition, and set `X-Content-Type-Options: nosniff`.
-- CI run #67 on commit `2bf29fd29726a5a69a7ebe881a850f30e65e4dba` passed dependency audit, Prisma generation, all migrations against the isolated CI PostgreSQL database, typecheck, 334 tests with zero skips, and production build. The workflow sets `PM_SETU_TEST_DATABASE_URL`, so opt-in PostgreSQL tests ran in CI. CI sets `PM_SETU_TEST_DATABASE_URL`, so the opt-in PostgreSQL tests are enabled in that run.
+- Latest CI run #91 on commit `3160d8cf9d4a6acba63f7af9264c0357837b76e3` passed dependency audit, Prisma generation, all migrations against the isolated CI PostgreSQL database, typecheck, 346 tests with zero skips, and production build. The run includes PostgreSQL lockout concurrency tests, JWT secret/password hashing tests, public projection tests, and privileged audit/request-context coverage. The workflow sets `PM_SETU_TEST_DATABASE_URL`, so opt-in PostgreSQL tests ran in CI. CI sets `PM_SETU_TEST_DATABASE_URL`, so the opt-in PostgreSQL tests are enabled in that run.
 
 ## 3. Findings and open controls
 
@@ -139,13 +140,21 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 ### SEC-ROUTE-12 — Privileged user and role mutations have incomplete audit coverage
 
-**Evidence:** `src/modules/users/user.service.ts` writes an audit entry for organisation-scope replacement, but the inspected create-user, profile-update, status-change, role-replacement and deactivation service paths do not call the audit service. `src/modules/roles/role.service.ts` create/update/delete paths also do not write audit entries. The repository exposes an append-only audit-create hook, and `RoadMap.md` §21 explicitly describes transaction audit metadata for approval transactions; the RoadMap does not define a complete audit-event matrix for user/role administration.
+**Evidence:** Before remediation, user creation, profile/status changes, role replacement, deactivation and role create/update/delete paths did not write audit entries. Organisation-scope replacement already had an audit hook.
 
-**Impact:** Changes to privileged accounts and role definitions may not have an attributable before/after audit record. This is especially important because role and permission assignments directly affect access.
+**Impact:** Without before/after records, privileged account and permission changes cannot be reliably attributed or reconstructed.
 
-**Required action:** Confirm the required audit event matrix for user creation, profile changes, activation/deactivation, role assignment/removal, role/permission changes and scope replacement. Confirm whether audit-write failure must roll back the business transaction or be handled by another approved delivery mechanism. Then add actor, target, action, before/after values and request metadata with regression tests. Do not choose fail-open/fail-closed semantics by assumption; the audit service currently documents that policy as TO CONFIRM.
+**Remediation on `main` (2026-11-07):**
+- User create, profile update, status change, role replacement and soft deactivation now write audit entries.
+- Role create/update/delete now write audit entries with permission snapshots.
+- Password changes and legacy password-hash upgrades are audited without storing plaintext passwords or password hashes.
+- User snapshots use an explicit allowlist and exclude password hashes, failed-login counters and lockout timestamps; role permission lists are sorted for deterministic snapshots.
+- Audit context captures actor ID, request IP, user agent and route path.
+- Added projection and request-context regression tests.
 
-**Disposition:** Open security/acceptance finding; implementation depends on audit policy confirmation.
+**Remaining limitation:** Business mutations currently commit in their repository calls before the audit insert. Audit-write errors propagate to the request, but they do not roll back an already committed mutation. Transactional coupling or an outbox remains a hardening item; do not describe the current post-mutation audit write as atomic.
+
+**Disposition:** Event coverage and safe request metadata implemented and verified by CI #91 (commit `3160d8cf9d4a6acba63f7af9264c0357837b76e3`). Atomic coupling remains open.
 
 
 ### SEC-ROUTE-13 — Public document APIs exposed internal filesystem paths
@@ -226,7 +235,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 - Protected resource-specific mutation and workflow routes in AIP, Cluster, ITI, SIP and SPV use resource-scope middleware; PostgreSQL integration coverage exists for inherited and direct assignment cases. Public registry GET routes are intentionally unguarded in the current route design. Still inspect every public list/search/summary/export response against the approved publication policy; route-level mutation guards do not prove public-field disclosure is safe.
 - Verify the role/permission matrix and permission seeding against the approved access policy.
 - Confirm production uses a cryptographically random JWT signing secret of at least 32 bytes and rotate any prior weak secret.
-- Verify audit event coverage for every privileged mutation, including failed transitions and file operations.
+- Complete transactional coupling of privileged mutations and their audit writes; extend coverage to failed transitions and file operations.
 - Document downloads are published-record-only, path-contained, sent as attachments and protected with `X-Content-Type-Options: nosniff`; confirm the appropriate cache policy with the publication owner.
 - Review production TLS termination, reverse-proxy trust, secrets management/rotation, database least privilege, backup/restore, monitoring and incident response.
 - Run authenticated and unauthenticated route tests for every public/admin route family.
