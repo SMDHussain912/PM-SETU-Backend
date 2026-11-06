@@ -2,7 +2,7 @@
 
 **Repository:** `SMDHussain912/PM-SETU-Backend`  
 **Branch:** `main`  
-**Status:** Verified by user — typecheck, tests, and build passed  
+**Status:** Verified by GitHub Actions CI #74 — 335 tests passed, no skips  
 **Depends on:** Phase 3.7 registry KPI implementation; Phase 3.10 public access decision; Phase 3.11 public response review
 
 ## 1. Objective
@@ -34,13 +34,7 @@ The test does not require a live database; it verifies the SQL emitted by the re
 
 ## 5. Verification
 
-The code and SQL reference changes are committed. The project test suite, typecheck and build have not been executed in this remote editing session. Run locally:
-
-```bash
-npm run typecheck
-npm test
-npm run build
-```
+GitHub Actions run #74 verified this change on commit `94d6205dfc2bff7a38361037f4e15025a91d77e9`: migrations, TypeScript typecheck, 335 tests (0 failures, 0 skips), and production build all passed. CI provides the dedicated PostgreSQL test database through `PM_SETU_TEST_DATABASE_URL`. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42293934260.
 
 ## 6. Exit status
 
@@ -53,10 +47,10 @@ npm run build
 | Sample exclusion in training capacity aggregates | Implemented |
 | Sample exclusion in training-by-cluster | Implemented |
 | DBA SQL reference aligned | Implemented |
-| Regression test added | Implemented; local run pending |
+| Regression test added | Implemented; CI #74 passed |
 | Official KPI semantics / source approval | Unchanged; remains governed by existing gates |
 
-**Phase 3.12 exit:** Implementation slice committed. Await local verification before starting the next implementation slice.
+**Phase 3.12 exit:** Implementation and regression verification complete in CI. Departmental publication approval remains separate.
 
 ---
 

@@ -22,6 +22,8 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 - Resource-scoped mutation routes for clusters, ITIs, AIPs, SPVs and SIPs use `requireResourceScope` where the route design requires an individual resource check.
 - Integration webhooks are not protected by a user JWT; they use the separate HMAC signature flow. The webhook service verifies the raw request bytes before validating the parsed payload.
 - Banner/gallery image upload signature checks and document upload signature validation have dedicated implementation and regression tests.
+- Multipart uploads have bounded file, field, part, field-size, field-name and header-pair limits.
+- Public document downloads resolve paths under the managed documents root, use attachment disposition, and set `X-Content-Type-Options: nosniff`.
 - CI run #67 on commit `2bf29fd29726a5a69a7ebe881a850f30e65e4dba` passed dependency audit, Prisma generation, all migrations against the isolated CI PostgreSQL database, typecheck, 334 tests with zero skips, and production build. The workflow sets `PM_SETU_TEST_DATABASE_URL`, so opt-in PostgreSQL tests ran in CI. CI sets `PM_SETU_TEST_DATABASE_URL`, so the opt-in PostgreSQL tests are enabled in that run.
 
 ## 3. Findings and open controls
@@ -66,7 +68,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Operational requirement:** Set `CORS_ORIGIN` to the actual frontend origins in every production environment before deployment. The repository cannot determine the deployment's authoritative domains.
 
-**Disposition:** Code hardening implemented and verified by successful CI run #67 (commit `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`). Production deployment must still set `CORS_ORIGIN` to the actual frontend allowlist.
+**Disposition:** Code hardening implemented and verified by successful CI run #74 (commit `94d6205dfc2bff7a38361037f4e15025a91d77e9`). Production deployment must still set `CORS_ORIGIN` to the actual frontend allowlist.
 
 ### SEC-ROUTE-05 — Upload storage is local filesystem storage
 
@@ -167,14 +169,25 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Remediation on `main` (2026-11-07):** Added shared Multer bounds: maximum 2 files, 10 text fields, 12 total parts, 64 KiB per field, 100-byte field names and 2,000 header pairs. The existing environment-configured per-file size limit and route-specific `.single()` / `.array()` limits remain in force. Added `tests/upload-multipart-limits.test.ts` to protect the shared bounds and ensure the two-image banner upload fits within the parser budget.
 
-**Disposition:** Code hardening committed and verified by successful CI run #67 (commit `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`).
+**Disposition:** Code hardening committed and verified by successful CI run #74 (commit `94d6205dfc2bff7a38361037f4e15025a91d77e9`).
+
+
+### SEC-ROUTE-15 — Document downloads did not explicitly disable MIME sniffing
+
+**Evidence:** The public document download controller used Express `res.download()`, which sends an attachment, but did not explicitly set `X-Content-Type-Options`.
+
+**Impact:** Browsers may attempt MIME sniffing in some response contexts rather than consistently respecting the declared content type.
+
+**Remediation on `main` (2026-11-07):** Added `applyDocumentDownloadSecurityHeaders()` to set `X-Content-Type-Options: nosniff` before sending the file. The existing service still resolves the stored path with `realpath`, enforces containment beneath the managed documents directory, and retrieves only published documents. Added `tests/document-download-headers.test.ts`.
+
+**Disposition:** Code hardening committed and verified by successful CI run #74 (commit `94d6205dfc2bff7a38361037f4e15025a91d77e9`). Explicit cache policy remains subject to the public document publication contract.
 
 ## 4. Additional verification required before sign-off
 
 - Protected resource-specific mutation and workflow routes in AIP, Cluster, ITI, SIP and SPV use resource-scope middleware; PostgreSQL integration coverage exists for inherited and direct assignment cases. Public registry GET routes are intentionally unguarded in the current route design. Still inspect every public list/search/summary/export response against the approved publication policy; route-level mutation guards do not prove public-field disclosure is safe.
 - Verify the role/permission matrix and permission seeding against the approved access policy.
 - Verify audit event coverage for every privileged mutation, including failed transitions and file operations.
-- Inspect file download responses for content disposition, content type, cache controls, path traversal protection and authorization.
+- Document downloads are published-record-only, path-contained, sent as attachments and protected with `X-Content-Type-Options: nosniff`; confirm the appropriate cache policy with the publication owner.
 - Review production TLS termination, reverse-proxy trust, secrets management/rotation, database least privilege, backup/restore, monitoring and incident response.
 - Run authenticated and unauthenticated route tests for every public/admin route family.
 - Obtain VAPT and formal security sign-off; CI success is not a substitute.

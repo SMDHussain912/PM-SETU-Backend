@@ -18,7 +18,7 @@
 | 4.7 | Academic workstream verification | Readiness report complete |
 | 4.8 | Academic source intake and review workflow | Implemented |
 | 4.9 | Integration source registry, batch ingestion and raw record landing | Implemented |
-| 4.10 | Scheduling, bounded retry, CSV and signed webhook intake | Implemented; CI #67 passed; provider and deployment acceptance pending |
+| 4.10 | Scheduling, bounded retry, CSV and signed webhook intake | Implemented; CI #74 passed; provider and deployment acceptance pending |
 
 ## Integration API surface
 
@@ -49,7 +49,7 @@ No public KPI may be calculated from profile strength, capacity, raw accepted in
 
 ## Verification status
 
-GitHub Actions run #67 passed on commit `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`: dependency audit, Prisma client generation, all migrations against the isolated CI PostgreSQL database, TypeScript typecheck, 334 tests (0 failures, 0 skips), and production build. This verifies the repository against the CI database only; it does not certify a live government database, approved provider connection, production deployment, or departmental acceptance. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42293460253.
+GitHub Actions run #74 passed on commit `94d6205dfc2bff7a38361037f4e15025a91d77e9`: dependency audit, Prisma client generation, all migrations against the isolated CI PostgreSQL database, TypeScript typecheck, 335 tests (0 failures, 0 skips), and production build. This verifies the repository against the CI database only; it does not certify a live government database, approved provider connection, production deployment, or departmental acceptance. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42293934260.
 
 ## Release decision
 

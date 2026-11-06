@@ -1,9 +1,9 @@
 # Phase 9 — Security Readiness Audit
 
-**Status:** In progress; latest engineering hardening verified by CI on 2026-11-07.  
+**Status:** In progress; latest engineering hardening verified by CI #74 on 2026-11-07.  
 **Repository:** `smdgamekingindo-TN/PM-SETU-Backend`  
 **Branch:** `main`  
-**Verified commit:** `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`
+**Verified commit:** `94d6205dfc2bff7a38361037f4e15025a91d77e9`
 
 ## 1. Verified changes
 
@@ -33,23 +33,27 @@ The existing document upload path already had a separate signature validator and
 
 Regression tests cover valid signatures, spoofed bytes, mismatched MIME declarations, empty/unsupported files, filename sanitisation, batch cleanup and safe repeated cleanup.
 
+### Document download response hardening
+
+Published document downloads continue to resolve the stored path through `realpath` and enforce containment under the managed documents directory. The download controller sends files as attachments and now explicitly sets `X-Content-Type-Options: nosniff`, with regression coverage in `tests/document-download-headers.test.ts`. Cache policy remains a deployment/publication decision.
+
 ### Multipart parser resource bounds
 
 The shared Multer wrapper now limits each multipart request to 2 files, 10 text fields and 12 total parts; individual fields are limited to 64 KiB, field names to 100 bytes and header pairs to 2,000. Route-level `.single()` / `.array()` limits and the environment-configured per-file byte limit remain in force. Regression coverage is in `tests/upload-multipart-limits.test.ts`.
 
 ## 2. GitHub Actions evidence
 
-Commit: `2bf29fd29726a5a69a7ebe881a850f30e65e4dba`
+Commit: `94d6205dfc2bff7a38361037f4e15025a91d77e9`
 
-The completed workflow **Install, migrate, typecheck, test and build** (#67) passed:
+The completed workflow **Install, migrate, typecheck, test and build** (#74) passed:
 - npm dependency audit
 - Prisma client generation
 - Migrations against the isolated CI PostgreSQL database
 - TypeScript typecheck
-- Test suite: 334 passed, 0 failed, 0 skipped
+- Test suite: 335 passed, 0 failed, 0 skipped
 - Production build
 
-The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42293460253
+The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42293934260
 
 ## 3. Remaining Phase 9 work
 

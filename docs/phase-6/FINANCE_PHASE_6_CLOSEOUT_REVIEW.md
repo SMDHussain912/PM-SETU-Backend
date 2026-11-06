@@ -96,7 +96,7 @@ The migration performs a preflight check and aborts rather than silently rewriti
 6. **Audit failure semantics remain unresolved.** Do not claim financial write and audit entry are atomic until the required failure policy is decided and verified.
 7. **Import execution may partially commit.** Handlers own their transactions; batch-level all-or-nothing semantics are not guaranteed.
 8. **Retention is unresolved.** Raw CSV content and normalized financial row payloads are deliberately not retained by the import-batch metadata design.
-9. **PostgreSQL concurrency tests now have CI execution evidence.** CI run #67 sets `PM_SETU_TEST_DATABASE_URL` to its isolated migrated PostgreSQL 16 service and completed 334 tests with zero skips. This confirms the opt-in test cases executed in CI; it is not a substitute for verification against the eventual production database topology or reconciliation against authoritative Finance extracts.
+9. **PostgreSQL concurrency tests now have CI execution evidence.** CI run #74 sets `PM_SETU_TEST_DATABASE_URL` to its isolated migrated PostgreSQL 16 service and completed 335 tests with zero skips. This confirms the opt-in test cases executed in CI; it is not a substitute for verification against the eventual production database topology or reconciliation against authoritative Finance extracts.
 
 ## 8. Required acceptance evidence before Phase 6 can be called operationally accepted
 
