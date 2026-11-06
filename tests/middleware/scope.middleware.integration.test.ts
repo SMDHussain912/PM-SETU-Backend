@@ -1,4 +1,5 @@
 import test from "node:test";
+import { assertDedicatedTestDatabaseUrl } from "../helpers/test-database";
 import assert from "node:assert/strict";
 import type { NextFunction, Request, Response } from "express";
 import { Pool } from "pg";
@@ -54,6 +55,7 @@ async function invokeScope(
 
 test.before(async () => {
     if (!databaseUrl) return;
+    assertDedicatedTestDatabaseUrl(databaseUrl);
     await prisma.$connect();
 
     const cluster = await pool.query<{ id: number }>(
