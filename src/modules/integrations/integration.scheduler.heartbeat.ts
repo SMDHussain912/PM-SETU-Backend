@@ -38,11 +38,13 @@ export function createLeaseHeartbeat(options: LeaseHeartbeatOptions) {
   return {
     start(): void {
       if (timer) return;
+      stopped = false;
       timer = setInterval(() => { void renew(); }, options.intervalMs);
       timer.unref?.();
     },
     pulse: renew,
     async stop(): Promise<void> {
+      stopped = true;
       if (timer) clearInterval(timer);
       timer = undefined;
       await renewal;
