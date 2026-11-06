@@ -103,6 +103,7 @@ test.before(async () => {
         [clusterId],
     );
     sampleSpvId = sampleSpv.rows[0].id;
+    setupComplete = true;
 });
 
 test.after(async () => {
