@@ -140,7 +140,7 @@ databaseTest("cluster assignment grants access to the assigned cluster and its c
     }
 });
 
-test("cluster assignment does not grant access to a different cluster", async () => {
+databaseTest("cluster assignment does not grant access to a different cluster", async () => {
     const error = await invokeScope("CLUSTER", otherClusterId, { id: clusterUserId });
     assert.equal((error as { statusCode?: number }).statusCode, 403);
 });
