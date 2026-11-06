@@ -58,12 +58,9 @@ export async function claimDueSources() {
     WHERE "enabled" = TRUE
       AND "sync_interval_seconds" IS NOT NULL
       AND (
-        "claim_token" IS NULL
-        OR "claim_expires_at" IS NULL
-        OR "claim_expires_at" <= NOW()
+        ("claim_token" IS NULL AND ("next_sync_at" IS NULL OR "next_sync_at" <= NOW()))
+        OR ("claim_token" IS NOT NULL AND ("claim_expires_at" IS NULL OR "claim_expires_at" <= NOW()))
       )
-      AND ("next_sync_at" IS NULL OR "next_sync_at" <= NOW()
-        OR "claim_expires_at" <= NOW())
     RETURNING "id", "claim_token"
   `;
   if (!claimed.length) return [];
