@@ -156,7 +156,9 @@ The owner confirmation is recorded in `docs/PHASES.md`; a separate signed field-
 - Audit context captures actor ID, request IP, user agent and route path.
 - Added projection and request-context regression tests.
 
-**Remaining limitation:** Business mutations currently commit in their repository calls before the audit insert. Audit-write errors propagate to the request, but they do not roll back an already committed mutation. Transactional coupling or an outbox remains a hardening item; do not describe the current post-mutation audit write as atomic.
+**Partial remediation on `main` (2026-11-07):** Role create/update/delete now execute role writes, permission mappings, read-back snapshots and audit inserts inside one Prisma transaction. Audit-write failure rolls back these role mutations. `tests/role-audit-atomicity.test.ts` guards this service/repository contract (CI verification pending at the time of this update).
+
+**Remaining limitation:** User create/profile/status/role-replacement/deactivation mutations still commit in their repository calls before the audit insert. Audit-write errors propagate to the request, but do not roll back those already committed user mutations. SEC-ROUTE-12 remains partially open until user mutations receive equivalent transaction coupling and failed-transition tests.
 
 **Disposition:** Event coverage and safe request metadata implemented and verified by CI #91 (commit `3160d8cf9d4a6acba63f7af9264c0357837b76e3`). Atomic coupling remains open.
 
