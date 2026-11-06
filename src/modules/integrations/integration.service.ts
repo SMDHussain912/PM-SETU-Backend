@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ApiError } from "../../utils/response";
 import { integrationAdapterRegistry } from "./integration.adapters";
+import { selectCommittedCheckpoint } from "./integration.checkpoint";
 import { integrationIngestSchema } from "./integration.schema";
 import * as repo from "./integration.repository";
 import type { IntegrationSourceInput } from "./integration.schema";
@@ -45,8 +46,8 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
   if (!adapter || adapter.system !== source.system) {
     return repo.createRun({ sourceId: source.id, status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: null, errorCode: adapter ? "ADAPTER_SYSTEM_MISMATCH" : "ADAPTER_NOT_CONFIGURED", errorSummary: adapter ? "Adapter system does not match source system" : "No reviewed adapter is registered for this source", startedAt, completedAt: new Date() });
   }
-  const latest = await repo.listRuns(source.id, 1);
-  const previous = latest[0];
+  const history = await repo.listCommittedRuns(source.id, 1);
+  const previous = selectCommittedCheckpoint(history);
   // Preserve the last committed cursor across failed runs so transient adapter
   // failures do not restart a large source from its beginning.
   const cursor = previous?.cursor ?? null;
