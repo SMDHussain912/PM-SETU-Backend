@@ -2,7 +2,6 @@ import { logger } from "../../utils/logger";
 import * as repo from "./integration.repository";
 import { runScheduledSource } from "./integration.service";
 import { createSchedulerLifecycle } from "./integration.scheduler.lifecycle";
-import { createSchedulerLifecycle } from "./integration.scheduler.lifecycle";
 
 const LEASE_HEARTBEAT_MS = 60_000;
 let timer: NodeJS.Timeout | undefined;
