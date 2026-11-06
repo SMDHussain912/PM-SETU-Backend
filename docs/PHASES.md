@@ -506,3 +506,15 @@ Commit: `aec732c` (service tests); `e440c5f` (repository injection seam). The re
 
 **Current active work:** after verification, inspect integration run failure handling and lease release/heartbeat interaction end-to-end; keep provider-specific retry, rate-limit and replay behaviour blocked on an approved provider contract.
 
+
+
+### Phase 8 continuation — serialized lease heartbeat lifecycle
+
+Extracted scheduler lease renewal coordination into `src/modules/integrations/integration.scheduler.heartbeat.ts`. Heartbeat renewals are now serialized, so slow database calls cannot overlap. When source execution finishes, the scheduler stops the heartbeat and waits for any in-flight renewal to settle before releasing the claim. A false renewal result or renewal exception marks the lease as lost; later renewals are suppressed. The production interval remains 60 seconds.
+
+Tests in `tests/integration-scheduler-heartbeat.test.ts` cover overlapping pulse coalescing, stop waiting for an in-flight renewal, lost-lease handling, renewal errors, and suppression after stop. PostgreSQL token ownership/reclaim coverage remains in the opt-in lease-renewal integration test.
+
+Commits: `96afe2c` (heartbeat helper), `729edcb` (scheduler integration), `f4de5ed` and `5c4a2a7` (test seam and stop guard), `c5e2fd7` (tests). Local typecheck, full test suite and build are pending user verification.
+
+**Current active work:** after verification, review failure-path semantics when lease ownership is lost during provider execution, then continue provider-contract readiness only when an approved source contract is supplied.
+
