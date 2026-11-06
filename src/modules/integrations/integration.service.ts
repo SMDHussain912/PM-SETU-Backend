@@ -36,7 +36,18 @@ export async function ingest(id: number, records: import("./integration.schema")
   const source = await repo.get(id);
   if (!source) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
   if (!source.enabled) throw new ApiError({ statusCode: 409, code: "INTEGRATION_DISABLED", message: "Integration source is disabled" });
-  return repo.ingestBatch(id, records);
+  return ingestEnabledSource(id, records);
+}
+
+async function ingestEnabledSource(sourceId: number, records: import("./integration.schema").IntegrationIngestInput["records"]) {
+  try {
+    return await repo.ingestBatch(sourceId, records);
+  } catch (error) {
+    if (error instanceof Error && error.message === "INTEGRATION_SOURCE_NOT_ENABLED") {
+      throw new ApiError({ statusCode: 409, code: "INTEGRATION_DISABLED", message: "Integration source is disabled" });
+    }
+    throw error;
+  }
 }
 
 type ScheduledSourceRepository = Pick<typeof repo, "listCommittedRuns" | "createScheduledRun" | "ingestBatch">;
@@ -86,7 +97,7 @@ async function enabledSource(id: number) {
 export async function ingestCsv(id: number, records: import("./integration.schema").IntegrationIngestInput["records"]) {
   const source = await enabledSource(id);
   if (source.transport !== "CSV_UPLOAD") throw new ApiError({ statusCode: 409, code: "INTEGRATION_TRANSPORT_MISMATCH", message: "This source is not configured for CSV uploads" });
-  return repo.ingestBatch(id, records);
+  return ingestEnabledSource(id, records);
 }
 
 export async function ingestWebhook(id: number, rawBody: Buffer, signature: string | undefined, records: import("./integration.schema").IntegrationIngestInput["records"]) {
@@ -102,5 +113,5 @@ export async function ingestWebhook(id: number, rawBody: Buffer, signature: stri
   if (received.length !== expected.length || !timingSafeEqual(received, expected)) {
     throw new ApiError({ statusCode: 401, code: "WEBHOOK_SIGNATURE_INVALID", message: "Webhook signature verification failed" });
   }
-  return repo.ingestBatch(id, records);
+  return ingestEnabledSource(id, records);
 }
