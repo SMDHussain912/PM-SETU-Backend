@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { ApiError } from "../../utils/response";
 import { integrationAdapterRegistry } from "./integration.adapters";
 import { selectCommittedCheckpoint } from "./integration.checkpoint";
-import { integrationIngestSchema } from "./integration.schema";
+import { integrationAdapterPageSchema, integrationIngestSchema } from "./integration.schema";
 import * as repo from "./integration.repository";
 import type { IntegrationSourceInput } from "./integration.schema";
 export async function list(filters: { enabled?: boolean; system?: string }) { return repo.list(filters); }
@@ -63,11 +63,13 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
     void lastError;
     return repo.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: "Adapter request failed after four attempts", startedAt, completedAt: new Date() });
   }
-  if (!Array.isArray(page.records) || page.records.length > 500 || typeof page.hasMore !== "boolean" || (page.hasMore && !page.nextCursor)) throw new ApiError({ statusCode: 502, code: "ADAPTER_RESPONSE_INVALID", message: "Adapter returned an invalid page or missing continuation cursor" });
-  if (page.records.length === 0) return repo.createScheduledRun(source.id, claimToken, { status: page.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: page.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
-  const parsed = integrationIngestSchema.safeParse({ records: page.records });
+  const pageResult = integrationAdapterPageSchema.safeParse(page);
+  if (!pageResult.success) throw new ApiError({ statusCode: 502, code: "ADAPTER_RESPONSE_INVALID", message: "Adapter returned an invalid page envelope" });
+  const validPage = pageResult.data;
+  if (validPage.records.length === 0) return repo.createScheduledRun(source.id, claimToken, { status: validPage.hasMore ? "PARTIAL" : "SUCCEEDED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor: validPage.nextCursor ?? null, errorCode: null, errorSummary: null, startedAt, completedAt: new Date() });
+  const parsed = integrationIngestSchema.safeParse({ records: validPage.records });
   if (!parsed.success) throw new ApiError({ statusCode: 422, code: "ADAPTER_RECORDS_INVALID", message: "Adapter records failed ingestion validation", details: parsed.error.flatten() });
-  return repo.ingestBatch(source.id, parsed.data.records, { cursor: page.nextCursor ?? null, status: page.hasMore ? "PARTIAL" : "SUCCEEDED", startedAt, claimToken });
+  return repo.ingestBatch(source.id, parsed.data.records, { cursor: validPage.nextCursor ?? null, status: validPage.hasMore ? "PARTIAL" : "SUCCEEDED", startedAt, claimToken });
 }
 
 
