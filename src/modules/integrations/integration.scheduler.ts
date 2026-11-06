@@ -20,6 +20,9 @@ async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueS
   try {
     await runScheduledSource(source, source.claimToken);
   } catch {
+    // Settle any in-flight renewal before deciding whether this worker may
+    // persist a scheduler-level failure for the claimed source.
+    await heartbeat.stop();
     logger.error("Scheduled integration sync failed", { sourceCode: source.code });
     try {
       const persisted = await persistScheduledFailureIfOwned(
