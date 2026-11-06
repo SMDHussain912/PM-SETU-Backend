@@ -112,3 +112,15 @@ This is a throughput/lease-utilisation safeguard, not a provider retry or orderi
 
 
 Scheduler shutdown is coordinated with application shutdown: polling is stopped first, then the scheduler exposes an awaitable stop operation that waits for the active tick and all claimed-source processing (including claim release) before the server disconnects Prisma. The server's existing shutdown deadline remains the upper bound; if in-flight work does not finish within that deadline, the process is forced to exit.
+
+## 10. Graceful scheduler shutdown verification
+
+Scheduler tick coordination is isolated in `integration.scheduler.lifecycle.ts` so shutdown behaviour can be tested without a live timer, provider adapter, or database:
+
+- Repeated triggers while a tick is active are coalesced; they do not start overlapping ticks.
+- `stop()` first blocks future triggers, then waits for the already accepted tick to settle.
+- Because a tick settles only after its claimed-source promises settle, shutdown waits for each source's lease-release `finally` block.
+- The lifecycle can be started again after a completed stop, which keeps the controller deterministic for process/test lifecycle reuse.
+
+Regression coverage is in `tests/integration-scheduler-lifecycle.test.ts`. The server awaits this stop operation before disconnecting Prisma. The process-level shutdown deadline remains the upper bound for a provider or database operation that does not settle.
+
