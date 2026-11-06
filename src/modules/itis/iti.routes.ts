@@ -66,15 +66,12 @@ itiAdminRouter.post(
 itiAdminRouter.patch(
     "/:id",
     requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
-    validate({ params: itiIdParamsSchema, body: updateItiSchema }),
-    preventClusterAdminReassignment,
-    requireResourceScope("ITI"),
+    requireResourceScope("ITI"), preventClusterAdminReassignment, validate({ params: itiIdParamsSchema, body: updateItiSchema }),
     itiController.updateIti,
 );
 itiAdminRouter.delete(
     "/:id",
     requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
-    validate({ params: itiIdParamsSchema }),
-    requireResourceScope("ITI"),
+    requireResourceScope("ITI"), validate({ params: itiIdParamsSchema }),
     itiController.deleteIti,
 );

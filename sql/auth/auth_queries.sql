@@ -101,18 +101,28 @@
 -- WHERE id = :userId;
 
 -- ----------------------------------------------------------------------------
--- 7) Record another failed login attempt.
+-- 7) Atomically record a failed login and apply lockout at the threshold.
+--    :maxAttempts — configured failure threshold.
+--    :lockedUntil — application-computed lock expiry.
+--
+--    This single statement replaces the former separate counter update and
+--    lockout update. PostgreSQL serializes concurrent updates to the user row,
+--    so simultaneous failures cannot overwrite one another's increments.
+--    Once locked, in-flight failures are ignored until the lock expires.
 -- ----------------------------------------------------------------------------
 -- UPDATE users
--- SET failed_login_attempts = :attempts, updated_at = now()
--- WHERE id = :userId;
-
--- ----------------------------------------------------------------------------
--- 8) Lock the account (resets the counter for the next lock cycle).
--- ----------------------------------------------------------------------------
--- UPDATE users
--- SET failed_login_attempts = 0, locked_until = :lockedUntil, updated_at = now()
--- WHERE id = :userId;
+-- SET
+--     failed_login_attempts = CASE
+--         WHEN failed_login_attempts + 1 >= :maxAttempts THEN 0
+--         ELSE failed_login_attempts + 1
+--     END,
+--     locked_until = CASE
+--         WHEN failed_login_attempts + 1 >= :maxAttempts THEN :lockedUntil
+--         ELSE locked_until
+--     END,
+--     updated_at = now()
+-- WHERE id = :userId
+--   AND (locked_until IS NULL OR locked_until <= now());
 
 -- ----------------------------------------------------------------------------
 -- 9) Successful login — clear lockout and record last_login_at.

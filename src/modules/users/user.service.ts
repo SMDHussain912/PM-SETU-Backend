@@ -1,6 +1,8 @@
 import { buildPaginationMeta, type PaginationMeta } from "../../utils/pagination";
 import { ApiError } from "../../utils/response";
 import { hashPassword } from "../../utils/password";
+import { prisma } from "../../config/database";
+import type { Prisma } from "../../generated/prisma/client";
 import type {
     CreateUserInput,
     UpdateUserInput,
@@ -13,6 +15,8 @@ import * as userRepository from "./user.repository";
 import type { UserStatus, UserWithRoles } from "./user.types";
 import { ROLE_CODES } from "../roles/role.constants";
 import * as auditService from "../audit/audit.service";
+import { toUserAuditValue } from "./user.audit";
+import type { AuditContext } from "../audit/audit.types";
 
 /**
  * Users module — service layer (RoadMap.md §19).
@@ -43,25 +47,26 @@ async function assertRoleAssignmentAllowed(roleIds: number[], actorRoles: string
     }
 }
 
-async function assertPrivilegedTargetRequiresSuperAdmin(targetId: number, actorRoles: string[]): Promise<void> {
-    const target = await getUserById(targetId);
+async function assertPrivilegedTargetRequiresSuperAdmin(targetId: number, actorRoles: string[], db?: Prisma.TransactionClient): Promise<void> {
+    const target = await getUserById(targetId, db);
     const targetIsPrivileged = target.roles.some((role) => PRIVILEGED_ROLE_CODES.includes(role.code as typeof PRIVILEGED_ROLE_CODES[number]));
     if (targetIsPrivileged && !actorRoles.includes(ROLE_CODES.SUPER_ADMIN)) {
         forbid("Only a Super Administrator can manage privileged administrator accounts");
     }
 }
 
-async function assertTargetManageable(targetId: number, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
+async function assertTargetManageable(targetId: number, actorId: string, actorRoles: string[], db?: Prisma.TransactionClient): Promise<UserWithRoles> {
     if (String(targetId) === actorId) {
         forbid("You cannot change your own administrative status or role assignments");
     }
-    const target = await getUserById(targetId);
+    const target = await getUserById(targetId, db);
     const targetIsPrivileged = target.roles.some((role) => PRIVILEGED_ROLE_CODES.includes(role.code as typeof PRIVILEGED_ROLE_CODES[number]));
     if (targetIsPrivileged && !actorRoles.includes(ROLE_CODES.SUPER_ADMIN)) {
         forbid("Only a Super Administrator can manage privileged administrator accounts");
     }
     return target;
 }
+
 
 export interface UserListResult {
     items: UserWithRoles[];
@@ -83,8 +88,8 @@ export async function listUsers(query: UserListQuery): Promise<UserListResult> {
     return { items, meta: buildPaginationMeta(total, query.page, query.pageSize) };
 }
 
-export async function getUserById(id: number): Promise<UserWithRoles> {
-    const user = await userRepository.getUserById(id);
+export async function getUserById(id: number, db?: Prisma.TransactionClient): Promise<UserWithRoles> {
+    const user = await userRepository.getUserById(id, db);
     if (!user) {
         throw new ApiError({
             statusCode: 404,
@@ -95,41 +100,41 @@ export async function getUserById(id: number): Promise<UserWithRoles> {
     return user;
 }
 
-export async function createUser(input: CreateUserInput, actorRoles: string[]): Promise<UserWithRoles> {
+export async function createUser(input: CreateUserInput, actorId: string, actorRoles: string[], context?: AuditContext): Promise<UserWithRoles> {
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
     // The password is hashed HERE so only the bcrypt hash ever reaches the
     // repository/SQL layer. No plaintext is persisted or returned.
     const password_hash = await hashPassword(input.password);
-    const userId = await userRepository.createUser({
-        username: input.username,
-        full_name: input.full_name,
-        email: input.email ?? null,
-        password_hash,
-        role_ids: input.role_ids,
+    return prisma.$transaction(async (tx) => {
+        const userId = await userRepository.createUser({
+            username: input.username,
+            full_name: input.full_name,
+            email: input.email ?? null,
+            password_hash,
+            role_ids: input.role_ids,
+        }, tx);
+        const user = await getUserById(userId, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "CREATE", entity: "USER", entityId: user.id, oldValue: null, newValue: toUserAuditValue(user), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return user;
     });
-    const user = await userRepository.getUserById(userId);
-    if (!user) {
-        throw new ApiError({
-            statusCode: 500,
-            code: "INTERNAL_ERROR",
-            message: "Created user could not be read back",
-        });
-    }
-    return user;
 }
 
 export async function updateUser(
     id: number,
     input: UpdateUserInput,
+    actorId: string,
     actorRoles: string[],
+    context?: AuditContext,
 ): Promise<UserWithRoles> {
     // Profile changes to privileged administrator accounts are Super Admin only.
-    await assertPrivilegedTargetRequiresSuperAdmin(id, actorRoles);
-    await userRepository.updateUser(id, {
-        full_name: input.full_name,
-        email: input.email,
+    return prisma.$transaction(async (tx) => {
+        await assertPrivilegedTargetRequiresSuperAdmin(id, actorRoles, tx);
+        const previous = await getUserById(id, tx);
+        await userRepository.updateUser(id, { full_name: input.full_name, email: input.email }, tx);
+        const updated = await getUserById(id, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return updated;
     });
-    return getUserById(id);
 }
 
 export async function updateUserStatus(
@@ -137,14 +142,16 @@ export async function updateUserStatus(
     input: UpdateUserStatusInput,
     actorId: string,
     actorRoles: string[],
+    context?: AuditContext,
 ): Promise<UserWithRoles> {
-    const target = await assertTargetManageable(id, actorId, actorRoles);
-    if (input.status === "INACTIVE" && target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN)) {
-        const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
-        if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
-    }
-    await userRepository.updateStatus(id, input.status);
-    return getUserById(id);
+    return prisma.$transaction(async (tx) => {
+        await assertTargetManageable(id, actorId, actorRoles, tx);
+        const previous = await getUserById(id, tx);
+        await userRepository.updateStatusPreservingSuperAdmin(id, input.status, tx);
+        const updated = await getUserById(id, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return updated;
+    });
 }
 
 export async function updateUserRoles(
@@ -152,19 +159,25 @@ export async function updateUserRoles(
     input: UpdateUserRolesInput,
     actorId: string,
     actorRoles: string[],
+    context?: AuditContext,
 ): Promise<UserWithRoles> {
-    const target = await assertTargetManageable(id, actorId, actorRoles);
     const assignedCodes = await userRepository.getRoleCodesByIds([...new Set(input.role_ids)]);
     if (assignedCodes.length !== new Set(input.role_ids).size) {
         throw new ApiError({ statusCode: 422, code: "INVALID_ROLE_ASSIGNMENT", message: "One or more selected roles do not exist" });
     }
-    if (target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN) && !assignedCodes.includes(ROLE_CODES.SUPER_ADMIN)) {
-        const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
-        if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot lose the Super Admin role");
-    }
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
-    await userRepository.replaceUserRoles(id, input.role_ids);
-    return getUserById(id);
+    return prisma.$transaction(async (tx) => {
+        await assertTargetManageable(id, actorId, actorRoles, tx);
+        const previous = await getUserById(id, tx);
+        if (previous.status === "ACTIVE" && previous.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN) && !assignedCodes.includes(ROLE_CODES.SUPER_ADMIN)) {
+            const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
+            if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot lose the Super Admin role");
+        }
+        await userRepository.replaceUserRoles(id, input.role_ids, tx);
+        const updated = await getUserById(id, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return updated;
+    });
 }
 
 /**
@@ -172,14 +185,15 @@ export async function updateUserRoles(
  * TO CONFIRM; soft keeps historical approval/audit references resolving
  * (RoadMap §21/§22). See sql/users/user_queries.sql #9.
  */
-export async function deactivateUser(id: number, actorId: string, actorRoles: string[]): Promise<UserWithRoles> {
-    const target = await assertTargetManageable(id, actorId, actorRoles);
-    if (target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN)) {
-        const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
-        if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot be deactivated");
-    }
-    await userRepository.updateStatus(id, "INACTIVE");
-    return getUserById(id);
+export async function deactivateUser(id: number, actorId: string, actorRoles: string[], context?: AuditContext): Promise<UserWithRoles> {
+    return prisma.$transaction(async (tx) => {
+        await assertTargetManageable(id, actorId, actorRoles, tx);
+        const previous = await getUserById(id, tx);
+        await userRepository.updateStatusPreservingSuperAdmin(id, "INACTIVE", tx);
+        const updated = await getUserById(id, tx);
+        await auditService.recordAuditEntry({ userId: actorId, action: "DELETE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
+        return updated;
+    });
 }
 
 
@@ -201,6 +215,7 @@ export async function replaceUserScopes(
     input: UserScopesInput,
     actorId: string,
     actorRoles: string[],
+    context?: AuditContext,
 ) {
     if (String(id) === actorId) forbid("You cannot change your own organisation scope assignments");
     if (!actorRoles.some((role) => [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN].includes(role as typeof ROLE_CODES.SUPER_ADMIN | typeof ROLE_CODES.STATE_PMU_ADMIN))) {
@@ -281,18 +296,20 @@ export async function replaceUserScopes(
         throw new ApiError({ statusCode: 422, code: "INVALID_SCOPE_TYPE", message: "Unsupported organisation scope type" });
     }
 
-    const previousScopes = await userRepository.listUserScopes(id);
-    await userRepository.replaceUserScopes(id, input.scopes);
-    const updatedScopes = await userRepository.listUserScopes(id);
-    await auditService.recordAuditEntry({
-        userId: actorId,
-        action: "UPDATE",
-        entity: "USER",
-        entityId: id,
-        oldValue: { scopes: previousScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
-        newValue: { scopes: updatedScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
-        approvalStatus: null,
-        context: { userId: actorId },
+    return prisma.$transaction(async (tx) => {
+        const previousScopes = await userRepository.listUserScopes(id, tx);
+        await userRepository.replaceUserScopes(id, input.scopes, tx);
+        const updatedScopes = await userRepository.listUserScopes(id, tx);
+        await auditService.recordAuditEntry({
+            userId: actorId,
+            action: "UPDATE",
+            entity: "USER",
+            entityId: id,
+            oldValue: { scopes: previousScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
+            newValue: { scopes: updatedScopes.map(({ scope_type, scope_id }) => ({ scope_type, scope_id })) },
+            approvalStatus: null,
+            context: context ?? { userId: actorId },
+        }, tx);
+        return updatedScopes;
     });
-    return updatedScopes;
 }

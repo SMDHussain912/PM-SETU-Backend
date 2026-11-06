@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
+import { hasStrongJwtAccessSecret } from "../config/auth-security";
 import { ApiError } from "../utils/response";
 import type { AuthUser } from "../types/express";
 import * as authRepository from "../modules/auth/auth.repository";
@@ -17,9 +18,9 @@ export function extractBearerToken(req: Request): string | null {
 function verifyAccessToken(token: string): AuthUser {
     // The signing secret is required here (at use time), not at boot, so the
     // server can start before auth credentials are configured.
-    if (!env.jwtAccessSecret) {
+    if (!hasStrongJwtAccessSecret(env.jwtAccessSecret)) {
         throw new ApiError({
-            message: "JWT_ACCESS_SECRET is not configured",
+            message: "JWT_ACCESS_SECRET must be configured with at least 32 bytes",
             statusCode: 500,
             code: "AUTH_NOT_CONFIGURED",
         });

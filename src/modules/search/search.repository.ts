@@ -68,7 +68,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/clusters/' || clusters.id AS url,
                 jsonb_build_object('district', clusters.district, 'sector', clusters.sector) AS metadata
             FROM clusters
-            WHERE ${Prisma.join(clusterConditions, " OR ")}
+            WHERE ${Prisma.join(clusterConditions, " OR ")} AND clusters.is_sample = FALSE
         `);
     }
 
@@ -90,7 +90,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/itis/' || itis.id AS url,
                 jsonb_build_object('district', itis.district, 'type', itis.type) AS metadata
             FROM itis
-            WHERE ${Prisma.join(itiConditions, " OR ")}
+            WHERE ${Prisma.join(itiConditions, " OR ")} AND itis.is_sample = FALSE
         `);
     }
 
@@ -108,7 +108,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/aips/' || aips.id AS url,
                 jsonb_build_object('sector', aips.sector, 'status', aips.status) AS metadata
             FROM aips
-            WHERE ${Prisma.join(aipConditions, " OR ")}
+            WHERE ${Prisma.join(aipConditions, " OR ")} AND aips.is_sample = FALSE
         `);
     }
 
@@ -122,7 +122,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/spvs/' || spvs.id AS url,
                 jsonb_build_object('status', spvs.status) AS metadata
             FROM spvs
-            WHERE spvs.name ILIKE ${q}
+            WHERE spvs.name ILIKE ${q} AND spvs.is_sample = FALSE
         `);
     }
 
@@ -136,7 +136,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/sips/' || sips.id AS url,
                 jsonb_build_object('status', sips.status) AS metadata
             FROM sips
-            WHERE sips.status ILIKE ${q}
+            WHERE sips.status ILIKE ${q} AND sips.is_sample = FALSE
         `);
     }
 

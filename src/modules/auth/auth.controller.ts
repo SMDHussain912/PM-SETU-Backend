@@ -4,6 +4,7 @@ import { ApiError, sendSuccess } from "../../utils/response";
 import type { ChangePasswordInput, LoginInput } from "./auth.schema";
 import * as authService from "./auth.service";
 import * as userRepository from "../users/user.repository";
+import { getAuditContext } from "../audit/audit.context";
 
 /**
  * Auth module — controller layer (RoadMap.md §18).
@@ -18,9 +19,9 @@ import * as userRepository from "../users/user.repository";
  */
 
 /** POST /api/v1/auth/login — public, IP-rate-limited (authLimiter). */
-export async function login(_req: Request, res: Response): Promise<Response> {
+export async function login(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<LoginInput>(res);
-    const result = await authService.login(body);
+    const result = await authService.login(body, getAuditContext(req));
     return sendSuccess(res, result);
 }
 
@@ -35,7 +36,7 @@ export async function getMe(req: Request, res: Response): Promise<Response> {
 export async function changePassword(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<ChangePasswordInput>(res);
     const userId = authService.requireUserId(req.user?.id);
-    const result = await authService.changePassword(userId, body);
+    const result = await authService.changePassword(userId, body, getAuditContext(req));
     return sendSuccess(res, result);
 }
 

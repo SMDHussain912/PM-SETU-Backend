@@ -8,6 +8,7 @@ import type {
     UpdateGalleryItemBody,
 } from "./gallery.schema";
 import * as galleryService from "./gallery.service";
+import { validateImageUploads } from "../../middleware/image-file-validation";
 
 /**
  * Gallery Management module — controller layer.
@@ -74,9 +75,10 @@ export async function uploadGalleryMedia(req: Request, res: Response): Promise<R
             message: "A media file is required",
         });
     }
+    const [safeFileName] = await validateImageUploads([file]);
     return sendSuccess(res, {
         file_path: file.path,
-        file_name: file.originalname,
+        file_name: safeFileName,
         mime_type: file.mimetype,
         file_size: file.size,
     });

@@ -1,10 +1,13 @@
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env";
+import { hasStrongJwtAccessSecret } from "../../config/auth-security";
 import { ApiError } from "../../utils/response";
-import { hashPassword, verifyPassword } from "../../utils/password";
+import { hashPassword, needsPasswordRehash, verifyPassword } from "../../utils/password";
 import * as authRepository from "./auth.repository";
 import type { ChangePasswordInput, LoginInput } from "./auth.schema";
 import type { AuthUserProfile, LoginResponse, LoginUserRow, RoleAssignment } from "./auth.types";
+import * as auditService from "../audit/audit.service";
+import type { AuditContext } from "../audit/audit.types";
 
 /**
  * Auth module — service layer (RoadMap.md §18).
@@ -56,9 +59,9 @@ function signAccessToken(
     permissions: string[],
 ): string {
     // Same use-time check as the verifying middleware (AUTH_NOT_CONFIGURED).
-    if (!env.jwtAccessSecret) {
+    if (!hasStrongJwtAccessSecret(env.jwtAccessSecret)) {
         throw new ApiError({
-            message: "JWT_ACCESS_SECRET is not configured",
+            message: "JWT_ACCESS_SECRET must be configured with at least 32 bytes",
             statusCode: 500,
             code: "AUTH_NOT_CONFIGURED",
         });
@@ -93,7 +96,7 @@ function buildProfile(
 }
 
 /** POST /auth/login — verify credentials, enforce lockout, issue the JWT. */
-export async function login(input: LoginInput): Promise<LoginResponse> {
+export async function login(input: LoginInput, context?: AuditContext): Promise<LoginResponse> {
     const user = await authRepository.findUserByUsername(input.username);
 
     if (!user) {
@@ -120,16 +123,29 @@ export async function login(input: LoginInput): Promise<LoginResponse> {
 
     const valid = await verifyPassword(input.password, user.password_hash);
     if (!valid) {
-        const attempts = user.failed_login_attempts + 1;
-        if (attempts >= env.accountLock.maxAttempts) {
-            await authRepository.applyLockout(
-                user.id,
-                new Date(now + env.accountLock.lockMinutes * 60_000),
-            );
-        } else {
-            await authRepository.recordFailedLogin(user.id, attempts);
-        }
+        await authRepository.recordFailedLogin(
+            user.id,
+            env.accountLock.maxAttempts,
+            new Date(Date.now() + env.accountLock.lockMinutes * 60_000),
+        );
         throw invalidCredentials();
+    }
+
+    // Seamlessly upgrade legacy bcrypt hashes when the submitted password
+    // fits bcrypt's historical 72-byte input limit. Longer legacy passwords
+    // remain verifiable and can be upgraded through the change-password flow.
+    if (needsPasswordRehash(user.password_hash) && Buffer.byteLength(input.password, "utf8") <= 72) {
+        await authRepository.updatePasswordHash(user.id, await hashPassword(input.password));
+        await auditService.recordAuditEntry({
+            userId: String(user.id),
+            action: "UPDATE",
+            entity: "USER",
+            entityId: user.id,
+            oldValue: { password_hash_version: "legacy_bcrypt" },
+            newValue: { password_hash_version: "sha256_bcrypt_v1", reason: "legacy_hash_upgrade" },
+            approvalStatus: null,
+            context: context ?? { userId: String(user.id) },
+        });
     }
 
     await authRepository.resetFailedLogins(user.id);
@@ -172,6 +188,7 @@ export async function getMe(userId: number): Promise<AuthUserProfile> {
 export async function changePassword(
     userId: number,
     input: ChangePasswordInput,
+    context?: AuditContext,
 ): Promise<{ updated: true }> {
     const user = await authRepository.findUserById(userId);
     if (!user) {
@@ -191,5 +208,15 @@ export async function changePassword(
     }
     const nextHash = await hashPassword(input.new_password);
     await authRepository.updatePasswordHash(userId, nextHash);
+    await auditService.recordAuditEntry({
+        userId: String(userId),
+        action: "PASSWORD_CHANGE",
+        entity: "USER",
+        entityId: userId,
+        oldValue: { password_hash_version: needsPasswordRehash(user.password_hash) ? "legacy_bcrypt" : "sha256_bcrypt_v1" },
+        newValue: { password_hash_version: "sha256_bcrypt_v1" },
+        approvalStatus: null,
+        context: context ?? { userId: String(userId) },
+    });
     return { updated: true };
 }

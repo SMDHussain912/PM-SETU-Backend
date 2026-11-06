@@ -96,7 +96,7 @@ The migration performs a preflight check and aborts rather than silently rewriti
 6. **Audit failure semantics remain unresolved.** Do not claim financial write and audit entry are atomic until the required failure policy is decided and verified.
 7. **Import execution may partially commit.** Handlers own their transactions; batch-level all-or-nothing semantics are not guaranteed.
 8. **Retention is unresolved.** Raw CSV content and normalized financial row payloads are deliberately not retained by the import-batch metadata design.
-9. **PostgreSQL concurrency test evidence must be recorded from the actual target environment.** The tests are opt-in and skipped when `PM_SETU_TEST_DATABASE_URL` is absent. A successful ordinary test run with the variable absent does not prove database concurrency behaviour.
+9. **PostgreSQL concurrency tests now have CI execution evidence.** CI run #74 sets `PM_SETU_TEST_DATABASE_URL` to its isolated migrated PostgreSQL 16 service and completed 335 tests with zero skips. This confirms the opt-in test cases executed in CI; it is not a substitute for verification against the eventual production database topology or reconciliation against authoritative Finance extracts.
 
 ## 8. Required acceptance evidence before Phase 6 can be called operationally accepted
 
@@ -108,13 +108,13 @@ The migration performs a preflight check and aborts rather than silently rewriti
 - Approved correction/reversal and maker-checker process.
 - Approved Finance access matrix, audit failure semantics, and public/internal visibility.
 - Approved data-retention policy.
-- Successful execution evidence for both opt-in PostgreSQL concurrency tests against a dedicated migrated test database.
+- CI execution evidence for both opt-in PostgreSQL concurrency test suites is recorded in run #67; repeat against the deployment-equivalent test environment before operational acceptance.
 - Reconciliation of representative source extracts against authoritative Finance records.
 - Operational owner acceptance and recorded sign-off.
 
 ## 8. Next engineering action
 
-After the user confirms the PostgreSQL test output from the dedicated test database, perform a final source-level review of:
+Before operational acceptance, perform a final source-level review of:
 - scope/as-of-date filtering in reconciliation queries;
 - duplicate and mismatch behaviour in import reconciliation;
 - exact decimal handling and amount boundary validation;

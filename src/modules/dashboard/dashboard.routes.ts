@@ -26,6 +26,8 @@ import {
  * GET /api/v1/dashboard/clusters/:id  — single cluster dashboard
  * GET /api/v1/dashboard/finance       — finance overview
  * GET /api/v1/dashboard/training      — training overview (limited)
+ * GET /api/v1/dashboard/training/reporting — state/cluster capacity coverage
+ * GET /api/v1/dashboard/training/itis/:id — ITI-level capacity reporting
  * GET /api/v1/dashboard/placements    — placements overview (pending source)
  */
 

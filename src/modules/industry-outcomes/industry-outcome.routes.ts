@@ -13,10 +13,10 @@ const scopedReadRoles = [ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.HUB_ITI_USER, ROLE
 const outcomeReadRoles = [...readRoles, ...scopedReadRoles];
 router.use(requireAuth);
 router.get("/summary", requireRoles(...outcomeReadRoles), controller.summary);
-router.get("/", validate({ query: outcomeListQuerySchema }), requireRoles(...outcomeReadRoles), controller.list);
-router.get("/:id/history", validate({ params: outcomeIdParamsSchema, query: outcomeHistoryQuerySchema }), requireRoles(...outcomeReadRoles), controller.history);
-router.get("/:id", validate({ params: outcomeIdParamsSchema }), requireRoles(...outcomeReadRoles), controller.get);
-router.post("/import", validate({ body: importOutcomeBatchSchema }), requireRoles(...writeRoles), controller.importBatch);
-router.post("/", validate({ body: createOutcomeSchema }), requireRoles(...writeRoles), controller.create);
-router.post("/:id/review", validate({ params: outcomeIdParamsSchema, body: reviewOutcomeSchema }), requireRoles(ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.APPROVING_AUTHORITY), controller.review);
+router.get("/", requireRoles(...outcomeReadRoles), validate({ query: outcomeListQuerySchema }), controller.list);
+router.get("/:id/history", requireRoles(...outcomeReadRoles), validate({ params: outcomeIdParamsSchema, query: outcomeHistoryQuerySchema }), controller.history);
+router.get("/:id", requireRoles(...outcomeReadRoles), validate({ params: outcomeIdParamsSchema }), controller.get);
+router.post("/import", requireRoles(...writeRoles), validate({ body: importOutcomeBatchSchema }), controller.importBatch);
+router.post("/", requireRoles(...writeRoles), validate({ body: createOutcomeSchema }), controller.create);
+router.post("/:id/review", requireRoles(ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.APPROVING_AUTHORITY), validate({ params: outcomeIdParamsSchema, body: reviewOutcomeSchema }), controller.review);
 export default router;

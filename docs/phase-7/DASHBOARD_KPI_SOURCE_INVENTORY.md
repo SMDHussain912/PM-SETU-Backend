@@ -1,6 +1,6 @@
 # Phase 7 — Dashboard KPI and source inventory
 
-**Status:** Initial source inventory; implementation contract not yet approved  
+**Status:** Source inventory and versioned readiness catalogue implemented; KPI definitions and source approvals remain pending  
 **Working branch:** `main`  
 **Purpose:** Establish an evidence-based dashboard baseline before adding new aggregations or public response fields.
 
@@ -23,7 +23,7 @@ These routes are intentionally public and read-only under the current project de
 
 ## 1A. Versioned reporting contract
 
-The additive public endpoint `GET /api/v1/dashboard/contract` returns contract version `1.0.0` and a catalogue of metric identifiers, labels, classifications, units, source descriptions, availability states, supported aggregation levels, notes, and official finance KPI codes where applicable.
+The additive public endpoint `GET /api/v1/dashboard/contract` returns contract version `1.1.0` and a catalogue of metric identifiers, labels, classifications, units, source descriptions, availability states, supported aggregation levels, notes, and official finance KPI codes where applicable.
 
 Important interpretation:
 - `generated_at` is the time the catalogue response was generated; it is **not** a data as-of timestamp.
@@ -32,6 +32,8 @@ Important interpretation:
 - `AVAILABLE` means the backend has a defined current source/query for the measure; it does not certify production completeness or accuracy.
 - `NOT_AVAILABLE`, `SOURCE_NOT_CONNECTED`, and `DEFINITION_PENDING` are not zero values.
 - Technical `metric_id` values are stable implementation identifiers, not new official KPI codes. Only FIN-01 through FIN-05 are marked with official KPI codes.
+
+Version 1.1.0 also enumerates internal readiness identifiers PHY-01..PHY-04, ACD-01..ACD-05, and IND-01..IND-06. These entries deliberately have no authoritative source or aggregation levels and are not represented as official KPI codes. FIN-01..FIN-05 remain the only entries carrying official KPI identifiers.
 
 This catalogue is descriptive. It does not calculate metric values or change the existing dashboard response payloads.
 
@@ -86,6 +88,14 @@ Before adding or changing a dashboard metric, record:
 9. Public/internal visibility decision.
 
 Do not turn missing data into zero unless the source contract explicitly establishes that zero is the correct value. Do not create a formula merely because the dashboard needs a number.
+
+## 4A. Additive reporting routes
+
+The public read-only dashboard surface also includes:
+- `GET /api/v1/dashboard/training/reporting` — state/cluster student-capacity aggregation with coverage and unassigned-ITI reconciliation.
+- `GET /api/v1/dashboard/training/itis/:id` — ITI-level student-capacity view.
+
+Both endpoints are limited to `itis.student_strength`; neither provides an academic outcome measure. Their response context retains null data-as-of and reporting-period fields and `NOT_TRACKED` freshness.
 
 ## 5. Next implementation sequence
 
@@ -164,3 +174,17 @@ The repository evidence and implementation gates are recorded in `docs/phase-7/A
 - The existing academic summary and industry outcome summary are intake workflow counts, not official KPI aggregations.
 - ACD KPI source/definition gaps and IND counting-grain, identity, evidence, period and placement-rate denominator gaps remain unresolved.
 - No academic or industry KPI dashboard aggregation was added. Capacity remains separate from academic outcomes; placement percentage remains blocked on approved numerator/denominator and cohort rules.
+
+
+## 9. Version 1.1.0 — KPI readiness catalogue
+
+The public descriptive contract now enumerates the internal readiness identifiers for all source families tracked by Phase 7:
+
+- Physical progress: PHY-01..PHY-04.
+- Academic outcomes: ACD-01..ACD-05.
+- Industry and employment: IND-01..IND-06.
+- Finance: FIN-01..FIN-05 (the only entries carrying the `official_kpi_code` field).
+
+The PHY/ACD/IND identifiers are engineering backlog identifiers, not approved official Government KPI codes. Their catalogue entries have no source and no aggregation levels until the accountable source owner and programme authority approve the definition, source, hierarchy, reporting period, evidence, privacy, and publication policy. Their availability values describe the current blocker only; they are not metric values and must not be rendered as zero.
+
+This is an additive catalogue change from contract version 1.0.0 to 1.1.0. Existing dashboard value endpoints and response shapes are unchanged. The registry, planning, and student-capacity measures retain their existing semantics.

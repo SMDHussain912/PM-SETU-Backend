@@ -4,7 +4,7 @@
 >
 > **Repository:** [SMDHussain912/PM-SETU-Backend](https://github.com/SMDHussain912/PM-SETU-Backend)  
 > **Working branch:** `main`  
-> **Last documented:** 2026-11-06
+> **Last documented:** 2026-11-07
 
 ---
 
@@ -54,9 +54,9 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 | 6 | Finance | <strong>Engineering implementation complete; operational acceptance pending</strong> |
 | 7 | State PMU dashboard & analytics | <strong>In progress — reporting contract, capacity aggregation, physical source-readiness audit</strong> |
 | 8 | Integrations & public portal | <strong>Foundation implemented; provider contracts and integrations pending</strong> |
-| 9 | Security, testing & production readiness | <strong>Not started</strong> |
+| 9 | Security, testing & production readiness | <strong>In progress — route authorization/security audit and remediation</strong> |
 
-**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 has started with a source inventory and reporting-contract baseline; metric implementation remains dependent on approved sources and definitions. Phase 8 has an existing generic ingestion/scheduler foundation, but provider-specific integrations remain blocked on approved contracts. Phase 9 remains.
+**Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 now includes read-only state/cluster/finance/training/placement dashboard endpoints, training capacity reporting at state/cluster/ITI levels, KPI readiness metadata, and expanded OpenAPI contract tests. Phase 7 remains in progress: response-schema alignment and broader dashboard contract auditing continue, while official physical, academic, industry, and finance KPIs remain gated by approved source ownership and definitions. Phase 8 has an existing generic ingestion/scheduler foundation, but provider-specific integrations remain blocked on approved contracts. Phase 9 has started with dependency auditing, upload-content validation, and route authorization review; the broader security review remains open.
 
 A phase marked implementation-complete is not automatically government-approved, production-accepted, or operationally verified.
 
@@ -243,9 +243,9 @@ Related documentation:
 - `docs/phase-7/DASHBOARD_KPI_SOURCE_INVENTORY.md`
 
 ### Phase 7 — State PMU dashboard & analytics
-**Status: IN PROGRESS — REPORTING CONTRACT AND SOURCE-BACKED CAPACITY AGGREGATION IMPLEMENTED**
+**Status: IN PROGRESS — CAPACITY REPORTING AND KPI READINESS CATALOGUE VERIFIED; OFFICIAL KPI SOURCES/DEFINITIONS PENDING**
 
-Implemented milestone 7.2 increment: added public read-only `GET /api/v1/dashboard/training/itis/:id` for the source-backed ITI student-capacity measure. It preserves null capacity as `NOT_AVAILABLE`, excludes sample ITIs, returns 404 for absent/sample IDs, and explicitly leaves reporting period and source freshness untracked. API schema, OpenAPI, source inventory, and identifier validation tests were added. Local typecheck/test/build verification for the ITI reporting increment was confirmed by the project owner. Added `GET /api/v1/dashboard/training/reporting` with state/cluster capacity aggregates, explicit coverage counts, sample exclusion, reportable-cluster coverage, an unassigned-capacity reconciliation breakdown, and null-versus-zero semantics. The existing training endpoints remain unchanged. Local typecheck/test/build verification for this aggregation increment is pending.
+Implemented milestone 7.2 increment: added public read-only `GET /api/v1/dashboard/training/itis/:id` for the source-backed ITI student-capacity measure. It preserves null capacity as `NOT_AVAILABLE`, excludes sample ITIs, returns 404 for absent/sample IDs, and explicitly leaves reporting period and source freshness untracked. API schema, OpenAPI, source inventory, and identifier validation tests were added. Local typecheck/test/build verification for the ITI reporting increment was confirmed by the project owner. Added `GET /api/v1/dashboard/training/reporting` with state/cluster capacity aggregates, explicit coverage counts, sample exclusion, reportable-cluster coverage, an unassigned-capacity reconciliation breakdown, and null-versus-zero semantics. GitHub Actions run #112 executed the PostgreSQL-backed reconciliation test against its isolated migrated PostgreSQL 16 database; the full suite passed 349/349 with zero skips, followed by a successful production build. Added version 1.1.0 descriptive readiness catalogue entries for PHY-01..04, ACD-01..05, and IND-01..06. These are internal readiness identifiers only; their source and aggregation fields remain null/empty pending formal decisions. The existing dashboard value endpoints and response shapes remain unchanged. GitHub Actions run #113 for commit `1503f185e47daa2bcdc4abc10e2988549193d177` completed successfully, including dependency audit, migrations, typecheck, PostgreSQL-backed integration tests, and production build. Subsequent Phase 7 verification: CI run #116 passed the zero-ITI cluster PostgreSQL integration coverage; run #118 passed the initial training-reporting OpenAPI contract test; run #42307561860 passed commit `2cf77b72363fce9259be4286dfb7d8beb31c0b80`, including expanded nested OpenAPI schema assertions, dependency audit, isolated migrations, typecheck, PostgreSQL integration tests, and production build. The dashboard route comment now lists both training-reporting endpoints. Remaining work is the broader dashboard correctness/contract audit and source-backed acceptance items; official PHY/ACD/IND/FIN KPI values remain gated by authoritative definitions and sources.
 
 Purpose:
 - Build state-level PMU dashboard and analytical reporting on top of validated source modules.
@@ -283,7 +283,16 @@ Dependencies:
 - Do not connect directly to external production databases where the agreed architecture requires an integration/ETL boundary.
 
 ### Phase 9 — Security, testing & production readiness
-**Status: NOT STARTED**
+**Status: IN PROGRESS — CI dependency gate and upload-signature hardening**
+
+Completed first security increment on 2026-11-06:
+- Added `npm audit --audit-level=high` to the GitHub Actions pipeline.
+- The initial scan identified 11 advisories (1 critical, 7 high, 3 moderate). A semver-compatible npm lockfile remediation updated 19 packages and removed 9; the follow-up npm audit reported zero vulnerabilities.
+- Image uploads for banners and gallery now verify the extension/MIME declaration against JPEG, PNG, WebP or GIF file signatures. Rejected multi-image batches are cleaned up; banner image upload is limited to its two supported desktop/mobile slots.
+- Added regression tests for valid signatures, spoofed/mismatched files, empty files, filename sanitisation and rejected-batch cleanup.
+- GitHub Actions passed on commit `060a5b83b36f4929dac6f375a9b0950b2d4cf00e`: dependency audit, Prisma client generation, isolated PostgreSQL migrations, TypeScript typecheck, all 321 tests, and production build.
+
+This is an initial engineering security increment, not a completed security audit or production security certification. Image signature checks are not malware scanning or full format decoding.
 
 Purpose:
 - Complete security and access-control review across all modules.
@@ -316,10 +325,16 @@ Completion evidence should include:
 
 ## 5. Milestone log
 
+| 2026-11-07 | 7 | Align finance dashboard OpenAPI response with official financial-progress placeholder and add regression coverage | `FinanceMetrics.official_financial_progress` is now documented as required with `SOURCE_NOT_CONNECTED` status and nullable measures; CI verification pending. |
+
+| 2026-11-07 | 7 | Expanded training reporting OpenAPI assertions and reconciled dashboard route documentation | Commit `2cf77b7` passed CI run #42307561860: dependency audit, isolated PostgreSQL migrations, typecheck, PostgreSQL integration tests, and production build. |
 | Date | Phase | Milestone | Evidence / note |
-|---|---|---|
+|---|---|---|---|
+| 2026-11-07 | 9 | Added route authorization and security-control audit | `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md`; static review records verified controls, open policy/provider decisions, and remediation order. CI run for audit commit is pending. |
+| 2026-11-06 | 9 | Added dependency vulnerability gate and verified image-upload signatures | Initial scan found 11 advisories; semver-compatible lockfile remediation reduced npm audit to zero. Image validation tests added. GitHub Actions commit `060a5b83b36f4929dac6f375a9b0950b2d4cf00e` passed audit, migrations, typecheck, 321 tests and build. Full Phase 9 review remains open. |
 | 2026-11-06 | 8 | Added testable graceful scheduler shutdown coordination and regression coverage | Lifecycle controller coalesces overlapping ticks, blocks new work after stop, and waits for active work; server awaits it before Prisma disconnect. Local verification pending. |
-| 2026-11-06 | 8 | Audited existing integration foundation and documented provider readiness gates | Commit `64ec4adabaecee83f522be34c7d4d25b2fdbab90`; no provider endpoints, credentials, mappings or approvals invented. |---|
+| 2026-11-06 | 8 | Audited existing integration foundation and documented provider readiness gates | Commit `64ec4adabaecee83f522be34c7d4d25b2fdbab90`; no provider endpoints, credentials, mappings or approvals invented. |
+| 2026-11-07 | 7 | Added KPI readiness catalogue v1.1.0; CI #113 passed | Commit `1503f185e47daa2bcdc4abc10e2988549193d177`; dependency audit, migrations, typecheck, PostgreSQL-backed integration tests, and production build passed. |
 | 2026-11-06 | 7 | Added versioned dashboard reporting contract endpoint and metric catalogue | Commits `c61f988b`, `a598ffa1`, `44a48863`, `b655ba77`, `eab15c61`, `5e018100`, `efa9e90d`, `f32f1ed1`, `54c514b8`, `2fa5e5f4`, and `3383c525`. Contract/OpenAPI tests added; local verification pending. |
 | 2026-11-06 | 7 | Started dashboard source inventory and reporting-contract baseline | Commit `e8d059f6`; records existing endpoint sources and data gaps without inventing KPI formulas or claiming production completeness. |
 | 2026-11-06 | 6 | Bound finance import idempotency keys to the complete immutable request, not only file hash and record kind | Commits `386e1a12`, `16bc2690`, and `02597409`. Identical retries return the canonical batch; altered metadata or row diagnostics now conflict. User verification required. |
@@ -813,3 +828,90 @@ The scheduled-source service's early failure path for an unregistered adapter or
 Commits: `e6ebbf2` (service fix) and `5ad1598` (regression test).
 
 **Current active work:** continue generic integration reliability review only where it does not invent provider contracts. Provider-specific adapters remain blocked until an approved source-owner contract is supplied.
+
+
+### Phase 8 continuation — aggregate ingestion payload bound
+
+**Implemented on the new account's `main`; CI verification pending.**
+
+- Generic ingestion now caps the complete serialized batch at 1 MB, in addition to the existing 16 KB per-payload and 500-record limits.
+- This prevents individually valid records from amplifying into multi-megabyte adapter batches and oversized persistence transactions.
+- Non-serializable object graphs are converted into validation failures instead of escaping as runtime exceptions.
+- Added regression tests for aggregate batch overflow and circular input.
+- Added adapter-system-mismatch coverage to the scheduled-source service test, confirming that mismatch failures use the injected repository and never read checkpoints or ingest.
+
+Commits:
+- `5186efd` — cover adapter/system mismatch failure path.
+- `7a4b070` — enforce aggregate serialized ingestion size.
+- `eaf8b59` — test aggregate payload and serialization limits.
+- `4bdecbd` — document aggregate ingestion bound.
+
+**Verification:** GitHub Actions should run on the push to `main`. Do not treat implementation as verified until the workflow result is inspected. Provider-specific adapters remain blocked on approved source-owner contracts.
+
+
+### Phase 9 continuation — route authorization and security-control audit
+
+Added `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` on 2026-11-07. The static review covers route mounts, authentication, RBAC, resource scopes, contact CAPTCHA, authentication lifecycle, CORS defaults, local file storage, malware scanning, rate-limit topology, privileged-user MFA, public dashboard disclosure and middleware ordering. It distinguishes code facts from approval-dependent decisions and does not claim VAPT or production acceptance.
+
+#### Remediation milestone — protected route authorization order
+
+**Implemented on `main`; CI verification pending.**
+
+- Reordered all 27 protected route declarations in Academics, Approvals, Industry Outcomes and Integrations to enforce Authentication → RBAC → Validation → Controller.
+- The integration CSV endpoint now performs its admin role check before parsing the CSV body.
+- The integration webhook remains on its separate HMAC verification path; it is not a user-session route and was intentionally excluded from RBAC.
+- Continued the review into resource-scoped registry/workflow endpoints. Reordered AIP, Cluster, ITI, SIP and SPV scoped routes so RBAC runs before resource-scope checks, and resource-scope checks run before Zod validation. Cluster reassignment restrictions also run before validation.
+- Added/extended `tests/route-middleware-order.test.ts` to assert role-before-validation, role-before-scope, scope-before-validation, and the relevant route inventories. Existing PostgreSQL scope integration coverage verifies direct and inherited scope behaviour. These are structural and database integration tests, not a substitute for full HTTP-level authorization tests.
+- Public registry GET routes remain public under their existing documented design; their field-level publication review is still open.
+- Audit review found that user create/profile/status/role/deactivation and role create/update/delete service paths do not currently write audit entries; scope replacement does. Added SEC-ROUTE-12 to the audit. Implementation awaits an approved audit-event matrix and audit-write failure policy, which the existing audit service marks TO CONFIRM.
+- Production CORS now fails closed when `CORS_ORIGIN` is missing, blank or wildcard. Development/test retain the wildcard default. Added `tests/cors-config.test.ts`; production deployments must configure their real frontend origins.
+- Updated `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` with the evidence and remaining verification status.
+
+**Current active work:** inspect list/search/summary/export scope enforcement and privileged mutation audit coverage. Continue with safe security fixes while obtaining the external decisions required for CAPTCHA, approved role matrix, session lifecycle, public dashboard disclosure, storage and malware scanning. Do not infer policy or provider contracts.
+
+
+### Phase 9 continuation — privileged mutation audit coverage
+
+On 2026-11-07, privileged user and role mutations were connected to the append-only audit service. User create/profile/status/role/deactivation, role create/update/delete, password changes, legacy password-hash upgrades and organisation-scope replacement now record actor and before/after state. Safe projections exclude password hashes and lockout internals. Request IP, user agent and route path are captured through a shared audit-context helper.
+
+Regression coverage verifies user/role audit projections and request metadata. CI #91 passed dependency audit, Prisma generation, all migrations against the isolated PostgreSQL database, typecheck, 346 tests with zero skips, and production build.
+
+**Remaining work:** role create/update/delete now write their audit entries inside the same PostgreSQL transaction as the role and permission changes. A failed audit insert rolls back the role mutation. Added `tests/role-audit-atomicity.test.ts` to protect the transaction boundary. User create/profile/status/role/deactivation mutations still require the same transactional treatment; do not treat SEC-ROUTE-12 as fully closed. Continue failed-transition/file-operation coverage, public list/search/summary/export field-disclosure review and deployment security verification.
+
+**Owner instruction (2026-11-07):** Project owner confirms NIC discussions/approvals are complete and authorizes continued implementation without pausing for another approval round. Where an approval decision is not yet recorded in a versioned contract or provider connection details are absent, continue the independent engineering work and do not fabricate endpoints, credentials or source mappings.
+
+
+### Phase 9 continuation — public dashboard field projection and owner-confirmed acceptance
+
+Added `tests/dashboard/public-field-projection.test.ts` to verify that the public dashboard repository uses explicit projections and does not select private account credentials, lockout internals, personal contact details, bank-account metadata, filesystem paths or internal creator identifiers. The current public cluster drilldown exposes only the selected ITI and AIP registry fields; official finance transaction details remain unavailable.
+
+The project owner confirms NIC approval of the existing role/permission matrix and current public read-only dashboard field set (2026-11-07). This is recorded as owner-reported acceptance; no separate signed approval artifact/version was attached to the repository. Preserve the current contract and require review for future changes.
+
+CI #93 passed dependency audit, Prisma generation, all migrations against isolated CI PostgreSQL, typecheck, 347 tests with zero skips, and production build.
+
+
+### Phase 9 continuation — atomic role mutation audit writes (2026-11-07)
+
+- Refactored role repository methods to accept an existing Prisma transaction client while preserving their standalone transaction behaviour.
+- Role create, update and delete now execute the role mutation, permission mapping changes, read-back snapshot and append-only audit insert inside one transaction.
+- Audit-write failure now aborts and rolls back the role mutation instead of leaving an unaudited committed change.
+- Added `tests/role-audit-atomicity.test.ts` to guard the service/repository transaction contract.
+- Commits: `683b8b40`, `cbfae38d`, `34a0fe61`, `7a81ee54`.
+- CI verification for these commits must be inspected before treating the change as verified.
+
+**Still open in Phase 9:** user account mutations are not yet atomically coupled to their audit writes; route-level live authorization coverage, public list/search/summary/export disclosure review, and deployment/VAPT evidence remain outstanding.
+
+
+### Phase 9 continuation — atomic user mutation audit writes (2026-11-07)
+
+- User repository read/write methods now accept a caller-owned Prisma transaction client where required, while preserving standalone repository transaction behaviour.
+- User create, profile update, status change, role replacement, soft deactivation and organisation-scope replacement now execute their business mutation, read-back snapshot and audit insert in one transaction.
+- Audit insert failure rolls back the corresponding user mutation.
+- Added `tests/user-audit-atomicity.test.ts` to protect transaction propagation for all six mutation paths.
+- Commits: `fa3699ac`, `061ceb15`, `84205ae3`, `4b2a43cc`, `072963b4`, `da26f87a`.
+- GitHub Actions run #106 was started for the resulting main-branch commit; final verification must be read from the run before this milestone is marked verified.
+
+**Still open in Phase 9:** authenticated/unauthenticated HTTP authorization coverage across route families; comprehensive public list/search/summary/export disclosure review; approval-dependent CAPTCHA/session/MFA/storage/malware-scanning controls; production topology/configuration evidence; backup/restore and incident readiness; independent VAPT and formal security sign-off. These must be completed or explicitly recorded as release blockers with evidence; they are not waived by CI success.
+
+
+| 2026-11-07 | 7 | Additive Phase 7 KPI readiness catalogue v1.1.0 | Enumerates PHY-01..04, ACD-01..05 and IND-01..06 as internal readiness identifiers with explicit source/definition blockers; no KPI values or aggregation rules invented. Tests assert no source, no aggregation levels, and no official-code claim. CI verification pending. |

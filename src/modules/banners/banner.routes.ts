@@ -72,7 +72,7 @@ bannerAdminRouter.post("/:id/archive", validate({ params: bannerIdParamsSchema }
 bannerAdminRouter.post(
     "/:id/images",
     validate({ params: bannerIdParamsSchema }),
-    uploadBannerImages.array("images", 5),
+    uploadBannerImages.array("images", 2),
     uploadBannerImagesController,
 );
 

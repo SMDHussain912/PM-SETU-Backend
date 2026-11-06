@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { resolveCorsOrigins } from "./cors";
 
 function requirePort(value: string | undefined): number {
     const port = Number(value);
@@ -22,15 +23,6 @@ function parseNodeEnv(
     );
 }
 
-function parseOrigins(value: string | undefined): string[] | "*" {
-    if (!value || value.trim() === "" || value.trim() === "*") {
-        return "*";
-    }
-    return value
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter((origin) => origin.length > 0);
-}
 
 function parsePositiveInt(value: string | undefined): number | undefined {
     if (!value) {
@@ -59,7 +51,7 @@ export const env = {
     databaseUrl: nodeEnv === "test" ? process.env.TEST_DATABASE_URL : process.env.DATABASE_URL,
 
     // CORS — comma-separated list of origins, or "*" to allow all
-    corsOrigins: parseOrigins(process.env.CORS_ORIGIN),
+    corsOrigins: resolveCorsOrigins(process.env.CORS_ORIGIN, nodeEnv === "production"),
 
     // Auth (optional until the auth middleware is actually used)
     jwtAccessSecret: process.env.JWT_ACCESS_SECRET,

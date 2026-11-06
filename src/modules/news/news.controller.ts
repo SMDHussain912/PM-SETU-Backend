@@ -8,6 +8,8 @@ import type {
     UpdateNewsBody,
 } from "./news.schema";
 import * as newsService from "./news.service";
+import { toPublicNews } from "./news.public";
+import { discardDocumentUpload, validateDocumentUpload } from "../documents/document.file-validation";
 
 /**
  * News Management module — controller layer.
@@ -20,18 +22,18 @@ import * as newsService from "./news.service";
 export async function listNews(_req: Request, res: Response): Promise<Response> {
     const { query } = getValidated<unknown, NewsListQuery>(res);
     const { items, meta } = await newsService.listNews(query);
-    return sendSuccess(res, items, meta);
+    return sendSuccess(res, items.map(toPublicNews), meta);
 }
 
 export async function getNewsById(_req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, NewsIdParams>(res);
     const news = await newsService.getNewsById(params.id);
-    return sendSuccess(res, news);
+    return sendSuccess(res, toPublicNews(news));
 }
 
 export async function getLatestNews(_req: Request, res: Response): Promise<Response> {
     const news = await newsService.getLatestNews();
-    return sendSuccess(res, news);
+    return sendSuccess(res, news.map(toPublicNews));
 }
 
 export async function createNews(_req: Request, res: Response): Promise<Response> {
@@ -74,11 +76,26 @@ export async function attachNewsFile(req: Request, res: Response): Promise<Respo
             message: "An attachment file is required",
         });
     }
-    const news = await newsService.attachNewsFile(params.id, {
-        file_path: file.path,
-        file_name: file.originalname,
-        mime_type: file.mimetype,
-        file_size: file.size,
-    });
-    return sendSuccess(res, news);
+    let safeFileName: string;
+    try {
+        safeFileName = await validateDocumentUpload(file);
+    } catch (error) {
+        // Multer has already written the file. Remove rejected content.
+        await discardDocumentUpload(file.path).catch(() => undefined);
+        throw error;
+    }
+
+    try {
+        const news = await newsService.attachNewsFile(params.id, {
+            file_path: file.path,
+            file_name: safeFileName,
+            mime_type: file.mimetype,
+            file_size: file.size,
+        });
+        return sendSuccess(res, news);
+    } catch (error) {
+        // Do not orphan a file when the metadata write fails.
+        await discardDocumentUpload(file.path).catch(() => undefined);
+        throw error;
+    }
 }

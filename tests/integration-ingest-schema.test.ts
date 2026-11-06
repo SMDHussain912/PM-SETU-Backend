@@ -36,3 +36,47 @@ test("rejects identities that become duplicates after schema trimming", () => {
   });
   assert.equal(result.success, false);
 });
+
+test("rejects a batch whose aggregate serialized size exceeds 1 MB", () => {
+  const largeRecord = (source_record_id: string) => ({
+    source_record_id,
+    payload: { data: "x".repeat(15_000) },
+  });
+  const result = integrationIngestSchema.safeParse({
+    records: Array.from({ length: 70 }, (_, index) => largeRecord(`large-${index}`)),
+  });
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.ok(result.error.issues.some((issue) =>
+      issue.message.includes("must not exceed 1 MB"),
+    ));
+  }
+});
+
+test("rejects non-serializable payload objects without throwing from validation", () => {
+  const circular: Record<string, unknown> = {};
+  circular.self = circular;
+  assert.doesNotThrow(() => integrationIngestSchema.safeParse({
+    records: [{ source_record_id: "circular-record", payload: circular }],
+  }));
+  assert.equal(integrationIngestSchema.safeParse({
+    records: [{ source_record_id: "circular-record", payload: circular }],
+  }).success, false);
+});
+
+test("rejects payloads with excessive node counts before serializing the object", () => {
+  const result = integrationIngestSchema.safeParse({
+    records: [{
+      source_record_id: "wide-payload",
+      payload: { values: Array.from({ length: 10_001 }, (_, index) => index) },
+    }],
+  });
+  assert.equal(result.success, false);
+});
+
+test("rejects a single oversized payload string", () => {
+  const result = integrationIngestSchema.safeParse({
+    records: [{ source_record_id: "large-string", payload: { value: "x".repeat(16_385) } }],
+  });
+  assert.equal(result.success, false);
+});

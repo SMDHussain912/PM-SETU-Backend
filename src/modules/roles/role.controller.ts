@@ -3,6 +3,7 @@ import { getValidated } from "../../middleware/validate.middleware";
 import { sendCreated, sendSuccess } from "../../utils/response";
 import type { CreateRoleInput, RoleIdParams, UpdateRoleInput } from "./role.schema";
 import * as roleService from "./role.service";
+import { getAuditContext } from "../audit/audit.context";
 
 /**
  * Roles module — controller layer (RoadMap.md §20).
@@ -27,23 +28,23 @@ export async function getRoleById(_req: Request, res: Response): Promise<Respons
 }
 
 /** POST /api/v1/admin/roles */
-export async function createRole(_req: Request, res: Response): Promise<Response> {
+export async function createRole(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<CreateRoleInput>(res);
-    const role = await roleService.createRole(body);
+    const role = await roleService.createRole(body, req.user?.id ?? '', getAuditContext(req));
     return sendCreated(res, role);
 }
 
 /** PATCH /api/v1/admin/roles/:id */
-export async function updateRole(_req: Request, res: Response): Promise<Response> {
+export async function updateRole(req: Request, res: Response): Promise<Response> {
     const { body, params } = getValidated<UpdateRoleInput, unknown, RoleIdParams>(res);
-    const role = await roleService.updateRole(params.id, body);
+    const role = await roleService.updateRole(params.id, body, req.user?.id ?? '', getAuditContext(req));
     return sendSuccess(res, role);
 }
 
 /** DELETE /api/v1/admin/roles/:id */
-export async function deleteRole(_req: Request, res: Response): Promise<Response> {
+export async function deleteRole(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, RoleIdParams>(res);
-    const role = await roleService.deleteRole(params.id);
+    const role = await roleService.deleteRole(params.id, req.user?.id ?? '', getAuditContext(req));
     return sendSuccess(res, role);
 }
 

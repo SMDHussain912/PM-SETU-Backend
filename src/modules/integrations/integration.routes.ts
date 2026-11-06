@@ -9,14 +9,15 @@ import { integrationIdSchema, integrationListSchema, integrationSourceSchema, in
 const router = Router();
 const admin = [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN];
 router.use(requireAuth);
-router.get("/", validate({ query: integrationListSchema }), requireRoles(...admin), controller.list);
-router.post("/", validate({ body: integrationSourceSchema }), requireRoles(...admin), controller.create);
-router.patch("/:id/enabled", validate({ params: integrationIdSchema, body: integrationSourceSchema.pick({ enabled: true }) }), requireRoles(...admin), controller.enable);
-router.patch("/:id/schedule", validate({ params: integrationIdSchema, body: integrationScheduleSchema }), requireRoles(...admin), controller.schedule);
-router.post("/:id/ingest", validate({ params: integrationIdSchema, body: integrationIngestSchema }), requireRoles(...admin), controller.ingest);
-router.post("/:id/csv", express.text({ type: ["text/csv", "application/csv"], limit: "1mb" }), validate({ params: integrationIdSchema }), requireRoles(...admin), controller.ingestCsv);
-router.get("/:id/runs", validate({ params: integrationIdSchema }), requireRoles(...admin), controller.runs);
+router.get("/", requireRoles(...admin), validate({ query: integrationListSchema }), controller.list);
+router.post("/", requireRoles(...admin), validate({ body: integrationSourceSchema }), controller.create);
+router.patch("/:id/enabled", requireRoles(...admin), validate({ params: integrationIdSchema, body: integrationSourceSchema.pick({ enabled: true }) }), controller.enable);
+router.patch("/:id/schedule", requireRoles(...admin), validate({ params: integrationIdSchema, body: integrationScheduleSchema }), controller.schedule);
+router.post("/:id/ingest", requireRoles(...admin), validate({ params: integrationIdSchema, body: integrationIngestSchema }), controller.ingest);
+router.post("/:id/csv", requireRoles(...admin), express.text({ type: ["text/csv", "application/csv"], limit: "1mb" }), validate({ params: integrationIdSchema }), controller.ingestCsv);
+router.get("/:id/runs", requireRoles(...admin), validate({ params: integrationIdSchema }), controller.runs);
 
 export const integrationWebhookRouter = Router();
+// Webhooks intentionally use HMAC authentication in the controller, not user RBAC.
 integrationWebhookRouter.post("/:id", validate({ params: integrationIdSchema }), controller.webhook);
 export default router;

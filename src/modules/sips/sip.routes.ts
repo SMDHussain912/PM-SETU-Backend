@@ -55,7 +55,6 @@ sipAdminRouter.patch(
 sipAdminRouter.delete(
     "/:id",
     requireRoles(ROLE_CODES.CLUSTER_ADMIN, ROLE_CODES.STATE_PMU_ADMIN, ROLE_CODES.SUPER_ADMIN),
-    validate({ params: sipIdParamsSchema }),
-    requireResourceScope("SIP"),
+    requireResourceScope("SIP"), validate({ params: sipIdParamsSchema }),
     sipController.deleteSip,
 );
