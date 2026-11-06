@@ -733,3 +733,18 @@ Commits:
 Commits: `2f35b90` (helper), `ffc383f` (application wiring), `b1dd35c` (tests).
 
 **Next:** continue generic integration boundary hardening while provider-specific work remains blocked on an approved source-owner contract.
+
+
+### Phase 8 continuation — isolated webhook HMAC verification
+
+**Implemented on `main`; local verification pending.**
+
+- Extracted SHA-256 HMAC verification into `integration.webhook.signature.ts`.
+- Preserved the existing `sha256=<hex>` header contract, exact raw-byte hashing, digest-length check, and constant-time comparison.
+- Kept secret resolution/minimum-length checks and HTTP error handling in the service.
+- Added tests for valid signatures, altered bodies, incorrect secrets, malformed signature encodings, and uppercase hexadecimal compatibility.
+- No provider replay/timestamp semantics or credentials were invented.
+
+Commits: `bf1ab33` (helper), `3efc716` (service wiring), `b69114f` (tests).
+
+**Next:** continue generic integration boundary hardening; provider-specific work remains gated on an approved source-owner contract.
