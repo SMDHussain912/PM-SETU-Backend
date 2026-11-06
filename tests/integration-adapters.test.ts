@@ -5,7 +5,7 @@ import {
   registerIntegrationAdapter,
   unregisterIntegrationAdapter,
 } from "../src/modules/integrations/integration.adapters";
-import type { IntegrationAdapter } from "../src/modules/integrations/integration.types";
+import type { IntegrationAdapter, IntegrationSystem } from "../src/modules/integrations/integration.types";
 
 test("registers a reviewed adapter and returns it by source code", () => {
   const adapter: IntegrationAdapter = {
@@ -67,8 +67,8 @@ test("registration snapshots adapter behaviour against later caller mutation", a
     records: [{ source_record_id: "unexpected", payload: {} }],
     hasMore: false,
   });
-  const mutable = {
-    system: "STUDENT_MIS" as const,
+  const mutable: { system: IntegrationSystem; fetchPage: IntegrationAdapter["fetchPage"] } = {
+    system: "STUDENT_MIS",
     fetchPage: originalFetch,
   };
 
