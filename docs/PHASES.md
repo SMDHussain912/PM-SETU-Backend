@@ -54,7 +54,7 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 | 6 | Finance | <strong>Engineering implementation complete; operational acceptance pending</strong> |
 | 7 | State PMU dashboard & analytics | <strong>In progress — reporting contract, capacity aggregation, physical source-readiness audit</strong> |
 | 8 | Integrations & public portal | <strong>Foundation implemented; provider contracts and integrations pending</strong> |
-| 9 | Security, testing & production readiness | <strong>In progress — CI dependency gate and upload-signature hardening</strong> |
+| 9 | Security, testing & production readiness | <strong>In progress — route authorization/security audit and remediation</strong> |
 
 **Progress summary:** Phases 0–3 are complete, Phase 4's implementation is complete but external/operational acceptance remains, Phase 5 implementation is complete. Phase 6 engineering foundations are implemented; operational acceptance remains gated by Finance/DET decisions and evidence. Phase 7 has started with a source inventory and reporting-contract baseline; metric implementation remains dependent on approved sources and definitions. Phase 8 has an existing generic ingestion/scheduler foundation, but provider-specific integrations remain blocked on approved contracts. Phase 9 has started with dependency auditing and upload-content validation; the broader security review remains open.
 
@@ -327,6 +327,7 @@ Completion evidence should include:
 
 | Date | Phase | Milestone | Evidence / note |
 |---|---|---|---|
+| 2026-11-07 | 9 | Added route authorization and security-control audit | `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md`; static review records verified controls, open policy/provider decisions, and remediation order. CI run for audit commit is pending. |
 | 2026-11-06 | 9 | Added dependency vulnerability gate and verified image-upload signatures | Initial scan found 11 advisories; semver-compatible lockfile remediation reduced npm audit to zero. Image validation tests added. GitHub Actions commit `060a5b83b36f4929dac6f375a9b0950b2d4cf00e` passed audit, migrations, typecheck, 321 tests and build. Full Phase 9 review remains open. |
 | 2026-11-06 | 8 | Added testable graceful scheduler shutdown coordination and regression coverage | Lifecycle controller coalesces overlapping ticks, blocks new work after stop, and waits for active work; server awaits it before Prisma disconnect. Local verification pending. |
 | 2026-11-06 | 8 | Audited existing integration foundation and documented provider readiness gates | Commit `64ec4adabaecee83f522be34c7d4d25b2fdbab90`; no provider endpoints, credentials, mappings or approvals invented. |
@@ -842,3 +843,10 @@ Commits:
 - `4bdecbd` — document aggregate ingestion bound.
 
 **Verification:** GitHub Actions should run on the push to `main`. Do not treat implementation as verified until the workflow result is inspected. Provider-specific adapters remain blocked on approved source-owner contracts.
+
+
+### Phase 9 continuation — route authorization and security-control audit
+
+Added `docs/phase-9/ROUTE_AUTHORIZATION_SECURITY_AUDIT.md` on 2026-11-07. The static review covers route mounts, authentication, RBAC, resource scopes, contact CAPTCHA, authentication lifecycle, CORS defaults, local file storage, malware scanning, rate-limit topology, privileged-user MFA, public dashboard disclosure and middleware ordering. It distinguishes code facts from approval-dependent decisions and does not claim VAPT or production acceptance.
+
+**Current active work:** address safe, testable security findings and obtain the external decisions required for CAPTCHA, role matrix, session lifecycle, public dashboard disclosure and production storage. Continue route-by-route scope and audit-event verification. Do not infer policy or provider contracts.
