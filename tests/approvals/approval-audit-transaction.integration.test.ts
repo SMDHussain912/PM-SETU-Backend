@@ -19,6 +19,7 @@ async function createPendingApproval(): Promise<number> {
 }
 
 test.before(async () => {
+    if (!databaseUrl) return;
     await prisma.$connect();
     successfulApprovalId = await createPendingApproval();
     failingApprovalId = await createPendingApproval();
@@ -37,6 +38,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
+    if (!databaseUrl) return;
     await pool.query("DROP TRIGGER IF EXISTS ci_reject_selected_audit_insert ON audit_logs");
     await pool.query("DROP FUNCTION IF EXISTS ci_reject_selected_audit_insert()");
     await pool.query("DELETE FROM audit_logs WHERE entity = 'APPROVAL' AND entity_id = ANY($1::int[])", [[successfulApprovalId, failingApprovalId, staleApprovalId].filter(Boolean)]);
