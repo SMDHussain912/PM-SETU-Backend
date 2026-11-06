@@ -63,14 +63,14 @@ export async function updateUserStatus(
 /** PATCH /api/v1/admin/users/:id/roles — replace role assignments. */
 export async function updateUserRoles(req: Request, res: Response): Promise<Response> {
     const { body, params } = getValidated<UpdateUserRolesInput, unknown, UserIdParams>(res);
-    const user = await userService.updateUserRoles(params.id, body, req.user?.id ?? '', req.user?.roles ?? []);
+    const user = await userService.updateUserRoles(params.id, body, req.user?.id ?? '', req.user?.roles ?? [], getAuditContext(req));
     return sendSuccess(res, user);
 }
 
 /** DELETE /api/v1/admin/users/:id — soft delete (deactivate). */
 export async function deleteUser(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, UserIdParams>(res);
-    const user = await userService.deactivateUser(params.id, req.user?.id ?? '', req.user?.roles ?? []);
+    const user = await userService.deactivateUser(params.id, req.user?.id ?? '', req.user?.roles ?? [], getAuditContext(req));
     return sendSuccess(res, user);
 }
 

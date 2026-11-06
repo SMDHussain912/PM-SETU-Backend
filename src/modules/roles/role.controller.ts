@@ -37,14 +37,14 @@ export async function createRole(req: Request, res: Response): Promise<Response>
 /** PATCH /api/v1/admin/roles/:id */
 export async function updateRole(req: Request, res: Response): Promise<Response> {
     const { body, params } = getValidated<UpdateRoleInput, unknown, RoleIdParams>(res);
-    const role = await roleService.updateRole(params.id, body, req.user?.id ?? '');
+    const role = await roleService.updateRole(params.id, body, req.user?.id ?? '', getAuditContext(req));
     return sendSuccess(res, role);
 }
 
 /** DELETE /api/v1/admin/roles/:id */
 export async function deleteRole(req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, RoleIdParams>(res);
-    const role = await roleService.deleteRole(params.id, req.user?.id ?? '');
+    const role = await roleService.deleteRole(params.id, req.user?.id ?? '', getAuditContext(req));
     return sendSuccess(res, role);
 }
 

@@ -19,9 +19,9 @@ import { getAuditContext } from "../audit/audit.context";
  */
 
 /** POST /api/v1/auth/login — public, IP-rate-limited (authLimiter). */
-export async function login(_req: Request, res: Response): Promise<Response> {
+export async function login(req: Request, res: Response): Promise<Response> {
     const { body } = getValidated<LoginInput>(res);
-    const result = await authService.login(body);
+    const result = await authService.login(body, getAuditContext(req));
     return sendSuccess(res, result);
 }
 

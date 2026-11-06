@@ -96,7 +96,7 @@ function buildProfile(
 }
 
 /** POST /auth/login — verify credentials, enforce lockout, issue the JWT. */
-export async function login(input: LoginInput): Promise<LoginResponse> {
+export async function login(input: LoginInput, context?: AuditContext): Promise<LoginResponse> {
     const user = await authRepository.findUserByUsername(input.username);
 
     if (!user) {
@@ -144,7 +144,7 @@ export async function login(input: LoginInput): Promise<LoginResponse> {
             oldValue: { password_hash_version: "legacy_bcrypt" },
             newValue: { password_hash_version: "sha256_bcrypt_v1", reason: "legacy_hash_upgrade" },
             approvalStatus: null,
-            context: { userId: String(user.id) },
+            context: context ?? { userId: String(user.id) },
         });
     }
 
