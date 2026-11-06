@@ -226,3 +226,12 @@ Lease renewal now uses PostgreSQL `NOW()` for both the still-valid lease predica
 The existing opt-in PostgreSQL lease-renewal test now also reads the remaining lease duration from a second client and verifies that the renewed expiry is approximately 15 minutes from database time. The test continues to cover wrong-token rejection, expired-lease rejection, reclaim, stale-release fencing and current-owner release.
 
 Verification requires the dedicated `PM_SETU_TEST_DATABASE_URL`; confirm the test ran rather than skipped.
+
+
+## 19. Immediate scheduler lease revocation when disabling a source
+
+Disabling an integration source now clears its claim token and lease expiry while setting `next_sync_at` to null. A worker already executing with the previous token can no longer pass the transaction-scoped enabled/token/expiry fence and therefore cannot commit scheduler output after the source is disabled.
+
+Re-enabling the source schedules it immediately; because disable cleared the old lease, it does not have to wait for the previous 15-minute lease expiry. Added opt-in PostgreSQL coverage in `tests/integration-scheduler-disable-postgres.test.ts` using two independent clients. It verifies lease clearing, stale commit rejection, no run row written, and immediate claimability after re-enable.
+
+The test requires the dedicated `PM_SETU_TEST_DATABASE_URL`; confirm it ran rather than skipped.
