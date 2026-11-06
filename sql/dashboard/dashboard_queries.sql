@@ -143,12 +143,16 @@
 --
 -- 10. TRAINING BY CLUSTER
 --
+-- Exclude sample clusters as well as sample ITIs. Keep the LEFT JOIN so
+-- non-sample clusters with no non-sample ITIs remain in the result.
+--
 -- SELECT
 --     c.id AS cluster_id, c.name AS cluster_name,
 --     COALESCE(SUM(i.student_strength), 0)::int AS student_capacity,
 --     COUNT(i.id)::int AS iti_count
 -- FROM clusters c
 -- LEFT JOIN itis i ON i.cluster_id = c.id AND i.is_sample = FALSE
+-- WHERE c.is_sample = FALSE
 -- GROUP BY c.id, c.name
 -- ORDER BY c.name;
 --
