@@ -118,13 +118,15 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 ### SEC-ROUTE-10 — Authorization ordering is inconsistent with the documented middleware sequence
 
-**Evidence:** The route documentation in `RoadMap.md` §27 specifies Authentication → RBAC → Validation → Controller. Some routes validate before their route-level role guard, including approval transitions and several industry-outcome/integration endpoints. Router-level authentication still runs first where configured.
+**Evidence:** The route documentation in `RoadMap.md` §27 specifies Authentication → RBAC → Validation → Controller. The initial audit found validation before route-level RBAC in approval, academic, industry-outcome and integration routes. Router-level authentication already ran first in these protected routers.
 
-**Impact:** Authenticated users without the required role may receive validation errors before the authorization denial. This is primarily a consistency/information-disclosure concern, not proof of data access.
+**Impact:** Authenticated users without the required role could receive validation errors before the authorization denial. This was a response-order inconsistency, not evidence of data access.
 
-**Required action:** Normalize guard order to authenticate → authorize → validate → controller where it does not alter intended public behaviour. Add tests proving unauthorized callers cannot reach controllers and receive the intended authorization response.
+**Remediation on `main` (2026-11-07):** Reordered every protected route in `academic.routes.ts`, `approval.routes.ts`, `industry-outcome.routes.ts` and `integration.routes.ts` so `requireRoles` runs before request validation. The integration CSV route now checks the admin role before parsing the CSV body. The HMAC-authenticated integration webhook remains intentionally separate from user RBAC.
 
-**Disposition:** Safe engineering cleanup after route tests are reviewed.
+**Regression coverage:** `tests/route-middleware-order.test.ts` inventories all 27 protected route declarations across the four modules and asserts that each has an explicit role guard before validation; it also asserts authorization precedes CSV body parsing. This is a source-structure regression test, not a live HTTP authorization test.
+
+**Disposition:** Code remediation and structural regression test committed; pending CI verification and broader live route-level authorization coverage.
 
 ## 4. Additional verification required before sign-off
 
