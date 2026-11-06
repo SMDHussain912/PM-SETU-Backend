@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { assertDedicatedTestDatabaseUrl } from "./helpers/test-database";
+import * as integrationRepository from "../src/modules/integrations/integration.repository";
 
 const databaseUrl = process.env.PM_SETU_TEST_DATABASE_URL;
 
@@ -64,6 +65,32 @@ test("PostgreSQL scheduler leases prevent concurrent claims and recover expired 
     assert.equal(recovered.length, 1);
     assert.equal(recovered[0].id, source.id);
     assert.notEqual(recovered[0].claim_token, firstClaim[0]?.claim_token ?? competingClaim[0]?.claim_token);
+
+    const staleToken = firstClaim[0]?.claim_token ?? competingClaim[0]?.claim_token;
+    assert.ok(staleToken);
+    const runInput = {
+      status: "FAILED",
+      recordsRead: 0,
+      recordsCreated: 0,
+      recordsUpdated: 0,
+      recordsRejected: 0,
+      cursor: null,
+      errorCode: "LEASE_TEST",
+      errorSummary: "Lease fencing regression test",
+      startedAt: new Date(),
+      completedAt: new Date(),
+    };
+
+    await assert.rejects(
+      integrationRepository.createScheduledRun(source.id, staleToken, runInput),
+      /SCHEDULER_LEASE_LOST/,
+    );
+    const committed = await integrationRepository.createScheduledRun(
+      source.id,
+      recovered[0].claim_token,
+      runInput,
+    );
+    assert.equal(committed.sourceId, source.id);
   } finally {
     if (sourceId !== undefined) {
       await firstClient.integrationSource.deleteMany({ where: { id: sourceId } }).catch(() => undefined);
