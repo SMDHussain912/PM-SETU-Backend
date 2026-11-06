@@ -165,14 +165,14 @@ export async function updateUserRoles(
     if (assignedCodes.length !== new Set(input.role_ids).size) {
         throw new ApiError({ statusCode: 422, code: "INVALID_ROLE_ASSIGNMENT", message: "One or more selected roles do not exist" });
     }
-    if (target.status === "ACTIVE" && target.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN) && !assignedCodes.includes(ROLE_CODES.SUPER_ADMIN)) {
-        const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
-        if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot lose the Super Admin role");
-    }
     await assertRoleAssignmentAllowed(input.role_ids, actorRoles);
     return prisma.$transaction(async (tx) => {
         await assertTargetManageable(id, actorId, actorRoles, tx);
         const previous = await getUserById(id, tx);
+        if (previous.status === "ACTIVE" && previous.roles.some((role) => role.code === ROLE_CODES.SUPER_ADMIN) && !assignedCodes.includes(ROLE_CODES.SUPER_ADMIN)) {
+            const activeSuperAdmins = await userRepository.countActiveUsersWithRole(ROLE_CODES.SUPER_ADMIN);
+            if (activeSuperAdmins <= 1) forbid("The last active Super Administrator cannot lose the Super Admin role");
+        }
         await userRepository.replaceUserRoles(id, input.role_ids, tx);
         const updated = await getUserById(id, tx);
         await auditService.recordAuditEntry({ userId: actorId, action: "UPDATE", entity: "USER", entityId: id, oldValue: toUserAuditValue(previous), newValue: toUserAuditValue(updated), approvalStatus: null, context: context ?? { userId: actorId } }, tx);
