@@ -1,9 +1,9 @@
 # Phase 9 — Security Readiness Audit
 
-**Status:** In progress; latest engineering hardening verified by CI #79 on 2026-11-07.  
+**Status:** In progress; latest engineering hardening verified by CI #80 on 2026-11-07.  
 **Repository:** `smdgamekingindo-TN/PM-SETU-Backend`  
 **Branch:** `main`  
-**Verified commit:** `bdd063e2ba9f71c7f239d5c1bbf34b3ce3e276cf`
+**Verified commit:** `60c0f698c2a476d6ffabbde46c0e196971471430`
 
 ## 1. Verified changes
 
@@ -47,9 +47,9 @@ The shared Multer wrapper now limits each multipart request to 2 files, 10 text 
 
 ## 2. GitHub Actions evidence
 
-Commit: `bdd063e2ba9f71c7f239d5c1bbf34b3ce3e276cf`
+Commit: `60c0f698c2a476d6ffabbde46c0e196971471430`
 
-The completed workflow **Install, migrate, typecheck, test and build** (#79) passed:
+The completed workflow **Install, migrate, typecheck, test and build** (#80) passed:
 - npm dependency audit
 - Prisma client generation
 - Migrations against the isolated CI PostgreSQL database
@@ -57,7 +57,7 @@ The completed workflow **Install, migrate, typecheck, test and build** (#79) pas
 - Test suite: 338 passed, 0 failed, 0 skipped
 - Production build
 
-The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42295494386
+The CI job sets `PM_SETU_TEST_DATABASE_URL`; zero skipped tests confirms the opt-in PostgreSQL integration tests ran in the isolated CI database. Workflow: https://github.com/smdgamekingindo-TN/PM-SETU-Backend/actions/runs/42295927773
 
 ## 3. Remaining Phase 9 work
 
