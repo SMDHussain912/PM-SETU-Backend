@@ -191,3 +191,20 @@ Regression coverage:
 - `tests/integration-scheduler-failure.test.ts` verifies that uncertain owners perform no checkpoint read or failure write, while a verified owner persists one sanitized FAILED run with the committed cursor.
 
 A renewal error is treated conservatively as unverified ownership, not proof of lease transfer. Provider-specific failure and retry policies remain subject to the approved source contract.
+
+
+## 16. PostgreSQL verification of scheduler output fencing
+
+Added opt-in test `tests/integration-scheduler-write-fencing-postgres.test.ts`, using two independent Prisma/PostgreSQL clients and a uniquely keyed source fixture.
+
+The test claims a source with worker A, expires that fixture lease, and lets worker B reclaim it with a different token. It then verifies:
+
+- Worker A cannot create a scheduler sync-run record using its stale token.
+- Worker A cannot ingest a record or advance the checkpoint using its stale token.
+- Neither rejected stale operation leaves a run or integration record behind.
+- Worker B can persist a scheduler run and ingest a record with the current token.
+- Cleanup deletes only the unique fixture source; related run and record rows cascade from that source.
+
+The repository's `createScheduledRun()` and `ingestBatch()` now accept an optional Prisma client for isolated multi-client testing. Production defaults remain the shared Prisma client, and the existing row-lock/token/expiry/enabled predicate remains inside each transaction.
+
+The test requires `PM_SETU_TEST_DATABASE_URL` and the dedicated test database guard. It must be confirmed as executed (not skipped) in the user's local test output.
