@@ -5,7 +5,9 @@ import { Pool } from "pg";
 import { prisma, disconnectPrisma } from "../../src/config/database";
 import { requireResourceScope, type ScopedResource } from "../../src/middleware/scope.middleware";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const databaseUrl = process.env.TEST_DATABASE_URL;
+const databaseTest = databaseUrl ? test : test.skip;
+const pool = new Pool({ connectionString: databaseUrl });
 
 type TestUser = { id: number; roles?: string[] };
 
@@ -123,7 +125,7 @@ test.after(async () => {
     await pool.end();
 });
 
-test("cluster assignment grants access to the assigned cluster and its child resources", async () => {
+databaseTest("cluster assignment grants access to the assigned cluster and its child resources", async () => {
     const user = { id: clusterUserId };
     for (const [resource, id] of [
         ["CLUSTER", clusterId],
@@ -141,17 +143,17 @@ test("cluster assignment does not grant access to a different cluster", async ()
     assert.equal((error as { statusCode?: number }).statusCode, 403);
 });
 
-test("direct ITI and AIP assignments grant access to their own resources", async () => {
+databaseTest("direct ITI and AIP assignments grant access to their own resources", async () => {
     assert.equal(await invokeScope("ITI", itiId, { id: directItiUserId }), undefined);
     assert.equal(await invokeScope("AIP", aipId, { id: directAipUserId }), undefined);
 });
 
 
-test("direct AIP assignment grants access to SIPs linked to that AIP", async () => {
+databaseTest("direct AIP assignment grants access to SIPs linked to that AIP", async () => {
     assert.equal(await invokeScope("SIP", sipId, { id: directAipUserId }), undefined);
 });
 
-test("unassigned users are denied access to existing resources", async () => {
+databaseTest("unassigned users are denied access to existing resources", async () => {
     for (const [resource, id] of [
         ["CLUSTER", clusterId],
         ["ITI", itiId],
@@ -164,7 +166,7 @@ test("unassigned users are denied access to existing resources", async () => {
     }
 });
 
-test("global administrative roles bypass resource assignments", async () => {
+databaseTest("global administrative roles bypass resource assignments", async () => {
     assert.equal(await invokeScope("CLUSTER", otherClusterId, {
         id: unassignedUserId,
         roles: ["super_admin"],
@@ -175,7 +177,7 @@ test("global administrative roles bypass resource assignments", async () => {
     }), undefined);
 });
 
-test("scope middleware rejects unauthenticated and malformed resource IDs", async () => {
+databaseTest("scope middleware rejects unauthenticated and malformed resource IDs", async () => {
     const unauthenticated = await invokeScope("CLUSTER", clusterId);
     const malformed = await invokeScope("CLUSTER", "not-an-id", { id: unassignedUserId });
     assert.equal((unauthenticated as { statusCode?: number }).statusCode, 401);
