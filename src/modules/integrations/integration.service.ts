@@ -17,13 +17,17 @@ export async function setEnabled(id: number, enabled: boolean) {
   if (!source) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
   return repo.updateEnabled(id, enabled);
 }
-export async function setSchedule(id: number, seconds: number | null) {
-  const source = await repo.get(id);
+export async function setSchedule(
+  id: number,
+  seconds: number | null,
+  repository: Pick<typeof repo, "get" | "updateSchedule"> = repo,
+) {
+  const source = await repository.get(id);
   if (!source) throw new ApiError({ statusCode: 404, code: "INTEGRATION_NOT_FOUND", message: "Integration source not found" });
   if (seconds !== null && !isIntegrationPullTransport(source.transport)) {
     throw new ApiError({ statusCode: 409, code: "INTEGRATION_TRANSPORT_NOT_SCHEDULABLE", message: "CSV upload and webhook sources cannot use scheduled polling" });
   }
-  return repo.updateSchedule(id, seconds);
+  return repository.updateSchedule(id, seconds);
 }
 export async function recordRun(
   id: number,
