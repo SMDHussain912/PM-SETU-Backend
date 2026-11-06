@@ -1,22 +1,39 @@
 import { ApiError } from "../../utils/response";
 import type { IntegrationIngestInput } from "./integration.schema";
 
+function invalidCsv(message: string): never {
+  throw new ApiError({ statusCode: 422, code: "CSV_INVALID", message });
+}
+
 function rowsFromCsv(input: string): string[][] {
   const rows: string[][] = [];
-  let row: string[] = [], cell = "", quoted = false;
+  let row: string[] = [], cell = "", quoted = false, quoteClosed = false;
   for (let i = 0; i < input.length; i++) {
     const ch = input[i];
     if (quoted) {
       if (ch === '"' && input[i + 1] === '"') { cell += '"'; i++; }
-      else if (ch === '"') quoted = false;
+      else if (ch === '"') { quoted = false; quoteClosed = true; }
       else cell += ch;
-    } else if (ch === '"' && cell.length === 0) quoted = true;
-    else if (ch === ",") { row.push(cell); cell = ""; }
-    else if (ch === "\n") { row.push(cell.replace(/\r$/, "")); rows.push(row); row = []; cell = ""; }
-    else cell += ch;
+      continue;
+    }
+    if (quoteClosed && ch !== "," && ch !== "\n" && ch !== "\r") {
+      invalidCsv("CSV contains unexpected characters after a closing quote");
+    }
+    if (ch === '"') {
+      if (cell.length !== 0 || quoteClosed) invalidCsv("CSV contains a quote inside an unquoted field");
+      quoted = true;
+    } else if (ch === ",") {
+      row.push(cell); cell = ""; quoteClosed = false;
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && input[i + 1] === "\n") i++;
+      row.push(cell); rows.push(row); row = []; cell = ""; quoteClosed = false;
+    } else {
+      if (quoteClosed) invalidCsv("CSV contains unexpected characters after a closing quote");
+      cell += ch;
+    }
   }
-  if (quoted) throw new ApiError({ statusCode: 422, code: "CSV_INVALID", message: "CSV contains an unterminated quoted field" });
-  if (cell.length || row.length) { row.push(cell.replace(/\r$/, "")); rows.push(row); }
+  if (quoted) invalidCsv("CSV contains an unterminated quoted field");
+  if (cell.length || row.length || quoteClosed) { row.push(cell); rows.push(row); }
   return rows.filter((r) => r.some((v) => v.trim() !== ""));
 }
 
