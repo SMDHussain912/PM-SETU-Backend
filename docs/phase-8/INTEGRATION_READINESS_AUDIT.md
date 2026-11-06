@@ -260,3 +260,11 @@ The opt-in PostgreSQL disable and unschedule tests now compare the resulting due
 Creating an enabled integration source with a non-null sync interval now initializes `next_sync_at` with PostgreSQL `NOW()` inside the source-creation transaction. Disabled sources and sources without a configured interval retain a null due timestamp. This completes clock consistency across source creation, enable/disable, schedule updates, due claims, lease renewal and write fencing.
 
 Added opt-in PostgreSQL coverage in `tests/integration-scheduler-create-postgres.test.ts`. It verifies database-clock alignment for a newly scheduled source and confirms disabled/unscheduled sources are not made due. The test requires the dedicated `PM_SETU_TEST_DATABASE_URL` and must be confirmed as executed rather than skipped.
+
+## 23. Manual ingestion fenced against source disable
+
+Manual JSON, CSV and webhook ingestion now rechecks source enablement inside the same PostgreSQL transaction that writes integration records. The transaction locks the source row with `FOR UPDATE`; disable operations serialize against that lock. If disable commits first, ingestion is rejected and writes no records. If ingestion acquires the lock first, it completes before disable can commit. Scheduled ingestion retains its stronger claim-token/expiry fence.
+
+The service maps the repository's disabled-source rejection to HTTP 409 `INTEGRATION_DISABLED`, including the race where the source becomes disabled after the initial service-level read.
+
+Added opt-in PostgreSQL coverage in `tests/integration-manual-ingest-disable-postgres.test.ts`. It verifies enabled manual ingestion, rejection after disable with no extra record, and successful ingestion after re-enable. The test requires the dedicated `PM_SETU_TEST_DATABASE_URL` and must be confirmed as executed rather than skipped.
