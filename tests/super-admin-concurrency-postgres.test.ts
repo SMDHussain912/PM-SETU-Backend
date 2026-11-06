@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { updateStatusPreservingSuperAdmin } from "../src/modules/users/user.repository";
+import { replaceUserRoles, updateStatusPreservingSuperAdmin } from "../src/modules/users/user.repository";
 import { assertDedicatedTestDatabaseUrl } from "./helpers/test-database";
 
 const databaseUrl = process.env.PM_SETU_TEST_DATABASE_URL;
@@ -72,6 +72,29 @@ test("PostgreSQL serializes concurrent deactivation of the last two Super Admins
             WHERE u.status = 'ACTIVE' AND r.code = 'super_admin'
         `;
         assert.equal(remaining[0]?.total, 1);
+
+        // Re-establish two active fixtures, then race a status mutation against
+        // role removal. Both repository paths must share the same invariant lock.
+        await client.$executeRaw`
+            UPDATE users SET status = 'ACTIVE', updated_at = NOW()
+            WHERE id = ANY(${userIds}::int[])
+        `;
+        const mixedOutcomes = await Promise.allSettled([
+            updateStatusPreservingSuperAdmin(userIds[0], "INACTIVE"),
+            replaceUserRoles(userIds[1], []),
+        ]);
+        assert.equal(mixedOutcomes.filter((result) => result.status === "fulfilled").length, 1);
+        const mixedRejected = mixedOutcomes.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+        assert.equal(mixedRejected.length, 1);
+        assert.equal(mixedRejected[0].reason?.code, "LAST_SUPER_ADMIN");
+
+        const mixedRemaining = await client.$queryRaw<Array<{ total: number }>>`
+            SELECT COUNT(DISTINCT u.id)::int AS total
+            FROM users u JOIN user_roles ur ON ur.user_id = u.id
+            JOIN roles r ON r.id = ur.role_id
+            WHERE u.status = 'ACTIVE' AND r.code = 'super_admin'
+        `;
+        assert.equal(mixedRemaining[0]?.total, 1);
     } finally {
         await client.$executeRaw`
             DELETE FROM users WHERE username = ${usernames[0]} OR username = ${usernames[1]}
