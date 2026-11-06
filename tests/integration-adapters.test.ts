@@ -7,7 +7,7 @@ import {
 } from "../src/modules/integrations/integration.adapters";
 import type { IntegrationAdapter, IntegrationSystem } from "../src/modules/integrations/integration.types";
 
-test("registers a reviewed adapter and returns it by source code", () => {
+test("registers a reviewed adapter and returns it by source code", async () => {
   const adapter: IntegrationAdapter = {
     system: "STUDENT_MIS",
     async fetchPage() {
