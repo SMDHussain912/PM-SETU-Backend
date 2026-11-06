@@ -2593,7 +2593,7 @@ export const openApiSpec = {
                 responses: {
                     "200": { description: "Cluster summaries", content: { "application/json": { schema: { type: "object", properties: {
                         success: { type: "boolean", example: true },
-                        data: { $ref: "#/components/schemas/ClusterSummary" },
+                        data: { $ref: "#/components/schemas/ClustersDashboardResponse" },
                     }}}},},
                     "429": { description: "Rate limit exceeded" },
                     "500": { description: "PM SETU database schema not created yet" },
