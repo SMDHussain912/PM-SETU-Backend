@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { ApiError } from "../../utils/response";
 import { integrationAdapterRegistry } from "./integration.adapters";
 import { selectCommittedCheckpoint } from "./integration.checkpoint";
+import { executeWithRetry } from "./integration.retry";
 import { integrationAdapterPageSchema, integrationIngestSchema } from "./integration.schema";
 import * as repo from "./integration.repository";
 import type { IntegrationSourceInput } from "./integration.schema";
@@ -38,8 +39,6 @@ export async function ingest(id: number, records: import("./integration.schema")
   return repo.ingestBatch(id, records);
 }
 
-function delay(ms: number) { return new Promise((resolve) => setTimeout(resolve, ms)); }
-
 export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<typeof repo.get>>>, claimToken: string) {
   const startedAt = new Date();
   const adapter = integrationAdapterRegistry.get(source.code);
@@ -51,18 +50,16 @@ export async function runScheduledSource(source: NonNullable<Awaited<ReturnType<
   // Preserve the last committed cursor across failed runs so transient adapter
   // failures do not restart a large source from its beginning.
   const cursor = previous?.cursor ?? null;
-  let page: Awaited<ReturnType<typeof adapter.fetchPage>> | undefined;
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    try { page = await adapter.fetchPage({ sourceCode: source.code, cursor, since: previous?.completedAt.toISOString() ?? null }); break; }
-    catch (error) { lastError = error; if (attempt < 4) await delay(Math.min(1000 * (2 ** (attempt - 1)), 8000)); }
-  }
-  if (!page) {
+  const retry = await executeWithRetry(
+    () => adapter.fetchPage({ sourceCode: source.code, cursor, since: previous?.completedAt.toISOString() ?? null }),
+    { attempts: 4, baseDelayMs: 1000, maxDelayMs: 8000 },
+  );
+  if (retry.exhausted || retry.value === undefined) {
     // Do not persist upstream exception text: providers sometimes include URLs,
     // response fragments, or credentials in error messages.
-    void lastError;
     return repo.createScheduledRun(source.id, claimToken, { status: "FAILED", recordsRead: 0, recordsCreated: 0, recordsUpdated: 0, recordsRejected: 0, cursor, errorCode: "ADAPTER_EXECUTION_FAILED", errorSummary: "Adapter request failed after four attempts", startedAt, completedAt: new Date() });
   }
+  const page = retry.value;
   const pageResult = integrationAdapterPageSchema.safeParse(page);
   if (!pageResult.success) throw new ApiError({ statusCode: 502, code: "ADAPTER_RESPONSE_INVALID", message: "Adapter returned an invalid page envelope" });
   const validPage = pageResult.data;
