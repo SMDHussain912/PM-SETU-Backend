@@ -809,7 +809,7 @@ export const openApiSpec = {
                     total_sip_training: { type: "number" },
                     total_sip_industry: { type: "number" },
                     total_sip_government: { type: "number" },
-                    by_cluster: { type: "array", items: { type: "object", properties: {
+                    by_cluster: { type: "array", items: { type: "object", required: ["cluster_id", "cluster_name", "investment", "sip_proposed"], properties: {
                         cluster_id: { type: "integer" },
                         cluster_name: { type: "string" },
                         investment: { type: "number" },
@@ -914,7 +914,7 @@ export const openApiSpec = {
                 required: ["total_student_capacity", "by_cluster", "by_iti_type"],
                 properties: {
                     total_student_capacity: { type: "integer" },
-                    by_cluster: { type: "array", items: { type: "object", properties: {
+                    by_cluster: { type: "array", items: { type: "object", required: ["cluster_id", "cluster_name", "student_capacity", "iti_count"], properties: {
                         cluster_id: { type: "integer" },
                         cluster_name: { type: "string" },
                         student_capacity: { type: "integer" },
