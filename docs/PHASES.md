@@ -455,3 +455,10 @@ The current integration module provides generic source registration, reviewed ad
 Added strict runtime validation for scheduled adapter page envelopes. The scheduler now rejects malformed page objects, non-array records, batches above 500, non-boolean `hasMore`, unexpected envelope properties, cursors above the persisted 2,000-character limit, and missing/blank continuation cursors when `hasMore` is true. Opaque provider cursor values are preserved without imposing a universal syntax or ordering rule. Focused tests: `tests/integration-adapter-page.test.ts`.
 
 **Current active work:** obtain an approved external-source contract before implementing a provider adapter. Do not invent provider version ordering, snapshot semantics, or source mappings.
+
+ 
+### Phase 8 continuation — bounded concurrent scheduler batches
+
+Changed due-source claiming to select at most 10 rows in due-time/source-ID order using `FOR UPDATE SKIP LOCKED`, then update the claim tokens atomically. The scheduler processes each bounded batch concurrently rather than sequentially, preventing later claimed sources from waiting behind slow earlier syncs with leases aging unused. Sources beyond the batch remain due for a later tick. Existing lease renewal and fencing semantics are unchanged.
+
+**Current active work:** add focused PostgreSQL coverage for bounded multi-worker batch claiming and continue reviewing graceful scheduler shutdown/lease lifecycle. Provider-specific retry, pagination and version semantics remain contract-dependent.
