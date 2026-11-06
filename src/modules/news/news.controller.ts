@@ -8,6 +8,7 @@ import type {
     UpdateNewsBody,
 } from "./news.schema";
 import * as newsService from "./news.service";
+import { discardDocumentUpload, validateDocumentUpload } from "../documents/document.file-validation";
 
 /**
  * News Management module — controller layer.
@@ -74,11 +75,26 @@ export async function attachNewsFile(req: Request, res: Response): Promise<Respo
             message: "An attachment file is required",
         });
     }
-    const news = await newsService.attachNewsFile(params.id, {
-        file_path: file.path,
-        file_name: file.originalname,
-        mime_type: file.mimetype,
-        file_size: file.size,
-    });
-    return sendSuccess(res, news);
+    let safeFileName: string;
+    try {
+        safeFileName = await validateDocumentUpload(file);
+    } catch (error) {
+        // Multer has already written the file. Remove rejected content.
+        await discardDocumentUpload(file.path).catch(() => undefined);
+        throw error;
+    }
+
+    try {
+        const news = await newsService.attachNewsFile(params.id, {
+            file_path: file.path,
+            file_name: safeFileName,
+            mime_type: file.mimetype,
+            file_size: file.size,
+        });
+        return sendSuccess(res, news);
+    } catch (error) {
+        // Do not orphan a file when the metadata write fails.
+        await discardDocumentUpload(file.path).catch(() => undefined);
+        throw error;
+    }
 }
