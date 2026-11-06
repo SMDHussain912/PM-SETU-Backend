@@ -60,9 +60,9 @@ async function tick(): Promise<void> {
   running = true;
   try {
     const due = await repo.claimDueSources();
-    for (const source of due) {
-      await runClaimedSource(source);
-    }
+    // Claims are bounded in the repository; run this batch concurrently so a
+    // slow provider cannot leave later claims idle until their leases expire.
+    await Promise.all(due.map((source) => runClaimedSource(source)));
   } catch {
     logger.error("Integration scheduler tick failed");
   } finally {
