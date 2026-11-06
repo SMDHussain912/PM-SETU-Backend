@@ -665,3 +665,26 @@ npm test
 npm run build
 ```
 Confirm the new PostgreSQL test ran rather than skipped using the dedicated `PM_SETU_TEST_DATABASE_URL`.
+
+
+### Phase 8 continuation — duplicate source identities rejected within batches
+
+**Implemented on `main`; verification pending.**
+
+- Shared ingestion validation now rejects duplicate `source_record_id` values inside one batch.
+- Duplicate detection occurs after string trimming and applies to JSON, CSV, webhook and scheduled adapter ingestion.
+- Prevents ambiguous last-write-wins behaviour and misleading per-batch created/updated counts.
+- Added `tests/integration-ingest-schema.test.ts` for distinct, repeated and whitespace-normalized IDs.
+- Cross-delivery replay, correction and provider version ordering remain contract-dependent.
+
+Commits:
+- `d106549` — enforce batch identity uniqueness.
+- `a5aa529` — add schema regression tests.
+
+Verification:
+```bash
+git pull origin main
+npm run typecheck
+npm test
+npm run build
+```
