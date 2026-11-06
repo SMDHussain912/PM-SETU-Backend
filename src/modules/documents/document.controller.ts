@@ -9,6 +9,7 @@ import type {
     UpdateDocumentBody,
 } from "./document.schema";
 import * as documentService from "./document.service";
+import { toPublicDocument, toPublicDocumentVersion } from "./document.public";
 import type { DocumentAuditContext } from "./document.service";
 
 function getDocumentAuditContext(req: Request): DocumentAuditContext {
@@ -39,13 +40,13 @@ function getDocumentAuditContext(req: Request): DocumentAuditContext {
 export async function listDocuments(_req: Request, res: Response): Promise<Response> {
     const { query } = getValidated<unknown, DocumentListQuery>(res);
     const result = await documentService.listDocuments(query);
-    return sendSuccess(res, result.items, result.meta);
+    return sendSuccess(res, result.items.map(toPublicDocument), result.meta);
 }
 
 export async function getDocumentById(_req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, DocumentIdParams>(res);
     const document = await documentService.getDocumentById(params.id);
-    return sendSuccess(res, document);
+    return sendSuccess(res, toPublicDocument(document));
 }
 
 export async function downloadDocument(_req: Request, res: Response): Promise<void> {
@@ -57,7 +58,7 @@ export async function downloadDocument(_req: Request, res: Response): Promise<vo
 export async function getDocumentVersions(_req: Request, res: Response): Promise<Response> {
     const { params } = getValidated<unknown, unknown, DocumentIdParams>(res);
     const versions = await documentService.getDocumentVersions(params.id);
-    return sendSuccess(res, versions);
+    return sendSuccess(res, versions.map(toPublicDocumentVersion));
 }
 
 export async function createDocument(req: Request, res: Response): Promise<Response> {
