@@ -151,3 +151,52 @@ test("scheduled adapter recovery ingests the page using the same committed check
     unregisterIntegrationAdapter(sourceCode);
   }
 });
+
+test("scheduled adapter rejects a continuation cursor that does not advance", async () => {
+  const checkpoint = {
+    status: "PARTIAL",
+    cursor: "resume-token",
+    completedAt,
+  };
+  let runWrites = 0;
+  let ingestionCalls = 0;
+
+  registerIntegrationAdapter(sourceCode, {
+    system: "STUDENT_MIS",
+    async fetchPage() {
+      return {
+        records: [],
+        hasMore: true,
+        nextCursor: checkpoint.cursor,
+      };
+    },
+  });
+
+  const repository = {
+    async listCommittedRuns() {
+      return [checkpoint];
+    },
+    async createScheduledRun() {
+      runWrites += 1;
+      return { id: 1 };
+    },
+    async ingestBatch() {
+      ingestionCalls += 1;
+      return {};
+    },
+  } as unknown as Parameters<typeof runScheduledSource>[2];
+
+  try {
+    await assert.rejects(
+      runScheduledSource(source(), claimToken, repository),
+      (error: unknown) =>
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ADAPTER_CURSOR_NOT_ADVANCING",
+    );
+    assert.equal(runWrites, 0, "a non-advancing page must not commit a checkpoint");
+    assert.equal(ingestionCalls, 0, "a non-advancing page must not ingest records");
+  } finally {
+    unregisterIntegrationAdapter(sourceCode);
+  }
+});
