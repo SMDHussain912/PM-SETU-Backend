@@ -200,3 +200,44 @@ test("scheduled adapter rejects a continuation cursor that does not advance", as
     unregisterIntegrationAdapter(sourceCode);
   }
 });
+
+test("scheduled execution rejects push-based sources before adapter or repository work", async () => {
+  let adapterCalls = 0;
+  let checkpointReads = 0;
+  let runWrites = 0;
+  registerIntegrationAdapter(sourceCode, {
+    system: "STUDENT_MIS",
+    async fetchPage() {
+      adapterCalls += 1;
+      return { records: [], hasMore: false };
+    },
+  });
+  const repository = {
+    async listCommittedRuns() {
+      checkpointReads += 1;
+      return [];
+    },
+    async createScheduledRun() {
+      runWrites += 1;
+      return { id: 1 };
+    },
+    async ingestBatch() {
+      throw new Error("push source must not ingest through the scheduler");
+    },
+  } as unknown as Parameters<typeof runScheduledSource>[2];
+
+  try {
+    await assert.rejects(
+      runScheduledSource({ ...source(), transport: "WEBHOOK" } as typeof source extends (...args: never[]) => infer R ? R : never, claimToken, repository),
+      (error: unknown) =>
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "INTEGRATION_TRANSPORT_NOT_SCHEDULABLE",
+    );
+    assert.equal(adapterCalls, 0);
+    assert.equal(checkpointReads, 0);
+    assert.equal(runWrites, 0);
+  } finally {
+    unregisterIntegrationAdapter(sourceCode);
+  }
+});
