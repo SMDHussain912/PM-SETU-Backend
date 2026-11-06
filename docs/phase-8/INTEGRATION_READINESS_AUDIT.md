@@ -304,3 +304,10 @@ The path matcher is isolated in `integration.webhook.raw-body.ts` and covered by
 The JSON-parser verification callback now delegates to `captureIntegrationWebhookRawBody()` in `integration.webhook.raw-body.ts`. The helper accepts the Node request URL as optional and safely does nothing when it is absent or does not match the exact webhook route. For matching requests it copies the parser buffer, so later mutation of the parser's input buffer cannot alter the bytes used for HMAC verification.
 
 Regression coverage in `tests/integration-webhook-raw-body.test.ts` now exercises the capture operation itself: exact byte preservation, independent buffer ownership, ordinary-route exclusion, and missing-URL handling. This remains a transport-level safeguard only; it does not add replay protection or define provider-specific signature headers.
+
+
+## 28. Isolated webhook HMAC verification
+
+The HMAC-SHA256 comparison is now isolated in `integration.webhook.signature.ts`. The helper validates the existing `sha256=<64 hex characters>` signature shape, computes the digest over the exact raw request bytes, checks digest length, and uses Node's `timingSafeEqual` for comparison. Secret lookup, minimum secret length, transport selection, and HTTP error mapping remain in the service layer; the wire contract is unchanged.
+
+Regression coverage in `tests/integration-webhook-signature.test.ts` verifies valid signatures, body tampering, wrong secrets, malformed encodings, and the existing case-insensitive hexadecimal behaviour. This is unit-level cryptographic verification coverage, not provider replay protection or a provider acceptance test.
