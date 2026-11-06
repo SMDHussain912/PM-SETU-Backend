@@ -4,7 +4,9 @@ import { Pool } from "pg";
 import { prisma, disconnectPrisma } from "../../src/config/database";
 import { transitionApprovalWithAudit } from "../../src/modules/approvals/approval.repository";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const databaseUrl = process.env.TEST_DATABASE_URL;
+const databaseTest = databaseUrl ? test : test.skip;
+const pool = new Pool({ connectionString: databaseUrl });
 let successfulApprovalId: number;
 let failingApprovalId: number;
 let staleApprovalId: number;
@@ -43,7 +45,7 @@ test.after(async () => {
     await pool.end();
 });
 
-test("approval transition and audit entry commit together", async () => {
+databaseTest("approval transition and audit entry commit together", async () => {
     const result = await transitionApprovalWithAudit({
         id: successfulApprovalId,
         expectedStatus: "PENDING",
@@ -61,7 +63,7 @@ test("approval transition and audit entry commit together", async () => {
     assert.equal(audit.rows[0].count, "1");
 });
 
-test("audit insert failure rolls back the approval status transition", async () => {
+databaseTest("audit insert failure rolls back the approval status transition", async () => {
     await assert.rejects(() => transitionApprovalWithAudit({
         id: failingApprovalId,
         expectedStatus: "PENDING",
@@ -83,7 +85,7 @@ test("audit insert failure rolls back the approval status transition", async () 
     assert.equal(audit.rows[0].count, "0");
 });
 
-test("optimistic status guard prevents a stale transition from creating an audit row", async () => {
+databaseTest("optimistic status guard prevents a stale transition from creating an audit row", async () => {
     // Simulate another transaction changing the row after the caller read PENDING.
     await pool.query("UPDATE approvals SET status = 'SUBMITTED', updated_at = NOW() WHERE id = $1", [staleApprovalId]);
 
