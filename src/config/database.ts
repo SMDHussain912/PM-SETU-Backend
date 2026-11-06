@@ -2,7 +2,18 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
 import { env } from "./env";
 
-if (!env.databaseUrl) {
+// Unit tests often import repositories while replacing Prisma methods with
+// in-memory fakes. Keep those tests independent of PostgreSQL. Real database
+// integration tests are separately gated by TEST_DATABASE_URL and must never
+// fall back to DATABASE_URL. The deliberately unreachable test-only URL makes
+// accidental, ungated database access fail closed instead of reaching a real DB.
+const databaseUrl =
+    env.databaseUrl ??
+    (env.nodeEnv === "test"
+        ? "postgresql://test:test@127.0.0.1:1/pm_setu_test?schema=public"
+        : undefined);
+
+if (!databaseUrl) {
     throw new Error(
         'DATABASE_URL is not set. Add it to your .env file, e.g. DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu?schema=public"',
     );
@@ -18,7 +29,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 export const prisma =
     globalForPrisma.prisma ??
     new PrismaClient({
-        adapter: new PrismaPg({ connectionString: env.databaseUrl }),
+        adapter: new PrismaPg({ connectionString: databaseUrl }),
         log: env.isProduction ? ["error"] : ["query", "warn", "error"],
     });
 
