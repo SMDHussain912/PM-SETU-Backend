@@ -518,3 +518,16 @@ Commits: `96afe2c` (heartbeat helper), `729edcb` (scheduler integration), `f4de5
 
 **Current active work:** after verification, review failure-path semantics when lease ownership is lost during provider execution, then continue provider-contract readiness only when an approved source contract is supplied.
 
+
+
+### Phase 8 continuation — scheduler failure writes fenced by lease certainty
+
+The scheduler now distinguishes confirmed lease loss from an inconclusive heartbeat renewal error. Either state marks ownership as unverified, but only a renewal returning `false` is reported as confirmed lease loss. If source execution then throws, the scheduler skips checkpoint lookup and scheduler-level FAILED-run persistence while ownership is unverified. With verified ownership, it still records a sanitized failure and preserves the last committed cursor. Existing repository transaction fencing remains the final write guard.
+
+Added:
+- `tests/integration-scheduler-failure.test.ts` for stale/unverified-owner suppression and verified-owner failure persistence.
+- Updated `tests/integration-scheduler-heartbeat.test.ts` for the distinction between lost and unverified ownership.
+
+**Verification required:** pull `main`, then run typecheck, the full test suite and build. This change has not yet been verified locally.
+
+**Current active work:** continue Phase 8 provider-contract readiness only when a named source owner supplies an approved contract; do not invent provider endpoints, mappings, authentication or replay semantics.
