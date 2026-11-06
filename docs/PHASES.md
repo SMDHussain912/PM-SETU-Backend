@@ -641,3 +641,27 @@ npm test
 npm run build
 ```
 Confirm the new PostgreSQL test ran rather than skipped using the dedicated `PM_SETU_TEST_DATABASE_URL`.
+
+### Phase 8 continuation — manual ingestion fenced against source disable
+
+**Implemented on `main`; verification pending.**
+
+- Manual JSON, CSV and webhook ingestion now locks and checks the source row inside the write transaction.
+- Disable and manual ingestion serialize on the same source row, closing the read-then-write race.
+- Disabled-source race failures map to HTTP 409 `INTEGRATION_DISABLED`.
+- Scheduled ingestion continues to use its claim-token/expiry fence.
+- Added opt-in PostgreSQL test `tests/integration-manual-ingest-disable-postgres.test.ts`.
+
+Commits:
+- `76b3b02` — source enabled-state transaction fence.
+- `1bc7c98` — map disabled-source race to HTTP conflict.
+- `43521b8` — PostgreSQL regression test.
+
+Verification:
+```bash
+git pull origin main
+npm run typecheck
+npm test
+npm run build
+```
+Confirm the new PostgreSQL test ran rather than skipped using the dedicated `PM_SETU_TEST_DATABASE_URL`.
