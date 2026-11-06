@@ -23,7 +23,7 @@ export const createItiSubmissionSchema = z.object({
 });
 export const updateItiSubmissionSchema = z.object({
   title: z.string().trim().min(3).max(180).optional(),
-  payload: z.record(z.unknown()).optional(),
+  payload: z.record(z.string(), z.unknown()).optional(),
 }).strict().refine(value => Object.keys(value).length > 0, "Provide title or payload");
 export const reviewItiSubmissionSchema = z.object({
   decision: z.enum(["APPROVED","REVISION_REQUESTED","REJECTED"]),
