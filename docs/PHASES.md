@@ -486,3 +486,13 @@ The 2026-11-06 local run reported 256 passing tests and one failing PostgreSQL l
 
 **Verification status:** rerun `npm test` after pulling this correction. Do not mark the lease-renewal PostgreSQL test verified until the corrected test passes. The supplied log shows no typecheck/build diagnostics, but the test suite did fail.
 
+
+
+### Phase 8 continuation — deterministic adapter retry behaviour
+
+Extracted adapter retry execution into `src/modules/integrations/integration.retry.ts`. Production scheduled sync retains four attempts with exponential backoff (1s, 2s, 4s; capped at 8s). The wait function is injectable for deterministic tests, without real delays. Tests cover transient recovery, exact attempt count, backoff capping, invalid retry configuration, stable checkpoint context across attempts, and ensuring upstream exception details are not included in the retry result. Scheduled-source failure still records a sanitized FAILED run and preserves the last committed cursor; no failed fetch advances the checkpoint.
+
+Commits: `f467179` (retry executor), `f148764` (service integration), `d7ec1dc` (tests). Local typecheck, full test suite and build are pending user verification.
+
+**Current active work:** after verification, add service-level regression coverage around the scheduled-source retry-exhaustion path and its persisted FAILED run/checkpoint, then continue the Phase 8 provider-contract readiness work. Do not implement provider-specific retry semantics without an approved contract.
+
