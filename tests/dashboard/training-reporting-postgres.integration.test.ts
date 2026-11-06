@@ -34,6 +34,8 @@ test("PostgreSQL training reporting reconciles real, sample, unassigned and null
         });
         createdClusterIds.push(sampleCluster.id);
 
+        const baseline = await getTrainingCapacityReporting();
+
         const fixtures = [
             { itiCode: `RPT_A1_${suffix}`, itiName: "Report test A1", type: "HUB", district: "TEST", clusterId: clusterA.id, studentStrength: 20, isSample: false },
             { itiCode: `RPT_A2_${suffix}`, itiName: "Report test A2", type: "SPOKE", district: "TEST", clusterId: clusterA.id, studentStrength: 0, isSample: false },
@@ -51,13 +53,13 @@ test("PostgreSQL training reporting reconciles real, sample, unassigned and null
         const report = await getTrainingCapacityReporting();
         const byId = new Map(report.by_cluster.map((cluster) => [cluster.cluster_id, cluster]));
 
-        assert.equal(report.metric.value, 32);
+        assert.equal(report.metric.value, (baseline.metric.value ?? 0) + 32);
         assert.equal(report.metric.availability, "AVAILABLE");
         assert.deepEqual(report.coverage, {
-            total_itis: 5,
-            itis_with_capacity: 4,
-            itis_without_capacity: 1,
-            itis_without_reportable_cluster: 2,
+            total_itis: baseline.coverage.total_itis + 5,
+            itis_with_capacity: baseline.coverage.itis_with_capacity + 4,
+            itis_without_capacity: baseline.coverage.itis_without_capacity + 1,
+            itis_without_reportable_cluster: baseline.coverage.itis_without_reportable_cluster! + 2,
         });
         assert.equal(byId.get(clusterA.id)?.student_capacity, 20);
         assert.deepEqual(byId.get(clusterA.id)?.coverage, {
@@ -72,12 +74,12 @@ test("PostgreSQL training reporting reconciles real, sample, unassigned and null
             itis_without_capacity: 1,
         });
         assert.equal(byId.has(sampleCluster.id), false);
-        assert.equal(report.without_reportable_cluster.student_capacity, 12);
+        assert.equal(report.without_reportable_cluster.student_capacity, (baseline.without_reportable_cluster.student_capacity ?? 0) + 12);
         assert.deepEqual(report.without_reportable_cluster.coverage, {
-            total_itis: 2,
-            itis_with_capacity: 2,
-            itis_without_capacity: 0,
-            itis_without_reportable_cluster: 2,
+            total_itis: baseline.without_reportable_cluster.coverage.total_itis + 2,
+            itis_with_capacity: baseline.without_reportable_cluster.coverage.itis_with_capacity + 2,
+            itis_without_capacity: baseline.without_reportable_cluster.coverage.itis_without_capacity,
+            itis_without_reportable_cluster: baseline.without_reportable_cluster.coverage.itis_without_reportable_cluster! + 2,
         });
         assert.equal(
             report.by_cluster.reduce((sum, cluster) => sum + (cluster.student_capacity ?? 0), 0)
