@@ -253,3 +253,10 @@ Administrative enable/disable and schedule-update operations now set `next_sync_
 Disabling a source still clears its lease; re-enabling makes it immediately eligible. Removing a schedule still clears its lease; restoring a schedule makes it immediately eligible. Changing a non-null interval preserves an active lease so an already-running execution can finish under its current ownership.
 
 The opt-in PostgreSQL disable and unschedule tests now compare the resulting due timestamp with database time. They require the dedicated `PM_SETU_TEST_DATABASE_URL` and must be confirmed as executed rather than skipped.
+
+
+## 22. Database-clock initial source scheduling
+
+Creating an enabled integration source with a non-null sync interval now initializes `next_sync_at` with PostgreSQL `NOW()` inside the source-creation transaction. Disabled sources and sources without a configured interval retain a null due timestamp. This completes clock consistency across source creation, enable/disable, schedule updates, due claims, lease renewal and write fencing.
+
+Added opt-in PostgreSQL coverage in `tests/integration-scheduler-create-postgres.test.ts`. It verifies database-clock alignment for a newly scheduled source and confirms disabled/unscheduled sources are not made due. The test requires the dedicated `PM_SETU_TEST_DATABASE_URL` and must be confirmed as executed rather than skipped.
