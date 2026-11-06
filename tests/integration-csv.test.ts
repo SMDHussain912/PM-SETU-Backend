@@ -11,8 +11,8 @@ test("parses CSV payload JSON and quoted commas", () => {
 });
 
 test("parses quoted fields containing line breaks", () => {
-  const records = parseIntegrationCsv(`${header}\nEXT-1,v1,,"{""note"":""first line\nsecond line""}"`);
-  assert.equal(records[0].payload.note, "first line\nsecond line");
+  const records = parseIntegrationCsv(`${header}\nEXT-1,v1,,"{\n""note"":""two lines""\n}"`);
+  assert.equal(records[0].payload.note, "two lines");
 });
 
 test("rejects invalid CSV headers and unterminated quotes", () => {
