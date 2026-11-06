@@ -115,8 +115,8 @@ export async function countUsers(filters: UserListFilters): Promise<number> {
     return rows[0]?.total ?? 0;
 }
 
-export async function getUserById(id: number): Promise<UserWithRoles | null> {
-    const rows = await prisma.$queryRaw<UserRoleRow[]>(Prisma.sql`
+export async function getUserById(id: number, db: Prisma.TransactionClient = prisma): Promise<UserWithRoles | null> {
+    const rows = await db.$queryRaw<UserRoleRow[]>(Prisma.sql`
         SELECT
             u.id, u.username, u.full_name, u.email, u.status, u.created_at,
             r.id AS role_id, r.code AS role_code, r.name AS role_name
@@ -143,8 +143,8 @@ export async function createUser(input: {
     email: string | null;
     password_hash: string;
     role_ids: number[];
-}): Promise<number> {
-    return prisma.$transaction(async (tx) => {
+}, db?: Prisma.TransactionClient): Promise<number> {
+    const create = async (tx: Prisma.TransactionClient | typeof prisma) => {
         const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
             INSERT INTO users (
                 username, full_name, email, password_hash, status, updated_at
@@ -162,18 +162,20 @@ export async function createUser(input: {
                 ON CONFLICT DO NOTHING`);
         }
         return userId;
-    });
+    };
+    return db ? create(db) : prisma.$transaction(create);
 }
 
 export async function updateUser(
     id: number,
     input: { full_name?: string; email?: string | null },
+    db: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<void> {
     const updates: Prisma.Sql[] = [];
     if (input.full_name !== undefined) updates.push(Prisma.sql`full_name = ${input.full_name}`);
     if (input.email !== undefined) updates.push(Prisma.sql`email = ${input.email}`);
     if (updates.length === 0) return;
-    await prisma.$executeRaw(Prisma.sql`
+    await db.$executeRaw(Prisma.sql`
         UPDATE users SET ${Prisma.join(updates, ", ")}, updated_at = now()
         WHERE id = ${id}`);
 }
@@ -201,8 +203,9 @@ async function countActiveSuperAdmins(tx: Prisma.TransactionClient): Promise<num
 export async function updateStatusPreservingSuperAdmin(
     id: number,
     status: UserStatus,
+    db?: Prisma.TransactionClient,
 ): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+    const update = async (tx: Prisma.TransactionClient | typeof prisma) => {
         await lockSuperAdminInvariant(tx);
         const target = await tx.$queryRaw<{ is_active_super_admin: boolean }[]>(Prisma.sql`
             SELECT (u.status = 'ACTIVE' AND EXISTS (
@@ -223,7 +226,8 @@ export async function updateStatusPreservingSuperAdmin(
         }
         await tx.$executeRaw(Prisma.sql`
             UPDATE users SET status = ${status}, updated_at = now() WHERE id = ${id}`);
-    });
+    };
+    if (db) await update(db); else await prisma.$transaction(update);
 }
 
 /** Resolve role codes before assigning roles; unknown IDs must never be silently ignored. */
@@ -247,8 +251,8 @@ export async function countActiveUsersWithRole(roleCode: string): Promise<number
     return rows[0]?.total ?? 0;
 }
 
-export async function replaceUserRoles(userId: number, roleIds: number[]): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+export async function replaceUserRoles(userId: number, roleIds: number[], db?: Prisma.TransactionClient): Promise<void> {
+    const replace = async (tx: Prisma.TransactionClient | typeof prisma) => {
         await lockSuperAdminInvariant(tx);
         const target = await tx.$queryRaw<{ is_active_super_admin: boolean }[]>(Prisma.sql`
             SELECT (u.status = 'ACTIVE' AND EXISTS (
@@ -280,7 +284,8 @@ export async function replaceUserRoles(userId: number, roleIds: number[]): Promi
                 VALUES (${userId}, ${roleId})
                 ON CONFLICT DO NOTHING`);
         }
-    });
+    };
+    if (db) await replace(db); else await prisma.$transaction(replace);
 }
 
 
@@ -291,8 +296,8 @@ export interface UserScopeAssignment {
     scope_name: string;
 }
 
-export async function listUserScopes(userId: number): Promise<UserScopeAssignment[]> {
-    const rows = await prisma.$queryRaw<{ id: number; scope_type: UserScopeAssignment["scope_type"]; scope_id: number; scope_name: string }[]>(Prisma.sql`
+export async function listUserScopes(userId: number, db: Prisma.TransactionClient | typeof prisma = prisma): Promise<UserScopeAssignment[]> {
+    const rows = await db.$queryRaw<{ id: number; scope_type: UserScopeAssignment["scope_type"]; scope_id: number; scope_name: string }[]>(Prisma.sql`
         SELECT usa.id, usa.scope_type, usa.scope_id,
             CASE usa.scope_type
                 WHEN 'CLUSTER' THEN (SELECT name FROM clusters WHERE id = usa.scope_id)
@@ -310,8 +315,9 @@ export async function listUserScopes(userId: number): Promise<UserScopeAssignmen
 export async function replaceUserScopes(
     userId: number,
     scopes: Array<{ scope_type: UserScopeAssignment["scope_type"]; scope_id: number }>,
+    db?: Prisma.TransactionClient,
 ): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+    const replace = async (tx: Prisma.TransactionClient | typeof prisma) => {
         for (const scope of scopes) {
             let exists = false;
             if (scope.scope_type === "CLUSTER") {
@@ -342,11 +348,12 @@ export async function replaceUserScopes(
                 VALUES (${userId}, ${scope.scope_type}, ${scope.scope_id})
             `);
         }
-    });
+    };
+    if (db) await replace(db); else await prisma.$transaction(replace);
 }
 
 
-export async function getItiTypeById(id: number): Promise<string | null> {
-    const rows = await prisma.$queryRaw<{ type: string }[]>(Prisma.sql`SELECT type FROM itis WHERE id = ${id}`);
+export async function getItiTypeById(id: number, db: Prisma.TransactionClient | typeof prisma = prisma): Promise<string | null> {
+    const rows = await db.$queryRaw<{ type: string }[]>(Prisma.sql`SELECT type FROM itis WHERE id = ${id}`);
     return rows[0]?.type ?? null;
 }
