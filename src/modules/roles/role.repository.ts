@@ -49,8 +49,9 @@ export async function listRoles(): Promise<Role[]> {
     return rows;
 }
 
-export async function getRoleById(id: number): Promise<RoleWithPermissions | null> {
-    const rows = await prisma.$queryRaw<RolePermissionRow[]>(Prisma.sql`
+export async function getRoleById(id: number, tx?: Prisma.TransactionClient): Promise<RoleWithPermissions | null> {
+    const db = tx ?? prisma;
+    const rows = await db.$queryRaw<RolePermissionRow[]>(Prisma.sql`
         SELECT
             r.id, r.code, r.name, r.description, r.is_system,
             p.code AS permission_code
@@ -88,8 +89,8 @@ export async function createRole(input: {
     name: string;
     description: string | null;
     permission_ids: number[];
-}): Promise<number> {
-    return prisma.$transaction(async (tx) => {
+}, transaction?: Prisma.TransactionClient): Promise<number> {
+    const create = async (tx: Prisma.TransactionClient): Promise<number> => {
         const rows = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
             INSERT INTO roles (code, name, description, is_system)
             VALUES (${input.code}, ${input.name}, ${input.description}, FALSE)
@@ -102,7 +103,8 @@ export async function createRole(input: {
                 ON CONFLICT DO NOTHING`);
         }
         return roleId;
-    });
+    };
+    return transaction ? create(transaction) : prisma.$transaction(create);
 }
 
 /**
@@ -117,8 +119,9 @@ export async function updateRole(
         description?: string | null;
         permission_ids?: number[];
     },
+    transaction?: Prisma.TransactionClient,
 ): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+    const update = async (tx: Prisma.TransactionClient): Promise<void> => {
         const updates: Prisma.Sql[] = [];
         if (input.name !== undefined) {
             updates.push(Prisma.sql`name = ${input.name}`);
@@ -143,7 +146,9 @@ export async function updateRole(
                     ON CONFLICT DO NOTHING`);
             }
         }
-    });
+    };
+    if (transaction) await update(transaction);
+    else await prisma.$transaction(update);
 }
 
 /**
@@ -151,8 +156,9 @@ export async function updateRole(
  * existence + is_system BEFORE calling this, so a successful call means the
  * row is gone.
  */
-export async function deleteRole(id: number): Promise<void> {
-    await prisma.$executeRaw(Prisma.sql`
+export async function deleteRole(id: number, transaction?: Prisma.TransactionClient): Promise<void> {
+    const db = transaction ?? prisma;
+    await db.$executeRaw(Prisma.sql`
         DELETE FROM roles
         WHERE id = ${id} AND is_system = FALSE`);
 }
