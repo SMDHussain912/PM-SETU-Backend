@@ -472,3 +472,11 @@ Added `tests/integration-scheduler-batch-postgres.test.ts` and an optional Prism
 
 **Current active work:** after verification, review scheduler failure/retry and lease-renewal behaviour under real PostgreSQL timing. Provider-specific retry, pagination, version ordering and replay semantics remain contract-dependent.
 
+### Phase 8 continuation — PostgreSQL lease renewal and release fencing
+
+Added `tests/integration-scheduler-lease-renewal-postgres.test.ts`. With two independent PostgreSQL clients, it verifies owner-only renewal, rejection of wrong-token and expired-lease renewal, reclaim after expiry, stale-owner release protection, and successful release by the current owner. Repository lease renewal/release accept an optional Prisma client for test isolation while preserving the shared-client production default. Fixtures use unique source codes and exact-ID cleanup.
+
+**Verification required:** run typecheck, the full suite and build with `PM_SETU_TEST_DATABASE_URL` configured; confirm this test ran rather than skipped. The test covers lease predicates and fencing but does not wait for the production 60-second heartbeat interval.
+
+**Current active work:** after verification, add deterministic service-level tests for adapter retry exhaustion and checkpoint preservation. Retry count/backoff remain current generic implementation behaviour, not a provider-specific contract.
+
