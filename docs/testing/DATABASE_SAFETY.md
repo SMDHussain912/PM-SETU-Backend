@@ -33,7 +33,7 @@ Example setup (adjust credentials and host for your environment):
 
 ```bash
 createdb pm_setu_test
-TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public" npx prisma migrate deploy
+NODE_ENV=test TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public" npx prisma migrate deploy
 TEST_DATABASE_URL="postgresql://user:password@localhost:5432/pm_setu_test?schema=public" npm test
 ```
 
