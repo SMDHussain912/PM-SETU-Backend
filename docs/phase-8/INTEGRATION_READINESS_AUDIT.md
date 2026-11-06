@@ -146,3 +146,15 @@ Repository `renewSourceClaim()` and `releaseSourceClaim()` accept an optional Pr
 
 This exercises lease ownership and expiry predicates against PostgreSQL. It does not simulate a real 60-second scheduler heartbeat interval or establish production latency/load limits.
 
+
+
+## 12. Deterministic adapter retry execution
+
+Scheduled adapter fetches now use the shared `executeWithRetry()` helper in `integration.retry.ts`. Production behaviour remains four attempts with exponential delays of 1, 2 and 4 seconds (maximum configured delay 8 seconds). The helper accepts an injected wait function so unit tests can exercise recovery, exhaustion and backoff without sleeping.
+
+- Transient failures can recover before the attempt limit.
+- Exhaustion returns an explicit exhausted result without retaining or exposing upstream exception text.
+- The service reuses the same committed cursor and `since` timestamp for every attempt; a failed fetch records a FAILED run with the last committed cursor.
+- Retry tests are in `tests/integration-retry.test.ts`.
+- This generic retry policy does not replace provider-specific rate-limit, retry-after, idempotency or outage requirements in an approved provider contract.
+
