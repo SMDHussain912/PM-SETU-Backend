@@ -28,8 +28,36 @@ export function listCommittedRuns(sourceId: number, take = 1) {
   });
 }
 
-export async function ingestBatch(sourceId: number, records: Array<{ source_record_id: string; source_version?: string | null; occurred_at?: string | null; payload: Record<string, unknown> }>, options: { cursor?: string | null; status?: "SUCCEEDED" | "PARTIAL"; startedAt?: Date } = {}) {
+type ScheduledRunInput = { status: string; recordsRead: number; recordsCreated: number; recordsUpdated: number; recordsRejected: number; cursor: string | null; errorCode: string | null; errorSummary: string | null; startedAt: Date; completedAt: Date };
+
+/**
+ * Lock the source row and verify the fencing token inside the same transaction
+ * that commits scheduler output. A reclaiming worker must wait for this lock,
+ * and a stale token cannot write after ownership changes.
+ */
+async function lockValidSourceClaim(tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0], sourceId: number, claimToken: string): Promise<void> {
+  const owned = await tx.$queryRaw<Array<{ id: number }>>`
+    SELECT "id"
+    FROM "integration_sources"
+    WHERE "id" = ${sourceId}
+      AND "claim_token" = ${claimToken}::uuid
+      AND "claim_expires_at" > NOW()
+      AND "enabled" = TRUE
+    FOR UPDATE
+  `;
+  if (owned.length !== 1) throw new Error("SCHEDULER_LEASE_LOST");
+}
+
+export async function createScheduledRun(sourceId: number, claimToken: string, input: ScheduledRunInput) {
   return prisma.$transaction(async (tx) => {
+    await lockValidSourceClaim(tx, sourceId, claimToken);
+    return tx.integrationSyncRun.create({ data: { sourceId, ...input } });
+  });
+}
+
+export async function ingestBatch(sourceId: number, records: Array<{ source_record_id: string; source_version?: string | null; occurred_at?: string | null; payload: Record<string, unknown> }>, options: { cursor?: string | null; status?: "SUCCEEDED" | "PARTIAL"; startedAt?: Date; claimToken?: string } = {}) {
+  return prisma.$transaction(async (tx) => {
+    if (options.claimToken) await lockValidSourceClaim(tx, sourceId, options.claimToken);
     let created = 0; let updated = 0;
     for (const record of records) {
       const existing = await tx.integrationRecord.findUnique({ where: { sourceId_sourceRecordId: { sourceId, sourceRecordId: record.source_record_id } }, select: { id: true, sourceVersion: true, payload: true } });
