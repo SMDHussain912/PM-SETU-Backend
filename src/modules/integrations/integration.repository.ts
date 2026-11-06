@@ -47,19 +47,50 @@ export async function ingestBatch(sourceId: number, records: Array<{ source_reco
 }
 
 
-/** Atomically claims due schedules; competing application instances cannot claim the same row. */
+/** Atomically claims due schedules or reclaims leases abandoned by crashed workers. */
 export async function claimDueSources() {
-  const claimed = await prisma.$queryRaw<Array<{ id: number }>>`
+  const claimed = await prisma.$queryRaw<Array<{ id: number; claim_token: string }>>`
     UPDATE "integration_sources"
-    SET "next_sync_at" = NOW() + ("sync_interval_seconds" * INTERVAL '1 second')
+    SET
+      "claim_token" = gen_random_uuid(),
+      "claim_expires_at" = NOW() + INTERVAL '15 minutes',
+      "next_sync_at" = NOW() + ("sync_interval_seconds" * INTERVAL '1 second')
     WHERE "enabled" = TRUE
       AND "sync_interval_seconds" IS NOT NULL
-      AND ("next_sync_at" IS NULL OR "next_sync_at" <= NOW())
-    RETURNING "id"
+      AND (
+        "claim_token" IS NULL
+        OR "claim_expires_at" IS NULL
+        OR "claim_expires_at" <= NOW()
+      )
+      AND ("next_sync_at" IS NULL OR "next_sync_at" <= NOW()
+        OR "claim_expires_at" <= NOW())
+    RETURNING "id", "claim_token"
   `;
   if (!claimed.length) return [];
-  return prisma.integrationSource.findMany({
+  const sources = await prisma.integrationSource.findMany({
     where: { id: { in: claimed.map((row) => row.id) }, enabled: true },
     orderBy: { id: "asc" },
+  });
+  const tokens = new Map(claimed.map((row) => [row.id, row.claim_token]));
+  return sources.flatMap((source) => {
+    const claimToken = tokens.get(source.id);
+    return claimToken ? [{ ...source, claimToken }] : [];
+  });
+}
+
+/** Extend a lease only when the caller still owns it. */
+export async function renewSourceClaim(sourceId: number, claimToken: string): Promise<boolean> {
+  const result = await prisma.integrationSource.updateMany({
+    where: { id: sourceId, claimToken, claimExpiresAt: { gt: new Date() }, enabled: true },
+    data: { claimExpiresAt: new Date(Date.now() + 15 * 60 * 1000) },
+  });
+  return result.count === 1;
+}
+
+/** Release only the lease owned by this execution; stale workers cannot clear a newer claim. */
+export async function releaseSourceClaim(sourceId: number, claimToken: string): Promise<void> {
+  await prisma.integrationSource.updateMany({
+    where: { id: sourceId, claimToken },
+    data: { claimToken: null, claimExpiresAt: null },
   });
 }
