@@ -8,6 +8,7 @@ import * as documentService from "../../src/modules/documents/document.service";
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const databaseTest = databaseUrl ? test : test.skip;
 const pool = new Pool({ connectionString: databaseUrl });
+let setupStarted = false;
 let rollbackDocumentId: number;
 let successDocumentId: number;
 
@@ -22,6 +23,7 @@ async function createDocument(title: string): Promise<number> {
 test.before(async () => {
     if (!databaseUrl) return;
     assertDedicatedTestDatabaseUrl(databaseUrl);
+    setupStarted = true;
     await prisma.$connect();
     rollbackDocumentId = await createDocument("CI document before failed audit");
     successDocumentId = await createDocument("CI document before successful audit");
@@ -44,7 +46,7 @@ test.before(async () => {
 });
 
 test.after(async () => {
-    if (!databaseUrl) return;
+    if (!setupStarted) return;
     await pool.query("DROP TRIGGER IF EXISTS ci_reject_document_audit ON audit_logs");
     await pool.query("DROP FUNCTION IF EXISTS ci_reject_document_audit()");
     await pool.query(
