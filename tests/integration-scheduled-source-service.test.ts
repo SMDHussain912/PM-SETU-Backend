@@ -62,6 +62,52 @@ test("missing adapter persists failure through the injected repository", async (
   assert.equal(savedRun?.cursor, null);
 });
 
+test("adapter system mismatch persists failure through the injected repository", async () => {
+  const mismatchedSource = {
+    ...source(),
+    code: "SCHEDULED_ADAPTER_SYSTEM_MISMATCH_TEST",
+    system: "APPRENTICESHIP_MIS",
+  };
+  let savedRun: Parameters<typeof repositoryModule.createScheduledRun>[2] | undefined;
+  let runWrites = 0;
+  registerIntegrationAdapter(mismatchedSource.code, {
+    system: "STUDENT_MIS",
+    async fetchPage() {
+      throw new Error("system mismatch must not execute adapter");
+    },
+  });
+
+  const repository = {
+    async listCommittedRuns() {
+      throw new Error("system mismatch must not read a checkpoint");
+    },
+    async createScheduledRun(
+      sourceId: number,
+      token: string,
+      input: Parameters<typeof repositoryModule.createScheduledRun>[2],
+    ) {
+      assert.equal(sourceId, mismatchedSource.id);
+      assert.equal(token, claimToken);
+      savedRun = input;
+      runWrites += 1;
+      return { id: 2 };
+    },
+    async ingestBatch() {
+      throw new Error("system mismatch must not ingest");
+    },
+  } as unknown as Parameters<typeof runScheduledSource>[2];
+
+  try {
+    await runScheduledSource(mismatchedSource as NonNullable<Awaited<ReturnType<typeof repositoryModule.get>>>, claimToken, repository);
+    assert.equal(runWrites, 1);
+    assert.equal(savedRun?.status, "FAILED");
+    assert.equal(savedRun?.errorCode, "ADAPTER_SYSTEM_MISMATCH");
+    assert.equal(savedRun?.cursor, null);
+  } finally {
+    unregisterIntegrationAdapter(mismatchedSource.code);
+  }
+});
+
 test("scheduled retry exhaustion persists a sanitized failure and preserves the committed checkpoint", async () => {
   const contexts: IntegrationAdapterContext[] = [];
   const checkpoint = {
