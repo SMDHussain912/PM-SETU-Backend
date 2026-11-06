@@ -24,6 +24,16 @@ export const integrationRunSchema=z.object({
  if(v.status==="FAILED"&&!v.error_code)ctx.addIssue({code:"custom",path:["error_code"],message:"error_code is required for failed runs"});
  if(v.records_created+v.records_updated+v.records_rejected>v.records_read)ctx.addIssue({code:"custom",message:"processed record counts cannot exceed records_read"});
 });
+/** Runtime envelope validation for untrusted adapter output. */
+export const integrationAdapterPageSchema = z.object({
+ records: z.array(z.unknown()).max(500),
+ nextCursor: z.string().max(2000).nullable().optional(),
+ hasMore: z.boolean(),
+}).strict().superRefine((page,ctx)=>{
+ if(page.hasMore && (!page.nextCursor || page.nextCursor.trim().length===0)) {
+  ctx.addIssue({code:"custom",path:["nextCursor"],message:"a non-empty continuation cursor is required when hasMore is true"});
+ }
+});
 export const integrationIngestSchema=z.object({records:z.array(z.object({
  source_record_id:z.string().trim().min(1).max(200),
  source_version:z.string().trim().max(100).nullable().optional(),
