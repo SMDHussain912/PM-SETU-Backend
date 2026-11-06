@@ -872,7 +872,7 @@ On 2026-11-07, privileged user and role mutations were connected to the append-o
 
 Regression coverage verifies user/role audit projections and request metadata. CI #91 passed dependency audit, Prisma generation, all migrations against the isolated PostgreSQL database, typecheck, 346 tests with zero skips, and production build.
 
-**Remaining work:** audit inserts currently happen after the corresponding business mutation commits. Make privileged mutations and audit writes atomic (or introduce an approved durable outbox), then cover failed transitions and file operations. Continue the public list/search/summary/export field-disclosure review and deployment security verification.
+**Remaining work:** role create/update/delete now write their audit entries inside the same PostgreSQL transaction as the role and permission changes. A failed audit insert rolls back the role mutation. Added `tests/role-audit-atomicity.test.ts` to protect the transaction boundary. User create/profile/status/role/deactivation mutations still require the same transactional treatment; do not treat SEC-ROUTE-12 as fully closed. Continue failed-transition/file-operation coverage, public list/search/summary/export field-disclosure review and deployment security verification.
 
 **Owner instruction (2026-11-07):** Project owner confirms NIC discussions/approvals are complete and authorizes continued implementation without pausing for another approval round. Where an approval decision is not yet recorded in a versioned contract or provider connection details are absent, continue the independent engineering work and do not fabricate endpoints, credentials or source mappings.
 
@@ -884,3 +884,15 @@ Added `tests/dashboard/public-field-projection.test.ts` to verify that the publi
 The project owner confirms NIC approval of the existing role/permission matrix and current public read-only dashboard field set (2026-11-07). This is recorded as owner-reported acceptance; no separate signed approval artifact/version was attached to the repository. Preserve the current contract and require review for future changes.
 
 CI #93 passed dependency audit, Prisma generation, all migrations against isolated CI PostgreSQL, typecheck, 347 tests with zero skips, and production build.
+
+
+### Phase 9 continuation — atomic role mutation audit writes (2026-11-07)
+
+- Refactored role repository methods to accept an existing Prisma transaction client while preserving their standalone transaction behaviour.
+- Role create, update and delete now execute the role mutation, permission mapping changes, read-back snapshot and append-only audit insert inside one transaction.
+- Audit-write failure now aborts and rolls back the role mutation instead of leaving an unaudited committed change.
+- Added `tests/role-audit-atomicity.test.ts` to guard the service/repository transaction contract.
+- Commits: `683b8b40`, `cbfae38d`, `34a0fe61`, `7a81ee54`.
+- CI verification for these commits must be inspected before treating the change as verified.
+
+**Still open in Phase 9:** user account mutations are not yet atomically coupled to their audit writes; route-level live authorization coverage, public list/search/summary/export disclosure review, and deployment/VAPT evidence remain outstanding.
