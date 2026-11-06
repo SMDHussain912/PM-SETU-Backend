@@ -66,7 +66,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Operational requirement:** Set `CORS_ORIGIN` to the actual frontend origins in every production environment before deployment. The repository cannot determine the deployment's authoritative domains.
 
-**Disposition:** Code hardening implemented; CI verification and deployment environment configuration remain pending.
+**Disposition:** Code hardening implemented and verified by successful CI run #64 (commit `02a0ff12e969bafb0dc904cfdaf33694a35ee761`). Production deployment must still set `CORS_ORIGIN` to the actual frontend allowlist.
 
 ### SEC-ROUTE-05 — Upload storage is local filesystem storage
 
@@ -132,7 +132,7 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Regression coverage:** `tests/route-middleware-order.test.ts` now checks role-before-scope, scope-before-validation, and reassignment-guard-before-validation across the nine affected route files, in addition to the original four route families. The PostgreSQL scope integration test covers cluster inheritance to child resources, direct ITI/AIP assignments, unassigned denial, cross-cluster denial, global admin bypass, and invalid/unauthenticated requests.
 
-**Disposition:** Code remediation and structural regression tests committed; the latest CI run must be checked for final verification. Public read-field disclosure and exhaustive list/search/summary/export policy review remain open.
+**Disposition:** Code remediation and structural regression tests committed and verified by successful CI run #64 (commit `02a0ff12e969bafb0dc904cfdaf33694a35ee761`). Public read-field disclosure and exhaustive list/search/summary/export policy review remain open.
 
 
 ### SEC-ROUTE-12 — Privileged user and role mutations have incomplete audit coverage
@@ -156,7 +156,18 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Regression coverage:** `tests/documents/public-projection.test.ts` and `tests/news/public-projection.test.ts` assert that filesystem paths and internal creator IDs are absent while public metadata remains available.
 
-**Disposition:** Code remediation committed; CI verification pending. This does not constitute the broader field-level publication approval required for all public document metadata.
+**Disposition:** Code remediation committed and verified by successful CI run #64 (commit `02a0ff12e969bafb0dc904cfdaf33694a35ee761`). This does not constitute the broader field-level publication approval required for all public document metadata.
+
+
+### SEC-ROUTE-14 — Multipart upload parser lacked field and aggregate-part bounds
+
+**Evidence:** The shared Multer wrapper previously set only a per-file byte limit. It did not bound the number of multipart text fields, aggregate parts, individual field size, field-name size or header pairs. Route-level `.single()` and `.array()` calls constrained file counts for the current upload routes, but did not bound non-file multipart parser work.
+
+**Impact:** An authenticated uploader could submit an excessive number of small multipart fields or oversized field values, increasing parser and memory work despite the per-file size limit.
+
+**Remediation on `main` (2026-11-07):** Added shared Multer bounds: maximum 2 files, 10 text fields, 12 total parts, 64 KiB per field, 100-byte field names and 2,000 header pairs. The existing environment-configured per-file size limit and route-specific `.single()` / `.array()` limits remain in force. Added `tests/upload-multipart-limits.test.ts` to protect the shared bounds and ensure the two-image banner upload fits within the parser budget.
+
+**Disposition:** Code hardening committed; CI run #66 is pending verification.
 
 ## 4. Additional verification required before sign-off
 
