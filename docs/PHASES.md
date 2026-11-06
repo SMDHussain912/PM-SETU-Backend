@@ -42,6 +42,7 @@ This repository uses an **extended 10-phase implementation roadmap (Phases 0–9
 
 | Phase | Workstream | Status |
 |---|---|---|
+| 2026-11-06 | 8 | Reject scheduled adapter pages whose continuation cursor does not advance | Commits `ded6ede` and `75c5ce8`; regression test ensures no run/checkpoint or record write occurs. Local typecheck/test/build verification pending. |
 | 0 | Requirements, source audit & foundation/access baseline | <strong>Complete</strong> |
 | 1 | Foundation & access implementation | <strong>Complete</strong> |
 | 2 | Organisation & operational workflows | <strong>Complete</strong> |
