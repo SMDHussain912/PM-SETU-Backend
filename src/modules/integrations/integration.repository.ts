@@ -119,11 +119,19 @@ export async function claimDueSources(client: typeof prisma = prisma, sourceIds?
 
 /** Extend a lease only when the caller still owns it. */
 export async function renewSourceClaim(sourceId: number, claimToken: string, client: typeof prisma = prisma): Promise<boolean> {
-  const result = await client.integrationSource.updateMany({
-    where: { id: sourceId, claimToken, claimExpiresAt: { gt: new Date() }, enabled: true },
-    data: { claimExpiresAt: new Date(Date.now() + 15 * 60 * 1000) },
-  });
-  return result.count === 1;
+  // Use PostgreSQL time for both the expiry predicate and extension. Claiming
+  // and transaction fencing also use NOW(), so app-server clock drift cannot
+  // make heartbeat ownership disagree with the database.
+  const renewed = await client.$queryRaw<Array<{ id: number }>>`
+    UPDATE "integration_sources"
+    SET "claim_expires_at" = NOW() + INTERVAL '15 minutes'
+    WHERE "id" = ${sourceId}
+      AND "claim_token" = ${claimToken}::uuid
+      AND "claim_expires_at" > NOW()
+      AND "enabled" = TRUE
+    RETURNING "id"
+  `;
+  return renewed.length === 1;
 }
 
 /** Release only the lease owned by this execution; stale workers cannot clear a newer claim. */
