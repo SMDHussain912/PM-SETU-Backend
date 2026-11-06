@@ -2,7 +2,7 @@ import { prisma } from "../../config/database";
 import type { IntegrationSourceInput } from "./integration.schema";
 import type { Prisma } from "../../generated/prisma/client";
 export function list(filters: { enabled?: boolean; system?: string }) {
-  return prisma.integrationSource.findMany({ where: { ...(filters.enabled === undefined ? {} : { enabled: filters.enabled }), ...(filters.system ? { system: filters.system } : {}) }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, createdAt: true, updatedAt: true } });
+  return prisma.integrationSource.findMany({ where: { ...(filters.enabled === undefined ? {} : { enabled: filters.enabled }), ...(filters.system ? { system: filters.system } : {}) }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, syncIntervalSeconds: true, nextSyncAt: true, createdAt: true, updatedAt: true } });
 }
 export function create(input: IntegrationSourceInput, client: typeof prisma = prisma) {
   return client.$transaction(async (tx) => {
@@ -29,7 +29,7 @@ export function create(input: IntegrationSourceInput, client: typeof prisma = pr
     }
     return tx.integrationSource.findUniqueOrThrow({
       where: { id: source.id },
-      select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, createdAt: true, updatedAt: true },
+      select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, syncIntervalSeconds: true, nextSyncAt: true, createdAt: true, updatedAt: true },
     });
   });
 }
@@ -50,7 +50,7 @@ export function updateEnabled(id: number, enabled: boolean, client: typeof prism
     `;
     return tx.integrationSource.findUniqueOrThrow({
       where: { id },
-      select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
+      select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
     });
   });
 }
@@ -70,7 +70,7 @@ export function updateSchedule(id: number, seconds: number | null, client: typeo
     `;
     return tx.integrationSource.findUniqueOrThrow({
       where: { id },
-      select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, credentialRef: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
+      select: { id: true, code: true, name: true, system: true, transport: true, enabled: true, syncIntervalSeconds: true, nextSyncAt: true, updatedAt: true },
     });
   });
 }
