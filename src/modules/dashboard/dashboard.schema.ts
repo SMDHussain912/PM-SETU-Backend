@@ -8,13 +8,13 @@ import { z } from "zod";
  */
 
 export const clusterIdParamsSchema = z.object({
-    id: z.coerce.number().int().positive(),
+    id: z.coerce.number().int().positive().safe(),
 });
 
 export type ClusterIdParams = z.infer<typeof clusterIdParamsSchema>;
 
 export const itiIdParamsSchema = z.object({
-    id: z.coerce.number().int().positive(),
+    id: z.coerce.number().int().positive().safe(),
 });
 
 export type ItiIdParams = z.infer<typeof itiIdParamsSchema>;
