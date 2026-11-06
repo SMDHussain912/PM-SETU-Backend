@@ -766,3 +766,14 @@ Removed `credentialRef` from the integration source projections returned by list
 Commit: `ee5e3b4`.
 
 **Verification required:** run typecheck, the full test suite and build. Confirm integration source management and webhook ingestion still work; provider secret values must remain deployment-only.
+
+
+### Phase 8 continuation — provider source-owner contract readiness
+
+Added `docs/INTEGRATION_SOURCE_OWNER_CONTRACT_TEMPLATE.md` as the required intake and approval template before any provider-specific adapter is implemented or enabled.
+
+The template requires documented ownership and approvals, endpoint and authentication details, field-level mapping, stable record identity, pagination/checkpoint semantics, replay/idempotency rules, rate limits, privacy/security controls, sanitized test fixtures, operational support, and go-live approval. It explicitly prohibits storing live credentials or real personal data in the contract.
+
+No provider endpoint, credential, mapping, replay policy, or KPI definition has been inferred. Provider-specific work remains blocked until the named source owner supplies and approves the contract.
+
+Commit: 30da2a9 — add source-owner contract template.
