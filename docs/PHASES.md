@@ -688,3 +688,18 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+
+### Phase 8 continuation — strict CSV parser validation
+
+**Implemented on `main`; verification pending.**
+
+- CSV parsing now rejects quotes inside unquoted fields and non-delimiter characters after a closing quote.
+- Properly quoted commas, doubled quotes and multiline fields remain supported.
+- Existing 1 MB and 500-record bounds remain in place.
+- Added regression tests for malformed quoting, multiline fields and oversized input.
+
+Commits:
+- `e850e03` — enforce strict CSV quote placement.
+- `f2f9c6b` — add CSV boundary regression tests.
+- `4e2fb5c` — correct multiline CSV fixture.
