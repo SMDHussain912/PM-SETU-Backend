@@ -703,3 +703,18 @@ Commits:
 - `e850e03` — enforce strict CSV quote placement.
 - `f2f9c6b` — add CSV boundary regression tests.
 - `4e2fb5c` — correct multiline CSV fixture.
+
+
+### Phase 8 continuation — webhook-only raw-body capture
+
+**Implemented on `main`; verification pending.**
+
+- Raw JSON request bytes are copied to `req.rawBody` only for `/api/v1/integrations/webhooks/:id`.
+- Ordinary JSON API requests no longer retain an unnecessary duplicate body buffer.
+- The JSON parser's 1 MB limit and HMAC verification flow are unchanged.
+- Added path-matching tests for webhook URLs, query strings, trailing slashes and non-webhook paths.
+
+Commits:
+- `d264194` — add webhook raw-body path matcher.
+- `1ce8a45` — limit raw-body capture to webhook requests.
+- `d723cc1` — add path matcher regression tests.
