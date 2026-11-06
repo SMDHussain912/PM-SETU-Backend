@@ -4,7 +4,8 @@ import { runScheduledSource } from "./integration.service";
 
 const LEASE_HEARTBEAT_MS = 60_000;
 let timer: NodeJS.Timeout | undefined;
-let running = false;
+let stopped = false;
+let activeTick: Promise<void> | undefined;
 
 async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueSources>>[number]): Promise<void> {
   let leaseLost = false;
@@ -56,8 +57,6 @@ async function runClaimedSource(source: Awaited<ReturnType<typeof repo.claimDueS
 }
 
 async function tick(): Promise<void> {
-  if (running) return;
-  running = true;
   try {
     const due = await repo.claimDueSources();
     // Claims are bounded in the repository; run this batch concurrently so a
@@ -65,22 +64,34 @@ async function tick(): Promise<void> {
     await Promise.all(due.map((source) => runClaimedSource(source)));
   } catch {
     logger.error("Integration scheduler tick failed");
-  } finally {
-    running = false;
   }
+}
+
+function triggerTick(): void {
+  if (stopped || activeTick) return;
+  activeTick = tick().finally(() => {
+    activeTick = undefined;
+  });
 }
 
 export function startIntegrationScheduler(): void {
   if (process.env.INTEGRATION_SCHEDULER_ENABLED !== "true" || timer) return;
+  stopped = false;
   const configured = Number(process.env.INTEGRATION_SCHEDULER_POLL_SECONDS ?? "30");
   const seconds = Number.isInteger(configured) && configured >= 5 && configured <= 300 ? configured : 30;
   logger.info(`Integration scheduler enabled; polling every ${seconds}s`);
-  void tick();
-  timer = setInterval(() => void tick(), seconds * 1000);
+  triggerTick();
+  timer = setInterval(triggerTick, seconds * 1000);
   timer.unref();
 }
 
-export function stopIntegrationScheduler(): void {
+/**
+ * Stop future polling and wait for the current tick, including every claimed
+ * source's lease release, before the caller disconnects shared dependencies.
+ */
+export async function stopIntegrationScheduler(): Promise<void> {
+  stopped = true;
   if (timer) clearInterval(timer);
   timer = undefined;
+  await activeTick;
 }
