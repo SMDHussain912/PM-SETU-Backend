@@ -496,3 +496,13 @@ Commits: `f467179` (retry executor), `f148764` (service integration), `d7ec1dc` 
 
 **Current active work:** after verification, add service-level regression coverage around the scheduled-source retry-exhaustion path and its persisted FAILED run/checkpoint, then continue the Phase 8 provider-contract readiness work. Do not implement provider-specific retry semantics without an approved contract.
 
+
+
+### Phase 8 continuation — scheduled-source service retry verification
+
+Added `tests/integration-scheduled-source-service.test.ts` and an optional repository dependency seam to `runScheduledSource()` (production defaults to the existing repository module). Service tests verify retry exhaustion persists exactly one sanitized FAILED run, retains the last committed cursor, reuses the committed `since` timestamp for all four attempts, and never ingests after failure. A recovery test verifies that a transient error followed by a valid page sends records through the transactional ingestion path with the same checkpoint context and claim token.
+
+Commit: `aec732c` (service tests); `e440c5f` (repository injection seam). The retry helper and tests remain in commits `f467179`, `f148764`, and `d7ec1dc`. Local typecheck, full suite and build are pending user verification.
+
+**Current active work:** after verification, inspect integration run failure handling and lease release/heartbeat interaction end-to-end; keep provider-specific retry, rate-limit and replay behaviour blocked on an approved provider contract.
+
