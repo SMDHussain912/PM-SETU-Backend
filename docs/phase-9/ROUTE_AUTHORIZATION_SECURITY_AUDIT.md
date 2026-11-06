@@ -126,11 +126,15 @@ It is not a penetration test, VAPT, production configuration inspection, or form
 
 **Regression coverage:** `tests/route-middleware-order.test.ts` inventories all 27 protected route declarations across the four modules and asserts that each has an explicit role guard before validation; it also asserts authorization precedes CSV body parsing. This is a source-structure regression test, not a live HTTP authorization test.
 
-**Disposition:** Code remediation and structural regression test committed; pending CI verification and broader live route-level authorization coverage.
+**Additional remediation on `main` (2026-11-07):** The initial fix did not yet put resource-level scope authorization ahead of request validation. Reordered all resource-scoped registry and workflow routes in AIP, Cluster, ITI, SIP and SPV modules so the effective chain is Authentication → role authorization → resource-scope authorization → validation → controller. Cluster reassignment restrictions for ITI/AIP/SPV updates also run before validation. Public registry GET routes remain public as explicitly documented in their route modules; this change does not silently change their audience policy.
+
+**Regression coverage:** `tests/route-middleware-order.test.ts` now checks role-before-scope, scope-before-validation, and reassignment-guard-before-validation across the nine affected route files, in addition to the original four route families. The PostgreSQL scope integration test covers cluster inheritance to child resources, direct ITI/AIP assignments, unassigned denial, cross-cluster denial, global admin bypass, and invalid/unauthenticated requests.
+
+**Disposition:** Code remediation and structural regression tests committed; the latest CI run must be checked for final verification. Public read-field disclosure and exhaustive list/search/summary/export policy review remain open.
 
 ## 4. Additional verification required before sign-off
 
-- Inspect every controller/service/repository for organisation-scope filtering on list, search, summary and export endpoints; a detail-route scope guard alone does not prove collection-level isolation.
+- Protected resource-specific mutation and workflow routes in AIP, Cluster, ITI, SIP and SPV use resource-scope middleware; PostgreSQL integration coverage exists for inherited and direct assignment cases. Public registry GET routes are intentionally unguarded in the current route design. Still inspect every public list/search/summary/export response against the approved publication policy; route-level mutation guards do not prove public-field disclosure is safe.
 - Verify the role/permission matrix and permission seeding against the approved access policy.
 - Verify audit event coverage for every privileged mutation, including failed transitions and file operations.
 - Inspect file download responses for content disposition, content type, cache controls, path traversal protection and authorization.
