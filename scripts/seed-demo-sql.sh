@@ -9,21 +9,8 @@ if [[ "${NODE_ENV:-development}" == "production" ]]; then
   exit 1
 fi
 
-if [[ -f .env ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
-fi
-
-if [[ -z "${DATABASE_URL:-}" ]]; then
-  echo "DATABASE_URL is not set; configure it in .env first." >&2
-  exit 1
-fi
-
-command -v psql >/dev/null 2>&1 || {
-  echo "psql is required for this SQL entry point." >&2
-  exit 1
-}
-
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f sql/dev/seed_demo.sql
+# The project DATABASE_URL is a Prisma URL and may contain Prisma-only
+# parameters such as ?schema=public, which libpq/psql rejects. The demo
+# fixtures are managed by Prisma, so do not pass that URL to psql.
+echo "Loading PM SETU development fixtures through Prisma…"
+npm run db:seed:demo
