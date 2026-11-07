@@ -108,13 +108,13 @@ export async function getClusterSummaries(): Promise<ClusterSummary[]> {
         Prisma.sql`
             SELECT
                 c.id, c.name, c.district, c.sector,
-                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.(is_sample = FALSE OR ${includeSamples}) AND i.type = 'HUB') AS hub_itis,
-                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.(is_sample = FALSE OR ${includeSamples}) AND i.type = 'SPOKE') AS spoke_itis,
-                (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id AND a.(is_sample = FALSE OR ${includeSamples})) AS aips,
-                (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id AND s.(is_sample = FALSE OR ${includeSamples})) AS spvs,
-                (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id AND a.(is_sample = FALSE OR ${includeSamples})) AS investment
+                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND (i.is_sample = FALSE OR ${includeSamples}) AND i.type = 'HUB') AS hub_itis,
+                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND (i.is_sample = FALSE OR ${includeSamples}) AND i.type = 'SPOKE') AS spoke_itis,
+                (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id AND (a.is_sample = FALSE OR ${includeSamples})) AS aips,
+                (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id AND (s.is_sample = FALSE OR ${includeSamples})) AS spvs,
+                (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id AND (a.is_sample = FALSE OR ${includeSamples})) AS investment
             FROM clusters c
-            WHERE c.(is_sample = FALSE OR ${includeSamples})
+            WHERE (c.is_sample = FALSE OR ${includeSamples})
             ORDER BY c.name`,
     );
     return rows;
@@ -125,13 +125,13 @@ export async function getClusterById(id: number): Promise<ClusterRow | null> {
         Prisma.sql`
             SELECT
                 c.id, c.name, c.district, c.sector,
-                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.(is_sample = FALSE OR ${includeSamples}) AND i.type = 'HUB') AS hub_itis,
-                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND i.(is_sample = FALSE OR ${includeSamples}) AND i.type = 'SPOKE') AS spoke_itis,
-                (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id AND a.(is_sample = FALSE OR ${includeSamples})) AS aips,
-                (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id AND s.(is_sample = FALSE OR ${includeSamples})) AS spvs,
-                (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id AND a.(is_sample = FALSE OR ${includeSamples})) AS investment
+                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND (i.is_sample = FALSE OR ${includeSamples}) AND i.type = 'HUB') AS hub_itis,
+                (SELECT COUNT(*)::int FROM itis i WHERE i.cluster_id = c.id AND (i.is_sample = FALSE OR ${includeSamples}) AND i.type = 'SPOKE') AS spoke_itis,
+                (SELECT COUNT(*)::int FROM aips a WHERE a.cluster_id = c.id AND (a.is_sample = FALSE OR ${includeSamples})) AS aips,
+                (SELECT COUNT(*)::int FROM spvs s WHERE s.cluster_id = c.id AND (s.is_sample = FALSE OR ${includeSamples})) AS spvs,
+                (SELECT COALESCE(SUM(a.investment_amount), 0)::double precision FROM aips a WHERE a.cluster_id = c.id AND (a.is_sample = FALSE OR ${includeSamples})) AS investment
             FROM clusters c
-            WHERE c.id = ${id} AND c.(is_sample = FALSE OR ${includeSamples})`,
+            WHERE c.id = ${id} AND (c.is_sample = FALSE OR ${includeSamples})`,
     );
     return rows[0] ?? null;
 }
@@ -219,7 +219,7 @@ export async function getFinanceByCluster(): Promise<FinanceByCluster[]> {
                 SELECT cluster_id, SUM(proposed_investment) AS sip_proposed
                 FROM sips WHERE (is_sample = FALSE OR ${includeSamples}) GROUP BY cluster_id
             ) s ON s.cluster_id = c.id
-            WHERE c.(is_sample = FALSE OR ${includeSamples})
+            WHERE (c.is_sample = FALSE OR ${includeSamples})
             ORDER BY c.name`,
     );
     return rows;
@@ -258,8 +258,8 @@ export async function getTrainingCapacityState(): Promise<TrainingCapacityScope>
                 COUNT(student_strength) FILTER (WHERE c.id IS NULL)::int AS unassigned_itis_with_capacity,
                 COUNT(*) FILTER (WHERE c.id IS NULL AND student_strength IS NULL)::int AS unassigned_itis_without_capacity
             FROM itis i
-            LEFT JOIN clusters c ON c.id = i.cluster_id AND c.(is_sample = FALSE OR ${includeSamples})
-            WHERE i.(is_sample = FALSE OR ${includeSamples})`,
+            LEFT JOIN clusters c ON c.id = i.cluster_id AND (c.is_sample = FALSE OR ${includeSamples})
+            WHERE (i.is_sample = FALSE OR ${includeSamples})`,
     );
     const row = rows[0];
     return {
@@ -300,8 +300,8 @@ export async function getTrainingCapacityByCluster(): Promise<TrainingCapacityBy
                 COUNT(i.student_strength)::int AS itis_with_capacity,
                 COUNT(i.id) FILTER (WHERE i.student_strength IS NULL)::int AS itis_without_capacity
             FROM clusters c
-            LEFT JOIN itis i ON i.cluster_id = c.id AND i.(is_sample = FALSE OR ${includeSamples})
-            WHERE c.(is_sample = FALSE OR ${includeSamples})
+            LEFT JOIN itis i ON i.cluster_id = c.id AND (i.is_sample = FALSE OR ${includeSamples})
+            WHERE (c.is_sample = FALSE OR ${includeSamples})
             GROUP BY c.id, c.name
             ORDER BY c.name`,
     );
@@ -327,8 +327,8 @@ export async function getTrainingByIti(id: number): Promise<TrainingByIti | null
                 c.name AS cluster_name,
                 i.student_strength AS student_capacity
             FROM itis i
-            LEFT JOIN clusters c ON c.id = i.cluster_id AND c.(is_sample = FALSE OR ${includeSamples})
-            WHERE i.id = ${id} AND i.(is_sample = FALSE OR ${includeSamples})
+            LEFT JOIN clusters c ON c.id = i.cluster_id AND (c.is_sample = FALSE OR ${includeSamples})
+            WHERE i.id = ${id} AND (i.is_sample = FALSE OR ${includeSamples})
             LIMIT 1`,
     );
     return rows[0] ?? null;
@@ -342,8 +342,8 @@ export async function getTrainingByCluster(): Promise<TrainingByCluster[]> {
                 COALESCE(SUM(i.student_strength), 0)::int AS student_capacity,
                 COUNT(i.id)::int AS iti_count
             FROM clusters c
-            LEFT JOIN itis i ON i.cluster_id = c.id AND i.(is_sample = FALSE OR ${includeSamples})
-            WHERE c.(is_sample = FALSE OR ${includeSamples})
+            LEFT JOIN itis i ON i.cluster_id = c.id AND (i.is_sample = FALSE OR ${includeSamples})
+            WHERE (c.is_sample = FALSE OR ${includeSamples})
             GROUP BY c.id, c.name
             ORDER BY c.name`,
     );
