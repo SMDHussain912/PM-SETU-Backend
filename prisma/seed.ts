@@ -89,6 +89,9 @@ async function seed() {
     { name: `${MARK} Cluster 01 — Coastal Electronics`, district: 'Visakhapatnam', sector: 'Electronics Manufacturing' },
     { name: `${MARK} Cluster 02 — Pharma & Life Sciences`, district: 'Hyderabad', sector: 'Pharmaceuticals' },
     { name: `${MARK} Cluster 03 — Agri-Tech & Food Processing`, district: 'Anantapur', sector: 'Agro & Food Processing' },
+    { name: `${MARK} Cluster 04 — Coastal Food & Logistics`, district: 'Kakinada', sector: 'Food Processing & Logistics' },
+    { name: `${MARK} Cluster 05 — Renewable Energy & EV`, district: 'Tirupati', sector: 'Renewable Energy & Electric Mobility' },
+    { name: `${MARK} Cluster 06 — Advanced Manufacturing`, district: 'Guntur', sector: 'Advanced Manufacturing' },
   ]
   const clusters = []
   for (const c of clusterSeeds) {
@@ -106,6 +109,12 @@ async function seed() {
     { itiCode: 'DEMO-ITI-004', itiName: `${MARK} Govt ITI Sangareddy`, type: 'SPOKE', district: 'Sangareddy', clusterId: clusters[1].id, studentStrength: 275, principal: 'M. Demo Naik', contact: '9000000004', email: 'iti004.demo@example.invalid', existingTrades: ['Fitter'], proposedTrades: ['Pharma QC Assistant'], infrastructure: 'Demo: 2 workshops' },
     { itiCode: 'DEMO-ITI-005', itiName: `${MARK} Govt ITI Anantapur`, type: 'HUB', district: 'Anantapur', clusterId: clusters[2].id, studentStrength: 455, principal: 'D. Demo Naik', contact: '9000000005', email: 'iti005.demo@example.invalid', existingTrades: ['Agricultural Mechanic'], proposedTrades: ['Food Processing Tech', 'Cold Chain Tech'], infrastructure: 'Demo: 4 workshops, 2 labs' },
     { itiCode: 'DEMO-ITI-006', itiName: `${MARK} Govt ITI Kadapa`, type: 'SPOKE', district: 'Kadapa', clusterId: clusters[2].id, studentStrength: 190, principal: 'V. Demo Reddy', contact: '9000000006', email: 'iti006.demo@example.invalid', existingTrades: ['Plumber'], proposedTrades: ['Irrigation Tech'], infrastructure: 'Demo: 2 workshops' },
+    { itiCode: 'DEMO-ITI-007', itiName: `${MARK} Govt ITI Kakinada`, type: 'HUB', district: 'Kakinada', clusterId: clusters[3].id, studentStrength: 520, principal: 'A. Demo Prasad', contact: '9000000007', email: 'iti007.demo@example.invalid', existingTrades: ['Fitter', 'Electrician'], proposedTrades: ['Cold Storage Technician'], infrastructure: 'Demo: 5 workshops, 3 labs' },
+    { itiCode: 'DEMO-ITI-008', itiName: `${MARK} Govt ITI Peddapuram`, type: 'SPOKE', district: 'Kakinada', clusterId: clusters[3].id, studentStrength: 245, principal: 'B. Demo Kumar', contact: '9000000008', email: 'iti008.demo@example.invalid', existingTrades: ['Welder'], proposedTrades: ['Food Processing Technician'], infrastructure: 'Demo: 2 workshops' },
+    { itiCode: 'DEMO-ITI-009', itiName: `${MARK} Govt ITI Tirupati`, type: 'HUB', district: 'Tirupati', clusterId: clusters[4].id, studentStrength: 610, principal: 'C. Demo Rao', contact: '9000000009', email: 'iti009.demo@example.invalid', existingTrades: ['Electrician', 'Fitter'], proposedTrades: ['EV Service Technician'], infrastructure: 'Demo: 6 workshops, 4 labs' },
+    { itiCode: 'DEMO-ITI-010', itiName: `${MARK} Govt ITI Srikalahasti`, type: 'SPOKE', district: 'Tirupati', clusterId: clusters[4].id, studentStrength: 285, principal: 'D. Demo Naidu', contact: '9000000016', email: 'iti010.demo@example.invalid', existingTrades: ['Mechanic Diesel'], proposedTrades: ['Solar PV Technician'], infrastructure: 'Demo: 2 workshops' },
+    { itiCode: 'DEMO-ITI-011', itiName: `${MARK} Govt ITI Guntur`, type: 'HUB', district: 'Guntur', clusterId: clusters[5].id, studentStrength: 700, principal: 'E. Demo Reddy', contact: '9000000017', email: 'iti011.demo@example.invalid', existingTrades: ['Machinist', 'Turner'], proposedTrades: ['CNC Operator'], infrastructure: 'Demo: 7 workshops, 4 labs' },
+    { itiCode: 'DEMO-ITI-012', itiName: `${MARK} Govt ITI Tenali`, type: 'SPOKE', district: 'Guntur', clusterId: clusters[5].id, studentStrength: 330, principal: 'F. Demo Rao', contact: '9000000018', email: 'iti012.demo@example.invalid', existingTrades: ['Wireman'], proposedTrades: ['Industrial Automation'], infrastructure: 'Demo: 3 workshops' },
   ]
   const itis = []
   for (const i of itiSeeds) {
@@ -118,6 +127,9 @@ async function seed() {
     { name: `${MARK} Electronics Pvt Ltd`, sector: 'Electronics Manufacturing', status: 'ACTIVE', investmentAmount: 12500000, clusterId: clusters[0].id, academicPartner: true, contact: 'demo.electronics@example.invalid', website: 'https://example.invalid' },
     { name: `${MARK} Pharma Solutions Ltd`, sector: 'Pharmaceuticals', status: 'ACTIVE', investmentAmount: 24000000, clusterId: clusters[1].id, academicPartner: false, contact: 'demo.pharma@example.invalid', website: 'https://example.invalid' },
     { name: `${MARK} Agri Processing Co-op`, sector: 'Agro & Food Processing', status: 'MOU_SIGNED', investmentAmount: 8000000, clusterId: clusters[2].id, academicPartner: false, contact: 'demo.agri@example.invalid', website: 'https://example.invalid' },
+    { name: `${MARK} Godavari Food Systems`, sector: 'Food Processing & Logistics', status: 'ACTIVE', investmentAmount: 11500000, clusterId: clusters[3].id, academicPartner: true, contact: 'demo.godavari@example.invalid', website: 'https://example.invalid' },
+    { name: `${MARK} Rayalaseema E-Mobility`, sector: 'Renewable Energy & Electric Mobility', status: 'ACTIVE', investmentAmount: 19500000, clusterId: clusters[4].id, academicPartner: true, contact: 'demo.ev@example.invalid', website: 'https://example.invalid' },
+    { name: `${MARK} Guntur Advanced Manufacturing`, sector: 'Advanced Manufacturing', status: 'MOU_SIGNED', investmentAmount: 14500000, clusterId: clusters[5].id, academicPartner: false, contact: 'demo.manufacturing@example.invalid', website: 'https://example.invalid' },
   ]
   const aips = []
   for (const a of aipSeeds) aips.push(await prisma.aip.create({ data: { ...a, isSample: S } }))
@@ -130,6 +142,9 @@ async function seed() {
   const spvSeeds = [
     { name: `${MARK} Coastal Skills SPV`, status: 'OPERATIONAL', clusterId: clusters[0].id, aipId: aips[0].id },
     { name: `${MARK} Pharma Skills SPV`, status: 'UNDER_FORMATION', clusterId: clusters[1].id, aipId: aips[1].id },
+    { name: `${MARK} Godavari Skills SPV`, status: 'INCORPORATED', clusterId: clusters[3].id, aipId: aips[3].id },
+    { name: `${MARK} Rayalaseema Mobility SPV`, status: 'PROPOSED', clusterId: clusters[4].id, aipId: aips[4].id },
+    { name: `${MARK} Guntur Manufacturing SPV`, status: 'OPERATIONAL', clusterId: clusters[5].id, aipId: aips[5].id },
   ]
   const spvs = []
   for (const s of spvSeeds) spvs.push(await prisma.spv.create({ data: { ...s, isSample: S } }))
@@ -140,6 +155,9 @@ async function seed() {
     { status: 'APPROVED', clusterId: clusters[0].id, aipId: aips[0].id, submissionDate: new Date('2026-01-15'), version: 2, proposedInvestment: 18000000, infrastructureContribution: 9000000, equipmentContribution: 5000000, trainingContribution: 2000000, industryContribution: 12000000, governmentContribution: 6000000, approvalDate: new Date('2026-03-10'), remarks: `${MARK} approved by the demo workflow` },
     { status: 'SUBMITTED', clusterId: clusters[1].id, aipId: aips[1].id, submissionDate: new Date('2026-05-02'), version: 1, proposedInvestment: 30000000, infrastructureContribution: 14000000, equipmentContribution: 9000000, trainingContribution: 3000000, industryContribution: 22000000, governmentContribution: 8000000, remarks: `${MARK} awaiting review` },
     { status: 'DRAFT', clusterId: clusters[2].id, aipId: aips[2].id, version: 1, proposedInvestment: 9000000, remarks: `${MARK} draft — not yet submitted` },
+    { status: 'UNDER_SCRUTINY', clusterId: clusters[3].id, aipId: aips[3].id, submissionDate: new Date('2026-06-12'), version: 1, proposedInvestment: 16000000, infrastructureContribution: 7000000, equipmentContribution: 4500000, trainingContribution: 1500000, industryContribution: 10000000, governmentContribution: 6000000, remarks: `${MARK} under scrutiny` },
+    { status: 'REVISION_REQUESTED', clusterId: clusters[4].id, aipId: aips[4].id, submissionDate: new Date('2026-07-08'), version: 2, proposedInvestment: 22000000, infrastructureContribution: 10000000, equipmentContribution: 6500000, trainingContribution: 2000000, industryContribution: 14000000, governmentContribution: 8000000, remarks: `${MARK} revision requested` },
+    { status: 'RECOMMENDED', clusterId: clusters[5].id, aipId: aips[5].id, submissionDate: new Date('2026-08-15'), version: 1, proposedInvestment: 25000000, infrastructureContribution: 11000000, equipmentContribution: 8000000, trainingContribution: 2500000, industryContribution: 16000000, governmentContribution: 9000000, remarks: `${MARK} recommended in demo workflow` },
   ]
   const sips = []
   for (const s of sipSeeds) sips.push(await prisma.sip.create({ data: { ...s, isSample: S } }))
