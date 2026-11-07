@@ -27,7 +27,7 @@ import type {
  * and deliberately do not apply unapproved active/approved status filters.
  */
 
-const includeSamples = process.env.NODE_ENV !== "production";
+const includeSamples = process.env.NODE_ENV !== "production" && process.env.DEMO_DATA_ENABLED === "true";
 
 interface StateRow {
     clusters: number;
