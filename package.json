@@ -32,7 +32,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "test:ci": "NODE_ENV=test npm run db:migrate:deploy && npm run typecheck && npm test && npm run build",
     "dev:server": "tsx watch src/server.ts",
-    "db:seed:demo:sql": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f sql/dev/seed_demo.sql"
+    "db:seed:demo:sql": "bash scripts/seed-demo-sql.sh"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
