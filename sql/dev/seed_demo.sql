@@ -1,16 +1,6 @@
--- PM SETU development fixture entry point.
--- This file is intentionally a psql script, not production migration SQL.
--- It delegates to the existing Prisma fixture loader so relations, required
--- columns, generated IDs, and is_sample flags stay aligned with schema.prisma.
---
--- Run from the backend repository root:
---   npm run db:seed:demo
---
--- Or use the shell wrapper:
---   npm run dev
---
--- Safety: prisma/seed.ts refuses NODE_ENV=production, removes ONLY rows with
--- is_sample=TRUE, and inserts fictional DEMO records. Do not run against a
--- production database.
-\echo 'PM SETU demo fixtures are managed by prisma/seed.ts.'
-\echo 'Run: npm run db:seed:demo'
+-- PM SETU development demo-data loader (psql script).
+-- Run with: npm run db:seed:demo:sql
+-- The Prisma fixture loader performs dependency-aware cleanup and inserts
+-- fictional rows with is_sample=TRUE. It refuses NODE_ENV=production.
+\echo 'Loading PM SETU development fixtures through the Prisma seed script…'
+\! npm run db:seed:demo
