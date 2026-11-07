@@ -1,5 +1,5 @@
 
-require('dotenv').config()
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') })
 
 const { Pool } = require('pg')
 const bcrypt = require('bcryptjs')
@@ -40,7 +40,7 @@ async function bootstrapAdmin() {
 
   if (!username || !fullName || !password) {
     throw new Error(
-      'Set INITIAL_ADMIN_USERNAME, INITIAL_ADMIN_NAME and INITIAL_ADMIN_PASSWORD.'
+      'Set INITIAL_ADMIN_USERNAME, INITIAL_ADMIN_NAME and INITIAL_ADMIN_PASSWORD in Backend/.env.'
     )
   }
 
