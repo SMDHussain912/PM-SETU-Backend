@@ -16,30 +16,32 @@ import type { HomeKpis } from "./home.types";
  *   That is intentional: KPI values must come from the database, never from
  *   hard-coded or fake numbers.
  */
+const includeSamples = process.env.NODE_ENV !== "production" && process.env.DEMO_DATA_ENABLED === "true";
+
 export async function getHomeKpis(): Promise<HomeKpis> {
     const rows = await prisma.$queryRaw<HomeKpis[]>`
         SELECT
             (SELECT COUNT(*)::int
-               FROM clusters)                                         AS clusters,
+               FROM clusters WHERE is_sample = FALSE OR ${includeSamples})                                         AS clusters,
             (SELECT COUNT(*)::int
                FROM itis
-              WHERE itis.type = 'HUB')                                AS hub_itis,
+              WHERE (itis.is_sample = FALSE OR ${includeSamples}) AND itis.type = 'HUB')                                AS hub_itis,
             (SELECT COUNT(*)::int
                FROM itis
-              WHERE itis.type = 'SPOKE')                              AS spoke_itis,
+              WHERE (itis.is_sample = FALSE OR ${includeSamples}) AND itis.type = 'SPOKE')                              AS spoke_itis,
             (SELECT COUNT(*)::int
-               FROM aips)                                             AS aips,
+               FROM aips WHERE is_sample = FALSE OR ${includeSamples})                                             AS aips,
             (SELECT COUNT(*)::int
-               FROM spvs)                                             AS spvs,
-            (SELECT COUNT(*)::int
-               FROM sips
-              WHERE sips.status = 'SUBMITTED')                        AS sip_submitted,
+               FROM spvs WHERE is_sample = FALSE OR ${includeSamples})                                             AS spvs,
             (SELECT COUNT(*)::int
                FROM sips
-              WHERE sips.status = 'APPROVED')                         AS sip_approved,
+              WHERE (sips.is_sample = FALSE OR ${includeSamples}) AND sips.status = 'SUBMITTED')                        AS sip_submitted,
+            (SELECT COUNT(*)::int
+               FROM sips
+              WHERE (sips.is_sample = FALSE OR ${includeSamples}) AND sips.status = 'APPROVED')                         AS sip_approved,
             COALESCE(
                 (SELECT SUM(aips.investment_amount)::double precision
-                   FROM aips),
+                   FROM aips WHERE is_sample = FALSE OR ${includeSamples}),
                 0
             )                                                         AS investment,
             /* TODO(DBA): no source table/column defined yet for these two
