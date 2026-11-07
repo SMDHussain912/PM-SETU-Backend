@@ -11,15 +11,11 @@
 --   src/modules/search/search.repository.ts via Prisma $queryRaw. If a query
 --   changes here, mirror the change there (and vice versa).
 --
--- STATUS  ⚠ READ FIRST
---   The PM SETU schema does NOT exist yet:
---     - prisma/schema.prisma defines no models
---     - prisma/migrations/ does not exist
---   This file documents the PLANNED queries and the contract of what must
---   be created. NOTHING here creates tables — schema creation is owned by
---   the database developer (Prisma models or raw SQL, their choice). Until
---   the schema exists the queries fail at runtime and the endpoints return
---   a 500 error envelope. That is intentional: no fake search results.
+-- DEVELOPMENT FIXTURES
+--   Development-only sample rows are marked is_sample=TRUE. They are included
+--   in portal-wide search so local testing can exercise all seven entity types.
+--   The Prisma seed loader refuses NODE_ENV=production; production databases
+--   should never contain these fixture rows.
 --
 -- SEARCHABLE ENTITIES (existing tables only)
 --   Search is limited to entities with established database tables:
