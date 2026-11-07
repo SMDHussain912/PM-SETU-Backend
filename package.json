@@ -17,7 +17,7 @@
   },
   "scripts": {
     "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "dev": "tsx watch src/server.ts",
+    "dev": "npm run db:seed:demo && npm run dev:server",
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
@@ -30,7 +30,9 @@
     "db:seed:wipe": "tsx prisma/seed-wipe.ts",
     "test": "NODE_ENV=test tsx --test --test-concurrency=1 $(find tests -type f -name '*.test.ts' -print)",
     "db:migrate:deploy": "prisma migrate deploy",
-    "test:ci": "NODE_ENV=test npm run db:migrate:deploy && npm run typecheck && npm test && npm run build"
+    "test:ci": "NODE_ENV=test npm run db:migrate:deploy && npm run typecheck && npm test && npm run build",
+    "dev:server": "tsx watch src/server.ts",
+    "db:seed:demo:sql": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f sql/dev/seed_demo.sql"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
