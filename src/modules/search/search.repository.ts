@@ -18,10 +18,9 @@ import type { SearchFilters, SearchResultItem } from "./search.types";
  * is passed through tagged-template interpolation (bound parameters) — never
  * string-concatenate values, never use $queryRawUnsafe.
  *
- * ⚠ STATUS (full details in sql/search/search_queries.sql):
- *   The PM SETU tables do not exist yet. Until the DBA creates the real
- *   schema, these queries fail at runtime and the endpoints return a 500
- *   error envelope. That is intentional: no fake search results.
+ * Development fixtures are deliberately searchable. They are marked
+ *   is_sample=TRUE and are only created by the development-only seed command;
+ *   the seed refuses NODE_ENV=production.
  */
 
 interface SearchRow {
@@ -68,7 +67,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/clusters/' || clusters.id AS url,
                 jsonb_build_object('district', clusters.district, 'sector', clusters.sector) AS metadata
             FROM clusters
-            WHERE ${Prisma.join(clusterConditions, " OR ")} AND clusters.is_sample = FALSE
+            WHERE ${Prisma.join(clusterConditions, " OR ")}
         `);
     }
 
@@ -90,7 +89,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/itis/' || itis.id AS url,
                 jsonb_build_object('district', itis.district, 'type', itis.type) AS metadata
             FROM itis
-            WHERE ${Prisma.join(itiConditions, " OR ")} AND itis.is_sample = FALSE
+            WHERE ${Prisma.join(itiConditions, " OR ")}
         `);
     }
 
@@ -108,7 +107,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/aips/' || aips.id AS url,
                 jsonb_build_object('sector', aips.sector, 'status', aips.status) AS metadata
             FROM aips
-            WHERE ${Prisma.join(aipConditions, " OR ")} AND aips.is_sample = FALSE
+            WHERE ${Prisma.join(aipConditions, " OR ")}
         `);
     }
 
@@ -122,7 +121,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/spvs/' || spvs.id AS url,
                 jsonb_build_object('status', spvs.status) AS metadata
             FROM spvs
-            WHERE spvs.name ILIKE ${q} AND spvs.is_sample = FALSE
+            WHERE spvs.name ILIKE ${q}
         `);
     }
 
@@ -136,7 +135,7 @@ function buildSearchSubqueries(filters: SearchFilters): Prisma.Sql[] {
                 '/sips/' || sips.id AS url,
                 jsonb_build_object('status', sips.status) AS metadata
             FROM sips
-            WHERE sips.status ILIKE ${q} AND sips.is_sample = FALSE
+            WHERE sips.status ILIKE ${q}
         `);
     }
 
