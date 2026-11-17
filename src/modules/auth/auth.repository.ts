@@ -112,12 +112,14 @@ export async function findPermissionCodesByUserId(userId: number): Promise<strin
  *
  * A single UPDATE prevents concurrent failed logins from overwriting one
  * another's counter. Once the row is locked, in-flight requests cannot keep
- * incrementing the counter until the lock expires.
+ * incrementing the counter until the lock expires. The lock expiry is computed
+ * by the database clock (now() + interval) to avoid clock-skew issues between
+ * the application and PostgreSQL.
  */
 export async function recordFailedLogin(
     id: number,
     maxAttempts: number,
-    lockedUntil: Date,
+    lockMinutes: number,
 ): Promise<void> {
     await prisma.$executeRaw(Prisma.sql`
         UPDATE users
@@ -127,7 +129,7 @@ export async function recordFailedLogin(
                 ELSE failed_login_attempts + 1
             END,
             locked_until = CASE
-                WHEN failed_login_attempts + 1 >= ${maxAttempts} THEN ${lockedUntil}
+                WHEN failed_login_attempts + 1 >= ${maxAttempts} THEN now() + (${lockMinutes} * INTERVAL '1 minute')
                 ELSE locked_until
             END,
             updated_at = now()

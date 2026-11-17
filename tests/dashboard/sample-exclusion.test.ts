@@ -44,23 +44,23 @@ test("all dashboard aggregates exclude sample rows", async () => {
         }
 
         const state = statements[0];
-        assert.match(state, /FROM sips WHERE is_sample\s*=\s*FALSE AND status = 'SUBMITTED'/i);
-        assert.match(state, /FROM sips WHERE is_sample\s*=\s*FALSE AND status = 'APPROVED'/i);
+        assert.match(state, /FROM sips WHERE \(is_sample\s*=\s*FALSE\s*OR\s*\?\)\s*AND status = 'SUBMITTED'/i);
+        assert.match(state, /FROM sips WHERE \(is_sample\s*=\s*FALSE\s*OR\s*\?\)\s*AND status = 'APPROVED'/i);
 
         const finance = statements[2];
         assert.equal((finance.match(/is_sample\s*=\s*FALSE/gi) ?? []).length, 7);
 
         const financeByCluster = statements[3];
-        assert.match(financeByCluster, /FROM clusters c[\s\S]*WHERE c\.is_sample\s*=\s*FALSE/i);
-        assert.match(financeByCluster, /FROM aips WHERE is_sample\s*=\s*FALSE/i);
-        assert.match(financeByCluster, /FROM sips WHERE is_sample\s*=\s*FALSE/i);
+        assert.match(financeByCluster, /FROM clusters c[\s\S]*WHERE \(c\.is_sample\s*=\s*FALSE\s*OR\s*\?\)/i);
+        assert.match(financeByCluster, /FROM aips WHERE \(is_sample\s*=\s*FALSE\s*OR\s*\?\)/i);
+        assert.match(financeByCluster, /FROM sips WHERE \(is_sample\s*=\s*FALSE\s*OR\s*\?\)/i);
 
         const training = statements[4];
         assert.equal((training.match(/is_sample\s*=\s*FALSE/gi) ?? []).length, 3);
 
         const trainingByCluster = statements[5];
-        assert.match(trainingByCluster, /LEFT JOIN itis i ON i\.cluster_id = c\.id AND i\.is_sample\s*=\s*FALSE/i);
-        assert.match(trainingByCluster, /WHERE c\.is_sample\s*=\s*FALSE/i);
+        assert.match(trainingByCluster, /LEFT JOIN itis i ON i\.cluster_id = c\.id AND \(i\.is_sample\s*=\s*FALSE\s*OR\s*\?\)/i);
+        assert.match(trainingByCluster, /WHERE \(c\.is_sample\s*=\s*FALSE\s*OR\s*\?\)/i);
     } finally {
         client.$queryRaw = original;
     }

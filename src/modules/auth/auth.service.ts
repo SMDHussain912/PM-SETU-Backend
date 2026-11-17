@@ -126,7 +126,7 @@ export async function login(input: LoginInput, context?: AuditContext): Promise<
         await authRepository.recordFailedLogin(
             user.id,
             env.accountLock.maxAttempts,
-            new Date(Date.now() + env.accountLock.lockMinutes * 60_000),
+            env.accountLock.lockMinutes,
         );
         throw invalidCredentials();
     }

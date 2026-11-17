@@ -74,7 +74,7 @@ test("capacity aggregation preserves unavailable values and reports source cover
         assert.match(statements[0], /LEFT JOIN clusters/i);
         assert.match(statements[0], /itis_without_reportable_cluster/i);
         assert.match(statements[1], /LEFT JOIN itis/i);
-        assert.match(statements[1], /WHERE c\.is_sample\s*=\s*FALSE/i);
+        assert.match(statements[1], /WHERE \(c\.is_sample\s*=\s*FALSE\s*OR\s*\?\)/i);
     } finally {
         client.$queryRaw = original;
     }

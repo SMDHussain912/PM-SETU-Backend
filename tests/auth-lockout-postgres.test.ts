@@ -33,7 +33,7 @@ test("PostgreSQL atomically counts concurrent failed logins and applies lockout"
         const lockUntil = new Date(Date.now() + 120_000);
         await Promise.all(
             Array.from({ length: 4 }, () =>
-                recordFailedLogin(userId!, 5, lockUntil),
+                recordFailedLogin(userId!, 5, 15),
             ),
         );
 
@@ -49,7 +49,7 @@ test("PostgreSQL atomically counts concurrent failed logins and applies lockout"
 
         await Promise.all(
             Array.from({ length: 12 }, () =>
-                recordFailedLogin(userId!, 5, lockUntil),
+                recordFailedLogin(userId!, 5, 15),
             ),
         );
 
